@@ -34,12 +34,21 @@
           const cfg = await (await fetch(configUrl)).json();
 
           setStatus("synce Notes vom Indexer…");
+          const indexerBase = cfg.indexer.replace(/\/commitments$/, "");
           const kp = await SDK.Keypair.create(APP_SCALAR);
           const tree = await new SDK.MerkleTree().init();
           const wallet = new SDK.ShieldedWallet(kp, tree, "app");
-          await SDK.syncFromIndexer(cfg.indexer.replace(/\/commitments$/, ""), tree, [wallet]);
-          const note = wallet.spendable()[0];
-          if (!note) throw new Error("keine Note zum Bezahlen — erst shielden");
+          await SDK.syncFromIndexer(indexerBase, tree, [wallet]);
+
+          // bereits ausgegebene Nullifier holen → erste UNBENUTZTE Note wählen
+          const spent = new Set((await (await fetch(indexerBase + "/nullifiers")).json()).nullifiers);
+          let note = null;
+          for (const n of wallet.spendable()) {
+            const { pathIndices } = await tree.path(n.index);
+            const nf = (await SDK.noteNullifier(await n.note.commitment(), pathIndices, kp.privateKey)).toString();
+            if (!spent.has(nf)) { note = n; break; }
+          }
+          if (!note) throw new Error("keine unbenutzte Note — erst shielden");
 
           setStatus("baue Pay-Proof (Betrag " + amount + ")…");
           const dfxPub = BigInt(cfg.dfxShieldAddress.pubKey);
