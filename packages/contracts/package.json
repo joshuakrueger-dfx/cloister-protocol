@@ -1,0 +1,23 @@
+{
+  "name": "@ocp-shield/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shielded pool contracts (pool, verifier, registry) for OCP-Shield",
+  "exports": {
+    "./deploy": "./src/deploy.mjs"
+  },
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "node": "hardhat node"
+  },
+  "dependencies": {
+    "@ocp-shield/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "circomlibjs": "0.1.7",
+    "ethers": "^6.13.0",
+    "hardhat": "^2.22.10"
+  }
+}
