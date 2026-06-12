@@ -13,3 +13,5 @@ packages/prover-webview/fixtures/*.wasm
 packages/prover-webview/fixtures/*.zkey
 *.log
 .DS_Store
+.env
+.env.*
