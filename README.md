@@ -90,6 +90,15 @@ pnpm node                # Terminal 1
 pnpm demo:parallel       # Terminal 2 — 6 Zahlungen über 6 Lanes in EINEM Block; same-lane serialisiert
 ```
 
+**Trace-Audit** (Zahlung ausführen + forensisch beweisen, dass keine Spur bleibt):
+
+```bash
+pnpm node                # Terminal 1
+pnpm demo:trace          # Terminal 2 — zahlt via OCP-Flow, scannt dann die ganze Chain
+```
+Zeigt: Zahler-Adresse nicht in Tx/Calldata, kein Betrag on-chain, Deposit↔Zahlung
+nicht verknüpfbar — mit Gegenprobe gegen eine normale ERC-20-Überweisung.
+
 Erwartete Ausgabe: alle Privacy-Checks ✅ und korrekte Bilanz.
 
 ## Grenzen & nächste Schritte

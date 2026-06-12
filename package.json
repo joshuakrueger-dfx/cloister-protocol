@@ -14,7 +14,8 @@
     "demo:api": "node apps/demo/src/api-demo.js",
     "demo:indexer": "node apps/demo/src/indexer-demo.js",
     "demo:gas": "node apps/demo/src/gas-measure.js",
-    "demo:parallel": "node apps/demo/src/parallel-demo.js"
+    "demo:parallel": "node apps/demo/src/parallel-demo.js",
+    "demo:trace": "node apps/demo/src/trace-audit.js"
   },
   "engines": {
     "node": ">=20"
