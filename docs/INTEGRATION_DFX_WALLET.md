@@ -49,7 +49,20 @@ Portierung des Node-SDK (kein Rewrite, Shims):
 - **Spike-Vorlauf erledigt** (`pnpm demo:spike`): (1) snarkjs erzeugt gültigen Proof aus
   **In-Memory-Bytes** (wasm 2,4 MB + zkey 24,4 MB als Uint8Array, kein fs) → der Bundled-Asset-/
   WebView-Fall funktioniert; (2) **poseidon-lite (pure JS) == circomlibjs** → RN-Client rechnet
-  Notes/Nullifier **ohne WASM**. Offen bleibt nur das native Prover-Einbinden.
+  Notes/Nullifier **ohne WASM**.
+- **WebView-Prover in echter Browser-Engine validiert** (`packages/prover-webview`, via Playwright/
+  Chromium): erzeugt **und** verifiziert einen Cloister-Proof, Public Signals identisch zum
+  Node-SDK, **~2,4 s**. Genau dieses HTML läuft in `react-native-webview`.
+- **Offen für On-Device (der konkrete Rest):**
+  - **zkey-Asset-Logistik (24 MB):** BitBox inlinet sein WASM als base64 im HTML — für die 24-MB-
+    zkey **nicht** machbar (Bundle-Bloat / Bridge-Limit). Lösung: wasm+zkey als RN-Assets bündeln,
+    HTML via `source={{ uri, baseUrl }}` aus einem Dir laden, in dem die Artefakte liegen, und in
+    der WebView per `file://` fetchen (`allowFileAccess` + `allowingReadAccessToURL` auf iOS).
+    snarkjs (673 KB) darf inline bleiben.
+  - **Witness in RN bauen:** SDK-RN-Port (WS2) mit poseidon-lite — liefert `witnessInput` an die
+    WebView.
+  - **CloisterProverWebView**-Komponente (Muster: `BitboxWasmWebView` + `wasm-bridge.ts`) +
+    Dev-Test-Screen + `expo run:ios` auf den Simulator (terminate+relaunch, Fast Refresh unzuverl.).
 - **Spike (Schritt 2):** snarkjs im **versteckten WebView**, das BitBox-Muster
   (`BitboxWasmWebView` + `WasmBridge`) wiederverwenden → schnellster Weg zu „Proof auf dem Gerät".
 - **Prod:** **rapidsnark** als natives iOS/Android-Modul (~1–2 s, robust). Empfehlung, weil die
