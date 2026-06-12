@@ -37,21 +37,27 @@ async function main() {
   const dfx = await Keypair.create(DFX_SCALAR);
   const dfxAddr = dfx.address();
 
-  // Commitment-Cache (Hintergrund-Refresh) → /commitments antwortet sofort, kein WebView-Timeout.
+  // Cache (Hintergrund-Refresh): Commitments + verbrauchte Nullifier → /commitments & /nullifiers
+  // antworten sofort. Die Engine filtert damit bereits ausgegebene Notes raus.
   let cache = [];
+  let nullifiers = [];
+  async function chunked(filter) {
+    const latest = await provider.getBlockNumber();
+    const start = Math.max(0, latest - 40000);
+    let logs = [];
+    for (let b = start; b <= latest; b += 2000) {
+      logs = logs.concat(await poolRead.queryFilter(filter, b, Math.min(b + 1999, latest)));
+    }
+    return logs;
+  }
   async function refresh() {
     try {
-      const latest = await provider.getBlockNumber();
-      const start = Math.max(0, latest - 40000);
-      const CHUNK = 2000;
-      let logs = [];
-      for (let b = start; b <= latest; b += CHUNK) {
-        const to = Math.min(b + CHUNK - 1, latest);
-        logs = logs.concat(await poolRead.queryFilter(poolRead.filters.NewCommitment(), b, to));
-      }
-      cache = logs
+      const cl = await chunked(poolRead.filters.NewCommitment());
+      cache = cl
         .map((l) => ({ leafIndex: Number(l.args[1]), commitment: l.args[0].toString(), encryptedOutput: l.args[2] }))
         .sort((a, b) => a.leafIndex - b.leafIndex);
+      const nl = await chunked(poolRead.filters.NewNullifier());
+      nullifiers = nl.map((l) => l.args[0].toString());
     } catch (e) {
       console.log("refresh error:", e.shortMessage || e.message);
     }
@@ -87,6 +93,8 @@ async function main() {
     const fromIdx = Number(req.query.from || 0);
     res.json({ total: cache.length, commitments: cache.filter((c) => c.leafIndex >= fromIdx) });
   });
+
+  app.get("/nullifiers", (_req, res) => res.json({ nullifiers }));
 
   // Relayer: Proof broadcasten
   app.post("/v1/shielded/submit", async (req, res) => {
