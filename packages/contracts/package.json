@@ -12,7 +12,8 @@
     "node": "hardhat node"
   },
   "dependencies": {
-    "@cloister/sdk": "workspace:*"
+    "@cloister/sdk": "workspace:*",
+    "@openzeppelin/contracts": "^5.1.0"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

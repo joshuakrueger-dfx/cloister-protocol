@@ -19,8 +19,24 @@
       // Feste Test-App-Identität — MUSS mit preshield/server APP_SCALAR übereinstimmen.
       const APP_SCALAR = 1234567890123456789n;
 
+      // Jeder Netz-Call bekommt ein hartes Timeout — sonst kann ein hängender
+      // RPC/Relayer den ganzen Pay-Flow blockieren. Bei Abbruch wirft fetch,
+      // die pay()-Catch postet einen klaren Fehler an die App zurück.
+      async function fetchWithTimeout(url, opts = {}, ms = 15000) {
+        const ctrl = new AbortController();
+        const id = setTimeout(() => ctrl.abort(), ms);
+        try {
+          return await fetch(url, { ...opts, signal: ctrl.signal });
+        } catch (e) {
+          if (e.name === "AbortError") throw new Error("Zeitüberschreitung: " + url);
+          throw e;
+        } finally {
+          clearTimeout(id);
+        }
+      }
+
       async function fetchBytes(url) {
-        const r = await fetch(url);
+        const r = await fetchWithTimeout(url, {}, 30000);
         if (!r.ok) throw new Error("fetch " + url + " → " + r.status);
         return new Uint8Array(await r.arrayBuffer());
       }
@@ -31,7 +47,7 @@
           const configUrl = q.get("config");
           const amount = BigInt(q.get("amount") || "250");
           setStatus("hole Config…");
-          const cfg = await (await fetch(configUrl)).json();
+          const cfg = await (await fetchWithTimeout(configUrl)).json();
 
           setStatus("synce Notes vom Indexer…");
           const indexerBase = cfg.indexer.replace(/\/commitments$/, "");
@@ -41,7 +57,7 @@
           await SDK.syncFromIndexer(indexerBase, tree, [wallet]);
 
           // bereits ausgegebene Nullifier holen → erste UNBENUTZTE Note wählen
-          const spent = new Set((await (await fetch(indexerBase + "/nullifiers")).json()).nullifiers);
+          const spent = new Set((await (await fetchWithTimeout(indexerBase + "/nullifiers")).json()).nullifiers);
           let note = null;
           for (const n of wallet.spendable()) {
             const { pathIndices } = await tree.path(n.index);
@@ -75,7 +91,7 @@
             inputNullifiers: w.inputNullifiers, outputCommitments: w.outputCommitments,
             extData: w.extData,
           };
-          const r = await fetch(cfg.relayer, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+          const r = await fetchWithTimeout(cfg.relayer, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }, 30000);
           const out = await r.json();
           if (!r.ok) throw new Error(out.error || "relayer error");
           setStatus("✅ Bezahlt!\nTx: " + out.txHash + "\n" + out.scan);

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { JsonRpcProvider, Wallet, Contract } from "ethers";
 import { loadAbi } from "@cloister/contracts/deploy";
-import { Keypair, Note, MerkleTree, buildTransaction, syncFromChain, artifactPaths } from "@cloister/sdk";
+import { Keypair, Note, MerkleTree, buildTransaction, syncFromIndexer, artifactPaths } from "@cloister/sdk";
 
 // Shieldet eine Note für die feste App-Identität (APP_SCALAR), damit die App etwas zu
 // bezahlen hat. MUSS mit cloister-pay.html / server-testnet APP_SCALAR übereinstimmen.
@@ -29,10 +29,36 @@ const token = new Contract(dep.token, tokenAbi, deployer);
 const app = await Keypair.create(APP_SCALAR);
 console.log("App-Shield-Address pubKey:", app.publicKey.toString().slice(0, 16), "…");
 
+// Vollständigen Lane-0-Baum direkt von der Chain holen und gegen die
+// On-Chain-Root verifizieren. Der Indexer cached nur ein rollendes Fenster
+// (→ unvollständiger Baum → "stale or unknown root"), und ein einzelner
+// getLogs über die ganze History lehnt der öffentliche RPC ab — daher
+// chunked. Alle Test-Txs nutzen transact() = Lane 0, also leafIndex == lokal.
+const levels = Number(await pool.levels());
+const laneSize = 1 << levels;
+const expected = Number(await pool.laneNextIndex(0n));
+const onchainRoot = (await pool.laneRoot(0n)).toString();
 const latest = await provider.getBlockNumber();
+const CHUNK = 2000;
+const WINDOW = Number(process.env.CLOISTER_SCAN_WINDOW ?? 300000);
+const collected = [];
+for (let b = Math.max(0, latest - WINDOW); b <= latest; b += CHUNK + 1) {
+  const logs = await pool.queryFilter(pool.filters.NewCommitment(), b, Math.min(b + CHUNK, latest));
+  for (const l of logs) collected.push({ commitment: l.args[0], leafIndex: Number(l.args[1]) });
+}
 const tree = await new MerkleTree().init();
-await syncFromChain(pool, tree, [], Math.max(0, latest - 2000));
-console.log("Tree synced:", tree.leaves.length, "Commitments. Aktuelle laneRoot[0]:", (await tree.root()).toString().slice(0, 14), "…");
+collected
+  .filter((e) => Math.floor(e.leafIndex / laneSize) === 0) // nur Lane 0
+  .sort((a, b) => a.leafIndex - b.leafIndex)
+  .forEach((e) => { if (e.leafIndex >= tree.leaves.length) tree.insert(e.commitment); });
+const localRoot = (await tree.root()).toString();
+console.log(`Tree (Lane 0): ${tree.leaves.length}/${expected} Leaves, Root-Match: ${localRoot === onchainRoot}`);
+if (localRoot !== onchainRoot) {
+  throw new Error(
+    `Root-Mismatch (local ${localRoot.slice(0, 12)}… vs chain ${onchainRoot.slice(0, 12)}…). ` +
+      `Scan-Fenster vergrößern: CLOISTER_SCAN_WINDOW=600000 node src/preshield-testnet.mjs`,
+  );
+}
 
 console.log("Mint + approve…");
 await (await token.mint(deployer.address, AMOUNT)).wait();
