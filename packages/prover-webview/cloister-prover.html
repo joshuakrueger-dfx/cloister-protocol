@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cloister Prover</title>
+    <script src="./snarkjs.min.js"></script>
+  </head>
+  <body>
+    <pre id="status">Cloister WebView Prover — bereit.</pre>
+    <script>
+      const statusEl = document.getElementById("status");
+      const setStatus = (s) => { statusEl.textContent = s; };
+
+      // RN-Bridge (falls in react-native-webview gehostet)
+      const toRN = (msg) => {
+        if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(msg));
+      };
+
+      async function fetchBytes(url) {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error("fetch " + url + " → " + r.status);
+        return new Uint8Array(await r.arrayBuffer());
+      }
+
+      // Kern: erzeugt einen Groth16-Proof. wasm/zkey als URL (Browser) ODER als Uint8Array (RN).
+      window.cloisterProve = async function (witnessInput, wasmSrc, zkeySrc) {
+        const t0 = Date.now();
+        setStatus("lade Artefakte…");
+        const wasm = typeof wasmSrc === "string" ? await fetchBytes(wasmSrc) : new Uint8Array(wasmSrc);
+        const zkey = typeof zkeySrc === "string" ? await fetchBytes(zkeySrc) : new Uint8Array(zkeySrc);
+        setStatus("erzeuge Proof… (wasm " + (wasm.length / 1024 | 0) + "KB, zkey " + (zkey.length / 1048576).toFixed(1) + "MB)");
+        const { proof, publicSignals } = await window.snarkjs.groth16.fullProve(
+          witnessInput,
+          wasm,
+          { type: "mem", data: zkey },
+        );
+        const ms = Date.now() - t0;
+        setStatus("Proof fertig in " + ms + " ms ✅");
+        return { proof, publicSignals, ms };
+      };
+
+      // RN-Aufruf via postMessage: { id, witnessInput, wasmUrl|wasmB64, zkeyUrl|zkeyB64 }
+      const b64ToBytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      async function handle(msg) {
+        try {
+          const wasmSrc = msg.wasmB64 ? b64ToBytes(msg.wasmB64) : msg.wasmUrl;
+          const zkeySrc = msg.zkeyB64 ? b64ToBytes(msg.zkeyB64) : msg.zkeyUrl;
+          const out = await window.cloisterProve(msg.witnessInput, wasmSrc, zkeySrc);
+          toRN({ id: msg.id, ok: true, ...out });
+        } catch (e) {
+          setStatus("Fehler: " + e.message);
+          toRN({ id: msg.id, ok: false, error: String(e.message || e) });
+        }
+      }
+      // beide Plattformen: window (Android) + document (iOS)
+      window.addEventListener("message", (e) => { try { handle(JSON.parse(e.data)); } catch {} });
+      document.addEventListener("message", (e) => { try { handle(JSON.parse(e.data)); } catch {} });
+      toRN({ type: "ready" });
+    </script>
+  </body>
+</html>
