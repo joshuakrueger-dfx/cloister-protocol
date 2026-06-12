@@ -10,10 +10,10 @@ importers:
 
   apps/demo:
     dependencies:
-      '@ocp-shield/contracts':
+      '@cloister/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@ocp-shield/sdk':
+      '@cloister/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
       circomlibjs:
@@ -25,10 +25,10 @@ importers:
 
   packages/api:
     dependencies:
-      '@ocp-shield/contracts':
+      '@cloister/contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@ocp-shield/sdk':
+      '@cloister/sdk':
         specifier: workspace:*
         version: link:../sdk
       ethers:
@@ -56,7 +56,7 @@ importers:
 
   packages/contracts:
     dependencies:
-      '@ocp-shield/sdk':
+      '@cloister/sdk':
         specifier: workspace:*
         version: link:../sdk
     devDependencies:
@@ -75,10 +75,10 @@ importers:
 
   packages/indexer:
     dependencies:
-      '@ocp-shield/contracts':
+      '@cloister/contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@ocp-shield/sdk':
+      '@cloister/sdk':
         specifier: workspace:*
         version: link:../sdk
       ethers:

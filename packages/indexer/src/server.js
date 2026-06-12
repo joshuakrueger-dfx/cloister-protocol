@@ -1,7 +1,7 @@
 import express from "express";
 import { JsonRpcProvider, Contract } from "ethers";
-import { loadAbi } from "@ocp-shield/contracts/deploy";
-import { Note } from "@ocp-shield/sdk";
+import { loadAbi } from "@cloister/contracts/deploy";
+import { Note } from "@cloister/sdk";
 
 const RPC = process.env.RPC || "http://127.0.0.1:8545";
 const PORT = Number(process.env.PORT || 8789);
@@ -63,7 +63,7 @@ async function main() {
   });
 
   app.listen(PORT, () => {
-    console.log(`OCP-Shield indexer on http://127.0.0.1:${PORT} (pool=${poolAddr})`);
+    console.log(`Cloister indexer on http://127.0.0.1:${PORT} (pool=${poolAddr})`);
   });
 }
 

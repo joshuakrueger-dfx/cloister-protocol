@@ -1,4 +1,4 @@
-# OCP-Shield (PoC)
+# Cloister Protocol (PoC)
 
 Privacy-Layer für [OpenCryptoPay](https://github.com/openCryptoPay): ein **compliant
 encrypted-UTXO Shielded Pool**, der bei Kassenzahlungen die Verknüpfung *Wallet ↔ Zahlung*

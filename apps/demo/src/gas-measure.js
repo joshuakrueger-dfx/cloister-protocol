@@ -1,6 +1,6 @@
 import { JsonRpcProvider, Contract } from "ethers";
-import { deployAll } from "@ocp-shield/contracts/deploy";
-import { Keypair, Note, MerkleTree, ShieldedWallet, buildTransaction, syncFromChain, artifactPaths } from "@ocp-shield/sdk";
+import { deployAll } from "@cloister/contracts/deploy";
+import { Keypair, Note, MerkleTree, ShieldedWallet, buildTransaction, syncFromChain, artifactPaths } from "@cloister/sdk";
 
 const RPC = process.env.RPC || "http://127.0.0.1:8545";
 const { wasmPath, zkeyPath } = artifactPaths();

@@ -1,4 +1,4 @@
-# OCP-Shield — Technische Architektur
+# Cloister — Technische Architektur
 
 > Vertiefung zu `CONCEPT.md`. Designentscheid: **Privacy-Pools-Fork (compliant, ASP-nativ)
 > mit Railgun-Patterns** (encrypted-UTXO-Modell, Broadcaster-Netz, Viewing-Keys),
