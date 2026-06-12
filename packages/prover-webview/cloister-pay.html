@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cloister Pay</title>
+    <script src="./snarkjs.min.js"></script>
+    <script src="./cloister-sdk.browser.js"></script>
+  </head>
+  <body style="font-family: -apple-system, sans-serif; padding: 16px;">
+    <pre id="status">Cloister Pay — bereit.</pre>
+    <script>
+      const SDK = window.CloisterSDK;
+      const statusEl = document.getElementById("status");
+      const setStatus = (s) => { statusEl.textContent = s; console.log(s); };
+      const toRN = (m) => { if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(m)); };
+      const q = new URLSearchParams(location.search);
+
+      // Feste Test-App-Identität — MUSS mit preshield/server APP_SCALAR übereinstimmen.
+      const APP_SCALAR = 1234567890123456789n;
+
+      async function fetchBytes(url) {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error("fetch " + url + " → " + r.status);
+        return new Uint8Array(await r.arrayBuffer());
+      }
+
+      async function pay() {
+        try {
+          if (!SDK) throw new Error("CloisterSDK nicht geladen");
+          const configUrl = q.get("config");
+          const amount = BigInt(q.get("amount") || "250");
+          setStatus("hole Config…");
+          const cfg = await (await fetch(configUrl)).json();
+
+          setStatus("synce Notes vom Indexer…");
+          const kp = await SDK.Keypair.create(APP_SCALAR);
+          const tree = await new SDK.MerkleTree().init();
+          const wallet = new SDK.ShieldedWallet(kp, tree, "app");
+          await SDK.syncFromIndexer(cfg.indexer.replace(/\/commitments$/, ""), tree, [wallet]);
+          const note = wallet.spendable()[0];
+          if (!note) throw new Error("keine Note zum Bezahlen — erst shielden");
+
+          setStatus("baue Pay-Proof (Betrag " + amount + ")…");
+          const dfxPub = BigInt(cfg.dfxShieldAddress.pubKey);
+          const w = await SDK.buildWitness({
+            tree,
+            lane: note.lane || 0,
+            inputs: [{ note: note.note, privateKey: kp.privateKey, index: note.index }],
+            outputs: [
+              { note: new SDK.Note({ amount, pubKey: dfxPub }), encPubKey: cfg.dfxShieldAddress.encPubKey },
+              { note: new SDK.Note({ amount: note.note.amount - amount, pubKey: kp.publicKey }), encPubKey: kp.address().encPubKey },
+            ],
+            extAmount: 0n,
+          });
+          const wasm = await fetchBytes("./fixtures/transaction2.wasm");
+          const zkey = await fetchBytes("./fixtures/transaction2_final.zkey");
+          const t0 = Date.now();
+          const { proof, publicSignals } = await window.snarkjs.groth16.fullProve(w.witnessInput, wasm, { type: "mem", data: zkey });
+          const ms = Date.now() - t0;
+
+          setStatus("Proof fertig (" + ms + " ms) — sende an Relayer…");
+          const body = {
+            proof: SDK.toSolidityProof(proof),
+            root: w.root, newRoot: w.newRoot,
+            inputNullifiers: w.inputNullifiers, outputCommitments: w.outputCommitments,
+            extData: w.extData,
+          };
+          const r = await fetch(cfg.relayer, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+          const out = await r.json();
+          if (!r.ok) throw new Error(out.error || "relayer error");
+          setStatus("✅ Bezahlt!\nTx: " + out.txHash + "\n" + out.scan);
+          toRN({ type: "paid", ok: true, txHash: out.txHash, scan: out.scan, ms });
+        } catch (e) {
+          setStatus("❌ Fehler: " + (e.message || e));
+          toRN({ type: "paid", ok: false, error: String(e.message || e) });
+        }
+      }
+
+      toRN({ type: "ready" });
+      if (q.has("auto")) pay();
+      window.cloisterPay = pay;
+    </script>
+  </body>
+</html>
