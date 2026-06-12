@@ -8,6 +8,7 @@ packages/contracts/cache/
 packages/contracts/contracts/TransactionVerifier.sol
 # prover-webview: große/kopierte Binaries (via setup.sh reproduzierbar)
 packages/prover-webview/snarkjs.min.js
+packages/prover-webview/cloister-sdk.browser.js
 packages/prover-webview/fixtures/*.wasm
 packages/prover-webview/fixtures/*.zkey
 *.log
