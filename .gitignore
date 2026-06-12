@@ -6,5 +6,9 @@ packages/contracts/artifacts/
 packages/contracts/cache/
 # generierter Verifier (wird aus circuits gespiegelt)
 packages/contracts/contracts/TransactionVerifier.sol
+# prover-webview: große/kopierte Binaries (via setup.sh reproduzierbar)
+packages/prover-webview/snarkjs.min.js
+packages/prover-webview/fixtures/*.wasm
+packages/prover-webview/fixtures/*.zkey
 *.log
 .DS_Store
