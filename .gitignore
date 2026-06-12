@@ -1,0 +1,10 @@
+node_modules/
+# Circuit-Build-Artefakte & Powers-of-Tau (groß, reproduzierbar via build:circuits)
+packages/circuits/build/
+# Hardhat
+packages/contracts/artifacts/
+packages/contracts/cache/
+# generierter Verifier (wird aus circuits gespiegelt)
+packages/contracts/contracts/TransactionVerifier.sol
+*.log
+.DS_Store

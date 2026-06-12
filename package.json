@@ -1,0 +1,22 @@
+{
+  "name": "ocp-shield",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Privacy layer for OpenCryptoPay — compliant encrypted-UTXO shielded pool (PoC)",
+  "license": "MIT",
+  "scripts": {
+    "build:circuits": "pnpm --filter @ocp-shield/circuits build",
+    "compile:contracts": "pnpm --filter @ocp-shield/contracts compile",
+    "node": "pnpm --filter @ocp-shield/contracts node",
+    "api": "pnpm --filter @ocp-shield/api start",
+    "indexer": "pnpm --filter @ocp-shield/indexer start",
+    "demo": "pnpm --filter @ocp-shield/demo start",
+    "demo:api": "node apps/demo/src/api-demo.js",
+    "demo:indexer": "node apps/demo/src/indexer-demo.js",
+    "demo:gas": "node apps/demo/src/gas-measure.js",
+    "demo:parallel": "node apps/demo/src/parallel-demo.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

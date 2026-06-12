@@ -1,0 +1,16 @@
+{
+  "name": "@ocp-shield/demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "End-to-end demo: shield → private pay → aggregate settle on a local devnet",
+  "scripts": {
+    "start": "node src/demo.js"
+  },
+  "dependencies": {
+    "@ocp-shield/contracts": "workspace:*",
+    "@ocp-shield/sdk": "workspace:*",
+    "circomlibjs": "0.1.7",
+    "ethers": "^6.13.0"
+  }
+}
