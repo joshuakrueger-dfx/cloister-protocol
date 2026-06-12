@@ -160,6 +160,7 @@ export async function buildTransaction({
   return {
     proof: toSolidityProof(proof),
     publicSignals,
+    witnessInput, // für RN-Prover/Spike: exakt die Eingabe, die der mobile Prover erzeugen muss
     lane,
     root: root.toString(),
     newRoot: newRoot.toString(),
