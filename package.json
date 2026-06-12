@@ -15,7 +15,8 @@
     "demo:indexer": "node apps/demo/src/indexer-demo.js",
     "demo:gas": "node apps/demo/src/gas-measure.js",
     "demo:parallel": "node apps/demo/src/parallel-demo.js",
-    "demo:trace": "node apps/demo/src/trace-audit.js"
+    "demo:trace": "node apps/demo/src/trace-audit.js",
+    "demo:spike": "node apps/demo/src/prover-spike.mjs"
   },
   "engines": {
     "node": ">=20"

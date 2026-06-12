@@ -46,6 +46,10 @@ Portierung des Node-SDK (kein Rewrite, Shims):
 - Aufwand: mittel.
 
 ### WS3 — Prover-Backend (der harte Teil)
+- **Spike-Vorlauf erledigt** (`pnpm demo:spike`): (1) snarkjs erzeugt gültigen Proof aus
+  **In-Memory-Bytes** (wasm 2,4 MB + zkey 24,4 MB als Uint8Array, kein fs) → der Bundled-Asset-/
+  WebView-Fall funktioniert; (2) **poseidon-lite (pure JS) == circomlibjs** → RN-Client rechnet
+  Notes/Nullifier **ohne WASM**. Offen bleibt nur das native Prover-Einbinden.
 - **Spike (Schritt 2):** snarkjs im **versteckten WebView**, das BitBox-Muster
   (`BitboxWasmWebView` + `WasmBridge`) wiederverwenden → schnellster Weg zu „Proof auf dem Gerät".
 - **Prod:** **rapidsnark** als natives iOS/Android-Modul (~1–2 s, robust). Empfehlung, weil die
