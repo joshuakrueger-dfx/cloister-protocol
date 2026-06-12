@@ -1,5 +1,5 @@
 {
-  "name": "@ocp-shield/demo",
+  "name": "@cloister/demo",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,8 +8,8 @@
     "start": "node src/demo.js"
   },
   "dependencies": {
-    "@ocp-shield/contracts": "workspace:*",
-    "@ocp-shield/sdk": "workspace:*",
+    "@cloister/contracts": "workspace:*",
+    "@cloister/sdk": "workspace:*",
     "circomlibjs": "0.1.7",
     "ethers": "^6.13.0"
   }

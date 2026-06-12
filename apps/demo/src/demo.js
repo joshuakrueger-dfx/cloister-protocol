@@ -6,8 +6,8 @@ import {
   ShieldedWallet,
   buildTransaction,
   artifactPaths,
-} from "@ocp-shield/sdk";
-import { deployAll } from "@ocp-shield/contracts/deploy";
+} from "@cloister/sdk";
+import { deployAll } from "@cloister/contracts/deploy";
 
 const RPC = process.env.RPC || "http://127.0.0.1:8545";
 const { wasmPath, zkeyPath } = artifactPaths();
@@ -53,7 +53,7 @@ async function main() {
   const merchantAddr = await (await provider.getSigner(3)).getAddress();
   const aliceAddr = await deployer.getAddress();
 
-  log("\n=== OCP-Shield E2E (local devnet) ===\n");
+  log("\n=== Cloister E2E (local devnet) ===\n");
   log("Deploying stack (verifier, USDC, pool, registry)…");
   const { token, pool } = await deployAll(deployer);
   log("  pool:", await pool.getAddress());

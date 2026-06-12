@@ -1,8 +1,8 @@
 {
-  "name": "@ocp-shield/circuits",
+  "name": "@cloister/circuits",
   "version": "0.1.0",
   "private": true,
-  "description": "Groth16 circuits for the OCP-Shield shielded pool (transact UTXO)",
+  "description": "Groth16 circuits for the Cloister shielded pool (transact UTXO)",
   "scripts": {
     "build": "node scripts/build.mjs",
     "clean": "rm -rf build"

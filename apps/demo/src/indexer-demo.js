@@ -1,5 +1,5 @@
 import { JsonRpcProvider, Contract } from "ethers";
-import { loadAbi } from "@ocp-shield/contracts/deploy";
+import { loadAbi } from "@cloister/contracts/deploy";
 import {
   Keypair,
   Note,
@@ -10,7 +10,7 @@ import {
   syncFromIndexer,
   artifactPaths,
   OcpClient,
-} from "@ocp-shield/sdk";
+} from "@cloister/sdk";
 
 const RPC = process.env.RPC || "http://127.0.0.1:8545";
 const API = process.env.API || "http://127.0.0.1:8788";
@@ -51,7 +51,7 @@ async function main() {
   const cfg = await client.config();
   const poolAbi = loadAbi("ShieldedPool", "ShieldedPool");
 
-  log("\n=== OCP-Shield: Indexer + View-Tags (Note-Discovery) ===\n");
+  log("\n=== Cloister: Indexer + View-Tags (Note-Discovery) ===\n");
   const driveTree = await new MerkleTree().init(); // nur zum Treiben der Shields
 
   // 4 Decoy-User shielden je 100 → Fremd-Notes, die der Tag-Filter verwerfen soll

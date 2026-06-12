@@ -1,5 +1,5 @@
 import { JsonRpcProvider, Contract } from "ethers";
-import { loadAbi } from "@ocp-shield/contracts/deploy";
+import { loadAbi } from "@cloister/contracts/deploy";
 import {
   Keypair,
   Note,
@@ -9,7 +9,7 @@ import {
   syncFromChain,
   artifactPaths,
   OcpClient,
-} from "@ocp-shield/sdk";
+} from "@cloister/sdk";
 
 const RPC = process.env.RPC || "http://127.0.0.1:8545";
 const API = process.env.API || "http://127.0.0.1:8788";
@@ -22,7 +22,7 @@ async function main() {
   const aliceAddr = await alice.getAddress();
   const client = new OcpClient(API);
 
-  log("\n=== OCP-Shield: Zahlung über die HTTP-API (Shielded Methods) ===\n");
+  log("\n=== Cloister: Zahlung über die HTTP-API (Shielded Methods) ===\n");
   const cfg = await client.config();
   log("Provider-Config:", { pool: cfg.pool, token: cfg.token, chainId: cfg.chainId });
 

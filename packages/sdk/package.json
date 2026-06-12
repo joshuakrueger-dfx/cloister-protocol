@@ -1,9 +1,9 @@
 {
-  "name": "@ocp-shield/sdk",
+  "name": "@cloister/sdk",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Client SDK for OCP-Shield: keys, notes, merkle tree, note encryption, proof generation",
+  "description": "Client SDK for Cloister: keys, notes, merkle tree, note encryption, proof generation",
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js"

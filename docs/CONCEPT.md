@@ -1,4 +1,4 @@
-# OCP-Shield — Privacy Layer für OpenCryptoPay
+# Cloister — Privacy Layer für OpenCryptoPay
 
 > Arbeitstitel. Eigenständiges Produkt, das den OpenCryptoPay-Standard um vertrauliche
 > Zahlungen erweitert. Chain-agnostisch (jede EVM-Chain), als Managed Service / Lizenz
@@ -292,7 +292,7 @@ größter Hebel.
 
 ## 12. Implementierbarkeit durch Dritte (offener Standard, kein Lock-in)
 
-**Designziel:** OCP-Shield ist so konzipiert, dass **jedes Wallet und jeder
+**Designziel:** Cloister ist so konzipiert, dass **jedes Wallet und jeder
 Zahlungsanbieter/PSP es implementieren kann** — ohne Erlaubnis oder Abhängigkeit von DFX.
 DFX ist der **Referenz-Betreiber** der Rollen, nicht eine fest verdrahtete Voraussetzung.
 

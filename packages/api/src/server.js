@@ -1,6 +1,6 @@
 import express from "express";
 import { JsonRpcProvider, Contract } from "ethers";
-import { deployAll, loadAbi } from "@ocp-shield/contracts/deploy";
+import { deployAll, loadAbi } from "@cloister/contracts/deploy";
 import {
   Keypair,
   MerkleTree,
@@ -8,7 +8,7 @@ import {
   buildTransaction,
   syncFromChain,
   artifactPaths,
-} from "@ocp-shield/sdk";
+} from "@cloister/sdk";
 
 const RPC = process.env.RPC || "http://127.0.0.1:8545";
 const PORT = Number(process.env.PORT || 8788);
@@ -148,7 +148,7 @@ async function main() {
   });
 
   app.listen(PORT, () => {
-    console.log(`OCP-Shield mock provider + relayer on ${BASE}`);
+    console.log(`Cloister mock provider + relayer on ${BASE}`);
     console.log(`  pool=${poolAddr} token=${tokenAddr} chainId=${chainId}`);
   });
 }

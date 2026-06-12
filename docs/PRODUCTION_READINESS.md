@@ -1,4 +1,4 @@
-# OCP-Shield — Produktisierung & Skalierung (offene Blocker)
+# Cloister — Produktisierung & Skalierung (offene Blocker)
 
 > Was zwischen dem heutigen PoC und einem „seriösen Tool für Millionen Zahlungen auf Base"
 > steht. Sortiert nach **was den Pitch/Launch zuerst killt**. Jeder Punkt ist ein späteres

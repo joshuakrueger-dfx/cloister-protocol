@@ -1,8 +1,8 @@
 {
-  "name": "@ocp-shield/contracts",
+  "name": "@cloister/contracts",
   "version": "0.1.0",
   "private": true,
-  "description": "Shielded pool contracts (pool, verifier, registry) for OCP-Shield",
+  "description": "Shielded pool contracts (pool, verifier, registry) for Cloister",
   "exports": {
     "./deploy": "./src/deploy.mjs"
   },
@@ -12,7 +12,7 @@
     "node": "hardhat node"
   },
   "dependencies": {
-    "@ocp-shield/sdk": "workspace:*"
+    "@cloister/sdk": "workspace:*"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

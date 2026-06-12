@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { ContractFactory } from "ethers";
-import { MerkleTree } from "@ocp-shield/sdk";
+import { MerkleTree } from "@cloister/sdk";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ARTIFACTS = resolve(__dirname, "..", "artifacts", "contracts");

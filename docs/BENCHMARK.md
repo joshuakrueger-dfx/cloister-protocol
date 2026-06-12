@@ -1,4 +1,4 @@
-# OCP-Shield — Kosten- & Latenz-Benchmark (v0.1)
+# Cloister — Kosten- & Latenz-Benchmark (v0.1)
 
 > **Status: referenz-abgeleitete Schätzung, keine eigene Messung.** Unsere Contracts/Circuits
 > existieren noch nicht — die Zahlen stammen aus veröffentlichten Werten vergleichbarer

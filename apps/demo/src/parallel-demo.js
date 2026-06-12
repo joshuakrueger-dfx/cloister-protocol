@@ -1,6 +1,6 @@
 import { JsonRpcProvider, Contract } from "ethers";
-import { deployAll } from "@ocp-shield/contracts/deploy";
-import { Keypair, Note, MerkleTree, ShieldedWallet, buildTransaction, artifactPaths, MERKLE_LEVELS } from "@ocp-shield/sdk";
+import { deployAll } from "@cloister/contracts/deploy";
+import { Keypair, Note, MerkleTree, ShieldedWallet, buildTransaction, artifactPaths, MERKLE_LEVELS } from "@cloister/sdk";
 
 const RPC = process.env.RPC || "http://127.0.0.1:8545";
 const { wasmPath, zkeyPath } = artifactPaths();
@@ -77,7 +77,7 @@ async function main() {
   const relayer = await provider.getSigner(1);
   const M = 6; // parallele Lanes
 
-  log("\n=== OCP-Shield: Lane-Parallelisierer ===\n");
+  log("\n=== Cloister: Lane-Parallelisierer ===\n");
   const { token, pool, numLanes } = await deployAll(funder);
   log(`Pool deployed mit ${numLanes} Lanes.`);
 
