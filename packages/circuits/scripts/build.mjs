@@ -4,6 +4,7 @@
 // Verification-Key + WASM-Prover.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -55,18 +56,34 @@ if (!existsSync(ptau)) {
     const t0 = resolve(PTAU_DIR, `pot${power}_0000.ptau`);
     const t1 = resolve(PTAU_DIR, `pot${power}_0001.ptau`);
     run(SNARKJS, ["powersoftau", "new", "bn128", String(power), t0, "-v"]);
-    run(SNARKJS, ["powersoftau", "contribute", t0, t1, "--name=ocp-shield", "-e=ocp-shield-poc-entropy"]);
+    run(SNARKJS, ["powersoftau", "contribute", t0, t1, "--name=cloister", `-e=${randomBytes(64).toString("hex")}`]);
     run(SNARKJS, ["powersoftau", "prepare", "phase2", t1, ptau, "-v"]);
   }
 } else {
   console.log(`\n[3/5] ptau cached: ${ptau}`);
 }
 
-console.log("\n[4/5] groth16 setup + contribute");
+console.log("\n[4/5] groth16 Phase-2: setup → contribution(s) → beacon → verify");
 const zkey0 = resolve(BUILD, `${CIRCUIT}_0000.zkey`);
+const zkeyContrib = resolve(BUILD, `${CIRCUIT}_contrib.zkey`);
 const zkeyFinal = resolve(BUILD, `${CIRCUIT}_final.zkey`);
 run(SNARKJS, ["groth16", "setup", resolve(BUILD, `${CIRCUIT}.r1cs`), ptau, zkey0]);
-run(SNARKJS, ["zkey", "contribute", zkey0, zkeyFinal, "--name=ocp-shield-poc", "-e=ocp-shield-poc-contribution"]);
+
+// Entropie kommt aus einer SICHEREN Quelle und wird NIE ins Repo geschrieben (vorher war hier
+// ein hartcodierter String → toxic waste rekonstruierbar → jeder Proof fälschbar).
+// PRODUKTION: echte Multi-Party-Ceremony — mehrere unabhängige Beitragende auf separater
+// Hardware, je via CEREMONY_ENTROPY, Transcript veröffentlichen. Hier: frische Krypto-Entropie.
+const entropy = process.env.CEREMONY_ENTROPY || randomBytes(64).toString("hex");
+run(SNARKJS, ["zkey", "contribute", zkey0, zkeyContrib, "--name=cloister-contrib-1", `-e=${entropy}`]);
+
+// Verifiable-Beacon-Finalisierung (öffentlicher, nachträglich verifizierbarer Zufall).
+// PRODUKTION: ein zukünftiger Block-Hash / drand-Beacon, öffentlich bekannt gemacht.
+const beacon = process.env.CEREMONY_BEACON ||
+  "0101010101010101010101010101010101010101010101010101010101010101";
+run(SNARKJS, ["zkey", "beacon", zkeyContrib, zkeyFinal, beacon, "10", "--name=cloister-beacon"]);
+
+// Finalen zkey gegen r1cs + ptau verifizieren (stellt sicher, dass die Contributions korrekt sind).
+run(SNARKJS, ["zkey", "verify", resolve(BUILD, `${CIRCUIT}.r1cs`), ptau, zkeyFinal]);
 
 console.log("\n[5/5] export verification key + solidity verifier");
 run(SNARKJS, ["zkey", "export", "verificationkey", zkeyFinal, resolve(BUILD, "verification_key.json")]);

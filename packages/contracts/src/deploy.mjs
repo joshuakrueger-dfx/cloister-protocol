@@ -37,6 +37,7 @@ export async function deployAll(signer, { levels = 20, numLanes = 8 } = {}) {
     initialRoot,
     await verifier.getAddress(),
     await token.getAddress(),
+    await signer.getAddress(), // guardian (kann nur Einzahlungen pausieren)
   ]);
   const registry = await deploy("PoolRegistry", "PoolRegistry", signer);
 

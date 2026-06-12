@@ -1,15 +1,21 @@
 # Cloister Protocol (PoC)
 
-Privacy-Layer für [OpenCryptoPay](https://github.com/openCryptoPay): ein **compliant
-encrypted-UTXO Shielded Pool**, der bei Kassenzahlungen die Verknüpfung *Wallet ↔ Zahlung*
-bricht. Niemand (Händler, On-chain-Beobachter, selbst der Settlement-Broker) erfährt die
+**Universeller Privacy-Layer für Zahlungen auf jeder EVM-Chain.** Ein **compliant
+encrypted-UTXO Shielded Pool**, der bei einer Zahlung die Verknüpfung *Wallet ↔ Zahlung*
+bricht: niemand (Händler, On-chain-Beobachter, selbst der Settlement-Broker) erfährt die
 Zahler-Adresse oder kann daraus Guthaben/weitere Wallets/Vermögen ableiten.
 
-> ⚠️ **Status: Proof of Concept — NICHT produktionsreif.** Lokaler Single-Contributor
-> Trusted-Setup, kein Audit, vereinfachtes Schlüssel-/Compliance-Modell. Siehe
-> [Grenzen & nächste Schritte](#grenzen--nächste-schritte). Konzept & Architektur:
-> [`docs/CONCEPT.md`](docs/CONCEPT.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md),
-> [`docs/BENCHMARK.md`](docs/BENCHMARK.md).
+Cloister ist **nicht an ein Produkt gebunden** — jede Wallet, jeder PSP und jeder
+Payment-Flow kann den Pool als geteilte Privacy-Infrastruktur nutzen.
+[OpenCryptoPay](https://github.com/openCryptoPay) ist die **erste Integration**
+([`docs/INTEGRATION_DFX_WALLET.md`](docs/INTEGRATION_DFX_WALLET.md)).
+
+> ⚠️ **Status: Proof of Concept — NICHT produktionsreif.** Es gab einen adversarialen
+> internen Audit; die Contract- und kritischen Circuit-Befunde sind gehärtet
+> (Reentrancy/CEI, SafeERC20, Skalar-Bindung u.a.) — siehe [`docs/SECURITY.md`](docs/SECURITY.md).
+> **Offen:** echte Multi-Party-Ceremony, zwei externe Audits, Compliance-Schicht im Circuit.
+> Konzept & Architektur: [`docs/CONCEPT.md`](docs/CONCEPT.md),
+> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/BENCHMARK.md`](docs/BENCHMARK.md).
 
 ## Was der PoC beweist
 
