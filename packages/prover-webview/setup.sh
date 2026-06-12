@@ -9,4 +9,7 @@ cp "$SNARKJS" "$HERE/snarkjs.min.js"
 cp "$ROOT/packages/circuits/build/transaction2_js/transaction2.wasm" "$HERE/fixtures/"
 cp "$ROOT/packages/circuits/build/transaction2_final.zkey" "$HERE/fixtures/"
 cp "$ROOT/packages/circuits/build/verification_key.json" "$HERE/fixtures/"
-echo "✅ prover-webview artifacts copied (snarkjs + wasm + zkey + vkey)"
+
+# Browser-Bundle des SDK bauen (Engine: Witness-Bau + toSolidityProof in der WebView)
+( cd "$ROOT/packages/sdk" && pnpm run build:browser )
+echo "✅ prover-webview ready (snarkjs + wasm + zkey + vkey + cloister-sdk.browser.js)"

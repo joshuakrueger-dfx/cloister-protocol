@@ -56,7 +56,26 @@
       // beide Plattformen: window (Android) + document (iOS)
       window.addEventListener("message", (e) => { try { handle(JSON.parse(e.data)); } catch {} });
       document.addEventListener("message", (e) => { try { handle(JSON.parse(e.data)); } catch {} });
+
+      // Selbsttest-Modus: ?selftest=1 → fixture-Witness proven + verifizieren, Ergebnis an RN melden.
+      async function selfTest() {
+        try {
+          const witness = await (await fetch("./fixtures/witness.json")).json();
+          const expected = await (await fetch("./fixtures/expected_public.json")).json();
+          const out = await window.cloisterProve(witness, "./fixtures/transaction2.wasm", "./fixtures/transaction2_final.zkey");
+          const vkey = await (await fetch("./fixtures/verification_key.json")).json();
+          const verified = await window.snarkjs.groth16.verify(vkey, out.publicSignals, out.proof);
+          const matchesExpected = JSON.stringify(out.publicSignals) === JSON.stringify(expected);
+          setStatus("Selbsttest: verified=" + verified + " matchesExpected=" + matchesExpected + " in " + out.ms + " ms " + (verified && matchesExpected ? "✅" : "❌"));
+          toRN({ type: "selftest-result", verified, matchesExpected, ms: out.ms });
+        } catch (e) {
+          setStatus("Selbsttest-Fehler: " + (e.message || e));
+          toRN({ type: "selftest-result", verified: false, error: String(e.message || e) });
+        }
+      }
+
       toRN({ type: "ready" });
+      if (location.search.indexOf("selftest") >= 0) selfTest();
     </script>
   </body>
 </html>

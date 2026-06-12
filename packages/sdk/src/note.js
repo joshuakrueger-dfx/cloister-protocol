@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
 import nacl from "tweetnacl";
+import { sha256 } from "./cryptoShim.js";
 import { poseidon } from "./poseidon.js";
 import { randomField } from "./keypair.js";
 
@@ -78,5 +78,5 @@ export class Note {
 }
 
 function viewTagFromShared(shared) {
-  return createHash("sha256").update(Buffer.from(shared)).digest()[0];
+  return sha256(Buffer.from(shared))[0];
 }

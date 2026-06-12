@@ -1,5 +1,5 @@
-import { createHash, randomBytes } from "node:crypto";
 import nacl from "tweetnacl";
+import { randomBytes, sha256 } from "./cryptoShim.js";
 import { poseidon } from "./poseidon.js";
 import { getBabyjub } from "./curve.js";
 import { FIELD_SIZE } from "./constants.js";
@@ -10,7 +10,7 @@ export function randomField() {
 }
 
 function to32Bytes(bigint) {
-  return createHash("sha256").update(bigint.toString()).digest();
+  return sha256(bigint.toString());
 }
 
 // Schlüsselpaar:
