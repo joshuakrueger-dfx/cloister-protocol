@@ -1,0 +1,7 @@
+# Large setup artifacts — regenerate with `go run ./cmd/setup .`
+# (pk.bin/circuit.r1cs are derived; for mainnet they come from the Phase-2 ceremony)
+keys/pk.bin
+keys/circuit.r1cs
+
+# vk.bin and the exported Verifier.sol are small + the on-chain source of truth → keep them
+!keys/vk.bin
