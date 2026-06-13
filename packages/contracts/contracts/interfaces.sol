@@ -10,7 +10,7 @@ interface ITransactionVerifier {
         uint256[2] calldata a,
         uint256[2][2] calldata b,
         uint256[2] calldata c,
-        uint256[9] calldata pubSignals
+        uint256[10] calldata pubSignals
     ) external view returns (bool);
 }
 

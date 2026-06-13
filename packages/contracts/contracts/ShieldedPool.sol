@@ -42,6 +42,16 @@ contract ShieldedPool is ReentrancyGuard {
     address public guardian;
     bool public depositsPaused;
 
+    /// ASP (Association-Set-Provider, z.B. DFX): veröffentlicht die Roots des Good-Sets.
+    /// Compliance-Schicht: jede Zahlung bindet im Proof eine `associationRoot`; der Pool
+    /// akzeptiert nur Roots, die der ASP veröffentlicht hat. Der Good-Set wächst monoton,
+    /// darum bleiben alte Roots gültig (ein Proof gegen eine ältere Root ist weiterhin
+    /// „sauber", da älterer Set ⊂ neuerer Set) — das vermeidet Races mit Root-Updates.
+    /// asp == address(0) ⇒ permissiver Dev-Modus (keine ASP-Erzwingung, für PoC-Demos).
+    address public asp;
+    uint256 public aspRoot; // zuletzt veröffentlichte Root (Info)
+    mapping(uint256 => bool) public knownAspRoot;
+
     mapping(uint256 => uint256) public laneRoot; // lane => aktuelle Root
     mapping(uint256 => uint32) public laneNextIndex; // lane => nächster lokaler Leaf-Index
     mapping(uint256 => bool) public nullifierSpent; // global
@@ -65,9 +75,16 @@ contract ShieldedPool is ReentrancyGuard {
     event NewNullifier(uint256 indexed nullifier);
     event DepositsPaused(bool paused);
     event GuardianTransferred(address indexed previousGuardian, address indexed newGuardian);
+    event AspRootPublished(uint256 indexed root);
+    event AspTransferred(address indexed previousAsp, address indexed newAsp);
 
     modifier onlyGuardian() {
         require(msg.sender == guardian, "only guardian");
+        _;
+    }
+
+    modifier onlyAsp() {
+        require(msg.sender == asp && asp != address(0), "only asp");
         _;
     }
 
@@ -77,7 +94,9 @@ contract ShieldedPool is ReentrancyGuard {
         uint256 _initialRoot,
         ITransactionVerifier _verifier,
         IERC20 _token,
-        address _guardian
+        address _guardian,
+        address _asp,
+        uint256 _initialAspRoot
     ) {
         require(_numLanes > 0, "numLanes");
         require(_levels > 0 && _levels <= 32, "levels");
@@ -93,7 +112,28 @@ contract ShieldedPool is ReentrancyGuard {
         verifier = _verifier;
         token = _token;
         guardian = _guardian; // address(0) => Pool ohne Pause-Fähigkeit
+        asp = _asp; // address(0) => permissiver Dev-Modus (keine ASP-Erzwingung)
+        if (_initialAspRoot != 0) {
+            aspRoot = _initialAspRoot;
+            knownAspRoot[_initialAspRoot] = true;
+            emit AspRootPublished(_initialAspRoot);
+        }
         for (uint32 i = 0; i < _numLanes; i++) laneRoot[i] = _initialRoot;
+    }
+
+    // ---------------- ASP (Compliance-Root-Pflege) ----------------
+
+    /// Der ASP veröffentlicht eine neue Good-Set-Root. Monoton: alte Roots bleiben gültig.
+    function publishAspRoot(uint256 root) external onlyAsp {
+        require(root < FIELD_SIZE, "root range");
+        aspRoot = root;
+        knownAspRoot[root] = true;
+        emit AspRootPublished(root);
+    }
+
+    function transferAsp(address newAsp) external onlyAsp {
+        emit AspTransferred(asp, newAsp);
+        asp = newAsp;
     }
 
     // Lane 0 (rückwärtskompatibel)
@@ -101,11 +141,12 @@ contract ShieldedPool is ReentrancyGuard {
         Proof calldata proof,
         uint256 oldRoot,
         uint256 newRoot,
+        uint256 associationRoot,
         uint256[2] calldata inputNullifiers,
         uint256[2] calldata outputCommitments,
         ExtData calldata extData
     ) external nonReentrant {
-        _transact(0, proof, oldRoot, newRoot, inputNullifiers, outputCommitments, extData);
+        _transact(0, proof, oldRoot, newRoot, associationRoot, inputNullifiers, outputCommitments, extData);
     }
 
     // Beliebige Lane (parallel)
@@ -114,12 +155,13 @@ contract ShieldedPool is ReentrancyGuard {
         Proof calldata proof,
         uint256 oldRoot,
         uint256 newRoot,
+        uint256 associationRoot,
         uint256[2] calldata inputNullifiers,
         uint256[2] calldata outputCommitments,
         ExtData calldata extData
     ) external nonReentrant {
         require(lane < numLanes, "bad lane");
-        _transact(lane, proof, oldRoot, newRoot, inputNullifiers, outputCommitments, extData);
+        _transact(lane, proof, oldRoot, newRoot, associationRoot, inputNullifiers, outputCommitments, extData);
     }
 
     function _transact(
@@ -127,12 +169,20 @@ contract ShieldedPool is ReentrancyGuard {
         Proof calldata proof,
         uint256 oldRoot,
         uint256 newRoot,
+        uint256 associationRoot,
         uint256[2] calldata inputNullifiers,
         uint256[2] calldata outputCommitments,
         ExtData calldata extData
     ) internal {
         // ---------------- Checks ----------------
         require(oldRoot == laneRoot[lane], "stale or unknown root");
+        // Lane-Kapazität: zwei Outputs müssen noch in den 2^levels-Blattraum dieser Lane
+        // passen. Ohne diese Schranke würde eine volle Lane erst im (infeasiblen) Proof
+        // scheitern; hier revertet sie sauber und früh.
+        require(uint256(laneNextIndex[lane]) + 2 <= (uint256(1) << levels), "lane full");
+        // Compliance: die im Proof gebundene Association-Root muss vom ASP stammen.
+        // Permissiver Dev-Modus (asp==0) überspringt die Erzwingung.
+        require(asp == address(0) || knownAspRoot[associationRoot], "unknown asp root");
         // Defense-in-depth: der Circuit erzwingt bereits paarweise verschiedene Nullifier,
         // aber falls der Verifier je kompromittiert wäre, verhindert dies einen In-Tx-Doppelspend.
         require(inputNullifiers[0] != inputNullifiers[1], "duplicate nullifier");
@@ -145,7 +195,9 @@ contract ShieldedPool is ReentrancyGuard {
         uint256 publicAmount = _publicAmount(extData.extAmount, extData.fee);
         uint256 pairIndex = uint256(laneNextIndex[lane]) / 2;
 
-        uint256[9] memory pub = [
+        // Reihenfolge MUSS der Public-Signal-Reihenfolge des Circuits entsprechen
+        // (associationRoot ist als letztes public-Signal deklariert → Index 9).
+        uint256[10] memory pub = [
             oldRoot,
             publicAmount,
             extDataHash,
@@ -154,7 +206,8 @@ contract ShieldedPool is ReentrancyGuard {
             outputCommitments[0],
             outputCommitments[1],
             newRoot,
-            pairIndex
+            pairIndex,
+            associationRoot
         ];
         require(verifier.verifyProof(proof.a, proof.b, proof.c, pub), "invalid proof");
 
