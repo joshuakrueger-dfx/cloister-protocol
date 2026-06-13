@@ -27,7 +27,7 @@ async function applyTx(rc, pool, tree, wallets) {
   evs.sort((a, b) => a.i - b.i);
   for (const e of evs) { tree.insert(e.c); for (const w of wallets) await w.tryAdd(e.c, e.i, e.e); }
 }
-const send = (pool, signer, t) => pool.connect(signer).transact(proofTuple(t.proof), t.root, t.newRoot, t.inputNullifiers, t.outputCommitments, extTuple(t.extData)).then((tx) => tx.wait());
+const send = (pool, signer, t) => pool.connect(signer).transact(proofTuple(t.proof), t.root, t.newRoot, t.associationRoot, t.inputNullifiers, t.outputCommitments, extTuple(t.extData)).then((tx) => tx.wait());
 
 async function main() {
   const provider = new JsonRpcProvider(dep.rpc);

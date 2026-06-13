@@ -38,6 +38,7 @@ async function shield(poolAbi, cfg, signer, kp, tree, amount) {
       [t.proof.a, t.proof.b, t.proof.c],
       t.root,
       t.newRoot,
+      t.associationRoot,
       t.inputNullifiers,
       t.outputCommitments,
       [t.extData.recipient, t.extData.extAmount, t.extData.relayer, t.extData.fee, t.extData.encryptedOutput1, t.extData.encryptedOutput2],
