@@ -40,3 +40,31 @@ export async function syncFromChain(pool, tree, wallets = [], fromBlock = 0) {
   }
   return added;
 }
+
+// Resilienter Sync: bevorzugt den (schnellen, view-tag-gefilterten) Indexer; fällt bei
+// Ausfall/Timeout auf einen direkten On-Chain-Scan zurück, damit Note-Discovery in JEDEM
+// Netz funktioniert (VPN/Mobilfunk) und nie an einem toten Indexer hängen bleibt.
+// `pool` (ethers.Contract) ist die Fallback-Quelle; `indexerUrls` werden der Reihe nach
+// versucht. Wirft nur, wenn ALLE Quellen scheitern.
+export async function syncWithFallback({ indexerUrls = [], pool, tree, wallets = [], fromBlock = 0, timeoutMs = 8000 }) {
+  const withTimeout = (p, ms, label) => {
+    let t;
+    return Promise.race([
+      p,
+      new Promise((_, rej) => (t = setTimeout(() => rej(new Error(`timeout: ${label}`)), ms))),
+    ]).finally(() => clearTimeout(t));
+  };
+  for (const url of indexerUrls) {
+    try {
+      const stats = await withTimeout(syncFromIndexer(url, tree, wallets), timeoutMs, `indexer ${url}`);
+      return { via: `indexer:${url}`, ...stats };
+    } catch {
+      /* try next source */
+    }
+  }
+  if (pool) {
+    const added = await syncFromChain(pool, tree, wallets, fromBlock);
+    return { via: "chain-scan", added };
+  }
+  throw new Error("sync failed: no indexer reachable and no pool provided for chain-scan fallback");
+}

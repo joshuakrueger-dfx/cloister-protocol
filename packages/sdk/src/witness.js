@@ -4,8 +4,8 @@ import { Note } from "./note.js";
 import { Keypair, randomField } from "./keypair.js";
 import { FIELD_SIZE } from "./constants.js";
 
-// Reine Witness-Bau-Logik — KEIN snarkjs. So lässt sich das SDK für die WebView/RN bündeln;
-// das Proven übernimmt das separat geladene snarkjs (Browser-Bundle) bzw. rapidsnark (Prod).
+// Reine Witness-Bau-Logik. Das Proven übernimmt das Backend (nativer gnark-Prover auf
+// dem Gerät bzw. proverd in Node/Dev) — siehe backend.js. Kein snarkjs/circom mehr.
 
 const EXT_DATA_ABI =
   "tuple(address recipient,int256 extAmount,address relayer,uint256 fee,bytes encryptedOutput1,bytes encryptedOutput2)";
@@ -29,7 +29,8 @@ function fieldSigned(value) {
   return v < 0n ? FIELD_SIZE + v : v;
 }
 
-// snarkjs-Proof → Solidity-Calldata (a,b,c). Pure → auch im Browser nutzbar.
+// Legacy-Helper: snarkjs-Proof-Objekt → Solidity-Calldata (a,b,c). Der gnark-Prover
+// liefert (a,b,c) bereits direkt; nur für Altpfade/Tests beibehalten.
 export function toSolidityProof(proof) {
   return {
     a: [proof.pi_a[0], proof.pi_a[1]],
@@ -51,26 +52,39 @@ export async function buildWitness({
   fee = 0n,
   recipient = ZeroAddress,
   relayer = ZeroAddress,
+  // Compliance: ASP-Good-Set (Merkle-Tree der vom ASP freigegebenen Commitments).
+  // Default = der Pool-Tree selbst (jedes On-chain-Commitment gilt als „assoziiert" —
+  // rückwärtskompatibel zu den PoC-Demos). Die App übergibt einen kuratierten aspTree.
+  aspTree = null,
+  associationRoot = null,
 }) {
   const root = await tree.root();
+  const asp = aspTree || tree;
+  const aspRootValue = associationRoot != null ? BigInt(associationRoot) : await asp.root();
 
   const inAmount = [];
   const inPrivateKey = [];
   const inBlinding = [];
   const inPathIndices = [];
   const inPathElements = [];
+  const inAspPathIndices = [];
+  const inAspPathElements = [];
   const inputNullifiers = [];
 
   for (let i = 0; i < 2; i++) {
     if (i < inputs.length) {
-      const { note, privateKey, index } = inputs[i];
+      const { note, privateKey, index, aspIndex } = inputs[i];
       const commitment = await note.commitment();
       const { pathElements, pathIndices } = await tree.path(index);
+      // ASP-Inclusion-Pfad: Position des Commitments im Good-Set (Default = Pool-Index).
+      const aspPath = await asp.path(aspIndex != null ? aspIndex : index);
       inAmount.push(note.amount);
       inPrivateKey.push(privateKey);
       inBlinding.push(note.blinding);
       inPathIndices.push(pathIndices);
       inPathElements.push(pathElements);
+      inAspPathIndices.push(aspPath.pathIndices);
+      inAspPathElements.push(aspPath.pathElements);
       inputNullifiers.push(await noteNullifier(commitment, pathIndices, privateKey));
     } else {
       const pk = randomField();
@@ -83,6 +97,9 @@ export async function buildWitness({
       inBlinding.push(note.blinding);
       inPathIndices.push(pathIndices);
       inPathElements.push(tree.zeros.slice(0, tree.levels));
+      // Dummy-Input: ASP-Check ist disabled (enabled=amount=0) → Pfad-Werte irrelevant.
+      inAspPathIndices.push(0n);
+      inAspPathElements.push(asp.zeros.slice(0, asp.levels));
       inputNullifiers.push(await noteNullifier(commitment, pathIndices, pk));
     }
   }
@@ -139,7 +156,10 @@ export async function buildWitness({
     outputCommitment: outputCommitments.map(s),
     newRoot: s(newRoot),
     pairPathIndices: s(pairPathIndices),
+    associationRoot: s(aspRootValue),
     pairPathElements: pairPathElements.map(s),
+    inAspPathIndices: inAspPathIndices.map(s),
+    inAspPathElements: inAspPathElements.map((arr) => arr.map(s)),
     inAmount: inAmount.map(s),
     inPrivateKey: inPrivateKey.map(s),
     inBlinding: inBlinding.map(s),
@@ -156,6 +176,7 @@ export async function buildWitness({
     root: root.toString(),
     newRoot: newRoot.toString(),
     pairPathIndices: pairPathIndices.toString(),
+    associationRoot: aspRootValue.toString(),
     inputNullifiers: inputNullifiers.map(s),
     outputCommitments: outputCommitments.map(s),
     extData,

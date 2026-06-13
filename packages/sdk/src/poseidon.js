@@ -1,15 +1,9 @@
-import { buildPoseidon } from "circomlibjs";
+import { backendHash } from "./backend.js";
 
-let _poseidon;
-
-export async function getPoseidon() {
-  if (!_poseidon) _poseidon = await buildPoseidon();
-  return _poseidon;
-}
-
-// Poseidon-Hash über Feld-Elemente (BigInt in, BigInt out) — identisch zu circomlib im Circuit.
+// Poseidon2 over field elements (BigInt in, BigInt out). Delegates to the configured
+// backend (native on-device prover, or proverd in Node/dev) so the hash is bit-for-bit
+// identical to the gnark in-circuit Poseidon2 — the basis for commitment/nullifier/root
+// consistency between the SDK and the circuit. Replaces the former circomlib Poseidon.
 export async function poseidon(items) {
-  const p = await getPoseidon();
-  const out = p(items.map((x) => p.F.e(x)));
-  return p.F.toObject(out);
+  return backendHash(items);
 }
