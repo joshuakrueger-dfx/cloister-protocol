@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cloister — Console</title>
+    <meta name="description" content="Cloister Console — compliant private disbursements & settlement on any EVM chain." />
+    <style>
+      :root{
+        --black:#050506; --grey-1:#0e0f12; --grey-2:#16181c;
+        --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.16);
+        --white:#f4f5f7; --dim:rgba(244,245,247,.62); --faint:rgba(244,245,247,.4);
+        --glass:rgba(255,255,255,.035); --ease:cubic-bezier(.22,1,.36,1);
+        --ok:#7ee0a8; --warn:#f0c674; --bad:#f08a8a;
+        --nav-w:248px;
+      }
+      *{box-sizing:border-box;margin:0;padding:0}
+      html{scroll-behavior:smooth}
+      body{background:var(--black);color:var(--white);font-family:"Helvetica Neue",-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5;overflow-x:hidden;min-height:100vh}
+      .veil{position:fixed;inset:0;z-index:0;pointer-events:none;
+        background:
+          radial-gradient(700px 700px at 16% 0%, rgba(255,255,255,.05), transparent 60%),
+          radial-gradient(150% 130% at 50% 42%, transparent 42%, rgba(0,0,0,.55) 100%)}
+      .grain{position:fixed;inset:-50%;z-index:1;pointer-events:none;opacity:.045;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");animation:grain 8s steps(6) infinite}
+      @keyframes grain{0%,100%{transform:translate(0,0)}20%{transform:translate(-3%,2%)}40%{transform:translate(2%,-2%)}60%{transform:translate(-2%,-3%)}80%{transform:translate(3%,2%)}}
+
+      .app{position:relative;z-index:2;display:grid;grid-template-columns:var(--nav-w) 1fr;min-height:100vh}
+
+      /* ---------- sidebar ---------- */
+      aside{border-right:1px solid var(--line);padding:22px 16px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
+      .brand{display:flex;align-items:center;gap:11px;padding:6px 8px 22px;letter-spacing:.14em;font-size:11px;font-weight:600;color:var(--white)}
+      .brand .sub{color:var(--faint);font-weight:500}
+      .navsec{font-size:10px;letter-spacing:.2em;color:var(--faint);padding:16px 10px 8px}
+      .nav-item{display:flex;align-items:center;gap:12px;padding:10px 10px;border-radius:10px;color:var(--dim);font-size:14px;cursor:pointer;border:1px solid transparent;transition:background .3s var(--ease),color .3s var(--ease),border-color .3s var(--ease)}
+      .nav-item:hover{color:var(--white);background:rgba(255,255,255,.03)}
+      .nav-item.on{color:var(--white);background:rgba(255,255,255,.06);border-color:var(--line)}
+      .nav-item .ic{width:18px;height:18px;flex:0 0 auto;opacity:.9}
+      .nav-item .badge{margin-left:auto;font-size:10px;color:var(--faint);border:1px solid var(--line);border-radius:6px;padding:2px 6px}
+      .nav-foot{margin-top:auto;border-top:1px solid var(--line);padding-top:14px}
+      .org{display:flex;align-items:center;gap:11px;padding:8px;border-radius:10px}
+      .org .av{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#2a2c31,#0e0f12);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+      .org .meta{font-size:12px}.org .meta b{display:block;font-weight:600}.org .meta span{color:var(--faint);font-size:11px}
+
+      /* ---------- main ---------- */
+      main{min-width:0;display:flex;flex-direction:column}
+      .topbar{display:flex;align-items:center;gap:16px;padding:16px 32px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(5,5,6,.72);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);z-index:5}
+      .topbar h1{font-size:16px;font-weight:600;letter-spacing:-.01em}
+      .topbar .crumb{color:var(--faint);font-size:12px;letter-spacing:.06em}
+      .spacer{flex:1}
+      .pill{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:7px 13px;background:rgba(255,255,255,.02);cursor:pointer;transition:border-color .3s,color .3s}
+      .pill:hover{border-color:var(--line-2);color:var(--white)}
+      .pill .d{width:7px;height:7px;border-radius:50%}
+      .d.ok{background:var(--ok);box-shadow:0 0 10px -1px var(--ok)}
+      .d.warn{background:var(--warn)} .d.bad{background:var(--bad)}
+      .chip{font-size:11px;color:var(--dim);border:1px solid var(--line);border-radius:7px;padding:4px 9px}
+
+      .view{padding:32px;max-width:1180px;width:100%;animation:fade .5s var(--ease)}
+      @keyframes fade{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+      .view.hidden{display:none}
+      .hidden{display:none !important}
+      .eyebrow{display:inline-flex;align-items:center;gap:9px;font-size:10px;letter-spacing:.2em;color:var(--faint);margin-bottom:14px}
+      .eyebrow .sq{width:7px;height:7px;border:1px solid var(--faint)}
+      .h2{font-size:30px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
+      .sub{color:var(--dim);font-size:14px;margin-top:10px;max-width:620px;line-height:1.6}
+
+      .grid{display:grid;gap:16px}
+      .g3{grid-template-columns:repeat(3,1fr)} .g2{grid-template-columns:1fr 1fr} .g4{grid-template-columns:repeat(4,1fr)}
+      @media(max-width:1080px){.g3,.g4{grid-template-columns:1fr 1fr}}
+      @media(max-width:760px){.app{grid-template-columns:1fr}aside{display:none}.g2,.g3,.g4{grid-template-columns:1fr}}
+
+      .card{border:1px solid var(--line);border-radius:16px;background:var(--glass);backdrop-filter:blur(10px);padding:24px;position:relative;transition:border-color .5s var(--ease),transform .5s var(--ease)}
+      .card:hover{border-color:var(--line-2)}
+      .card .clab{font-size:11px;letter-spacing:.14em;color:var(--faint);display:flex;align-items:center;justify-content:space-between}
+      .card .big{font-size:34px;font-weight:600;letter-spacing:-.02em;margin-top:16px}
+      .card .cfoot{font-size:13px;color:var(--dim);margin-top:8px}
+      .privacy-val{position:relative;display:inline-block}
+      .privacy-val.masked{filter:blur(9px);user-select:none}
+      .reveal-btn{font-size:11px;color:var(--faint);border:1px solid var(--line);border-radius:7px;padding:3px 8px;cursor:pointer;background:none}
+      .reveal-btn:hover{color:var(--white);border-color:var(--line-2)}
+
+      /* anonymity / privacy meter */
+      .meter{margin-top:14px}
+      .meter .row{display:flex;align-items:center;gap:12px;padding:9px 0;border-top:1px solid var(--line);font-size:13px}
+      .meter .row:first-child{border-top:none}
+      .meter .chain{width:90px;color:var(--dim)}
+      .bar{flex:1;height:6px;border-radius:4px;background:rgba(255,255,255,.07);overflow:hidden}
+      .bar>i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,rgba(255,255,255,.85),rgba(255,255,255,.35))}
+      .meter .n{width:74px;text-align:right;color:var(--white);font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12px}
+
+      /* compliance status */
+      .clist{display:flex;flex-direction:column;gap:0;margin-top:6px}
+      .clist .ci{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line);font-size:14px}
+      .clist .ci:first-child{border-top:none}
+      .clist .ci .t{color:var(--white)} .clist .ci .s{margin-left:auto;color:var(--dim);font-size:12px;display:inline-flex;align-items:center;gap:7px}
+
+      /* tables */
+      table{width:100%;border-collapse:collapse;font-size:13px}
+      th{text-align:left;color:var(--faint);font-weight:500;font-size:11px;letter-spacing:.08em;padding:0 14px 12px;border-bottom:1px solid var(--line)}
+      td{padding:14px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:middle}
+      tr:hover td{background:rgba(255,255,255,.015)}
+      .mono{font-family:"SF Mono",ui-monospace,Menlo,monospace}
+      .addr{color:var(--white)}
+      .tag-ok,.tag-pend,.tag-bad{display:inline-flex;align-items:center;gap:6px;font-size:11px;border-radius:999px;padding:4px 10px;border:1px solid var(--line)}
+      .tag-ok{color:var(--ok)} .tag-pend{color:var(--warn)} .tag-bad{color:var(--bad)}
+
+      .btn{display:inline-flex;align-items:center;gap:9px;padding:11px 18px;border-radius:11px;font-size:14px;font-weight:500;text-decoration:none;color:var(--white);border:1px solid var(--line-2);background:rgba(255,255,255,.02);cursor:pointer;transition:border-color .4s var(--ease),background .4s var(--ease)}
+      .btn:hover{border-color:var(--white);background:rgba(255,255,255,.05)}
+      .btn .arr{transition:transform .4s var(--ease)} .btn:hover .arr{transform:translateX(4px)}
+      .btn-solid{background:var(--white);color:#08090b;border-color:var(--white);font-weight:600}
+      .btn-solid:hover{background:#e6e7ea}
+      .btn-sm{padding:8px 13px;font-size:13px;border-radius:9px}
+      .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+
+      /* forms */
+      .field{margin-top:18px}
+      .field label{display:block;font-size:12px;color:var(--faint);letter-spacing:.06em;margin-bottom:8px}
+      .input,select.input{width:100%;background:rgba(255,255,255,.02);border:1px solid var(--line);border-radius:11px;padding:13px 15px;color:var(--white);font:inherit;font-size:15px;transition:border-color .3s}
+      .input:focus{outline:none;border-color:var(--line-2)}
+      .seg{display:inline-flex;border:1px solid var(--line);border-radius:11px;overflow:hidden}
+      .seg button{background:none;border:none;color:var(--dim);padding:10px 16px;cursor:pointer;font:inherit;font-size:13px;transition:background .3s,color .3s;border-right:1px solid var(--line)}
+      .seg button:last-child{border-right:none}
+      .seg button.on{background:rgba(255,255,255,.08);color:var(--white)}
+
+      .gatebox{border:1px solid var(--line);border-radius:14px;padding:18px;background:rgba(126,224,168,.04);margin-top:18px}
+      .gatebox.warn{background:rgba(240,198,116,.05)}
+      .gate-row{display:flex;align-items:center;gap:11px;font-size:13px;color:var(--dim);padding:7px 0}
+      .gate-row b{color:var(--white);font-weight:500}
+
+      .note{font-size:12px;color:var(--faint);line-height:1.6;margin-top:14px;padding-left:14px;border-left:1px solid var(--line)}
+
+      /* proof console */
+      .console{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.9;color:var(--dim);background:rgba(0,0,0,.35);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-top:18px;min-height:120px;white-space:pre-wrap}
+      .console .ok{color:var(--ok)} .console .w{color:var(--warn)} .console .hl{color:var(--white)}
+
+      .progress{height:5px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:16px}
+      .progress>i{display:block;height:100%;width:0;background:linear-gradient(90deg,rgba(255,255,255,.9),rgba(255,255,255,.4));transition:width .4s var(--ease)}
+
+      .split{display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start}
+      @media(max-width:1000px){.split{grid-template-columns:1fr}}
+
+      .kv{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid var(--line);font-size:13px}
+      .kv:first-child{border-top:none} .kv .k{color:var(--faint)} .kv .v{color:var(--white);text-align:right}
+      .kv .pub{color:var(--white)} .kv .priv{color:var(--faint);font-style:italic}
+
+      .disclosure-card{border:1px solid var(--line);border-radius:13px;padding:16px 18px;display:flex;align-items:center;gap:14px;margin-top:12px}
+      .disclosure-card .dot2{width:9px;height:9px;border-radius:50%;background:var(--ok)}
+      .disclosure-card .info{flex:1}.disclosure-card .info b{font-size:14px;font-weight:600}.disclosure-card .info span{display:block;color:var(--faint);font-size:12px;margin-top:3px}
+
+      .empty{color:var(--faint);font-size:13px;text-align:center;padding:40px}
+      svg{display:block}
+      ::selection{background:rgba(255,255,255,.2)}
+    </style>
+  </head>
+  <body>
+    <div class="veil"></div>
+    <div class="grain"></div>
+
+    <div class="app">
+      <!-- ============ SIDEBAR ============ -->
+      <aside>
+        <div class="brand" id="logo-slot"></div>
+
+        <div class="navsec">OPERATE</div>
+        <div class="nav-item on" data-view="overview"><span class="ic" data-ic="grid"></span>Overview</div>
+        <div class="nav-item" data-view="fund"><span class="ic" data-ic="shield"></span>Fund</div>
+        <div class="nav-item" data-view="disburse"><span class="ic" data-ic="send"></span>Disburse</div>
+        <div class="nav-item" data-view="recipients"><span class="ic" data-ic="users"></span>Recipients</div>
+        <div class="nav-item" data-view="activity"><span class="ic" data-ic="list"></span>Activity</div>
+
+        <div class="navsec">COMPLIANCE</div>
+        <div class="nav-item" data-view="compliance"><span class="ic" data-ic="doc"></span>Compliance Center<span class="badge">L3</span></div>
+        <div class="nav-item" data-view="settings"><span class="ic" data-ic="cog"></span>Settings</div>
+
+        <div class="nav-foot">
+          <div class="org">
+            <div class="av">N</div>
+            <div class="meta"><b>Nimbus DAO</b><span>Treasury · self-custody</span></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ============ MAIN ============ -->
+      <main>
+        <div class="topbar">
+          <div>
+            <div class="crumb" id="crumb">CONSOLE</div>
+            <h1 id="title">Overview</h1>
+          </div>
+          <div class="spacer"></div>
+          <span class="chip" id="chainchip">Base · Polygon · Arbitrum</span>
+          <span class="pill" id="jx"><span class="d ok"></span>EU + US profile</span>
+          <span class="pill" id="kyc"><span class="d ok"></span>KYC verified</span>
+        </div>
+
+        <!-- ===== OVERVIEW ===== -->
+        <section class="view" data-pane="overview">
+          <div class="eyebrow"><span class="sq"></span>TREASURY</div>
+          <div class="h2">Good morning, Nimbus.</div>
+          <p class="sub">Your shielded treasury is healthy and compliant. Disburse privately — every payment carries a proof of clean origin, and nothing links a payout to your wallet on-chain.</p>
+
+          <div class="grid g3" style="margin-top:28px">
+            <div class="card">
+              <div class="clab">SHIELDED BALANCE <button class="reveal-btn" id="revealBtn">reveal</button></div>
+              <div class="big"><span class="privacy-val masked" id="balVal">128,400</span> <span style="font-size:18px;color:var(--dim)">USDC</span></div>
+              <div class="cfoot">across 3 chains · 412 notes</div>
+            </div>
+            <div class="card">
+              <div class="clab">ANONYMITY SET <span class="chip">healthy</span></div>
+              <div class="meter">
+                <div class="row"><span class="chain">Base</span><div class="bar"><i style="width:88%"></i></div><span class="n">18.4k</span></div>
+                <div class="row"><span class="chain">Polygon</span><div class="bar"><i style="width:64%"></i></div><span class="n">9.1k</span></div>
+                <div class="row"><span class="chain">Arbitrum</span><div class="bar"><i style="width:31%"></i></div><span class="n">3.0k</span></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="clab">COMPLIANCE STATUS</div>
+              <div class="clist">
+                <div class="ci"><span class="t">KYC origin</span><span class="s"><span class="d ok"></span>verified</span></div>
+                <div class="ci"><span class="t">ASP root</span><span class="s"><span class="d ok"></span>fresh · 4 min</span></div>
+                <div class="ci"><span class="t">Sanctions screen</span><span class="s"><span class="d ok"></span>OFAC + EU on</span></div>
+                <div class="ci"><span class="t">Proof of innocence</span><span class="s"><span class="d ok"></span>available</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="actions" style="margin-top:24px">
+            <button class="btn btn-solid" data-goto="disburse">Disburse<span class="arr">→</span></button>
+            <button class="btn" data-goto="fund">Fund treasury<span class="arr">→</span></button>
+            <button class="btn" data-goto="compliance">Export compliance receipt<span class="arr">→</span></button>
+          </div>
+
+          <div class="card" style="margin-top:28px;padding:0">
+            <div style="padding:20px 24px;display:flex;align-items:center;justify-content:space-between">
+              <div class="clab" style="letter-spacing:.14em">RECENT DISBURSEMENTS</div>
+              <button class="reveal-btn" data-goto="activity">view all</button>
+            </div>
+            <table>
+              <thead><tr><th>Recipient</th><th>Purpose</th><th>Amount</th><th>Chain</th><th>Compliance</th><th>Status</th></tr></thead>
+              <tbody id="recentRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ===== FUND ===== -->
+        <section class="view hidden" data-pane="fund">
+          <div class="eyebrow"><span class="sq"></span>PUBLIC TOUCHPOINT</div>
+          <div class="h2">Fund the shielded pool.</div>
+          <p class="sub">This is the <b style="color:var(--white)">only</b> public step. KYC, sanctions screening and geofencing run here. After funding, every payout is private — the link to this deposit is cryptographically broken.</p>
+
+          <div class="split" style="margin-top:26px">
+            <div class="card">
+              <div class="clab">FUND</div>
+              <div class="field">
+                <label>SOURCE</label>
+                <select class="input">
+                  <option>DFX Onramp (bank / card → USDC)</option>
+                  <option>Connected wallet (public address)</option>
+                  <option>Existing treasury address</option>
+                </select>
+              </div>
+              <div class="grid g2" style="margin-top:0">
+                <div class="field"><label>AMOUNT</label><input class="input" value="50,000" /></div>
+                <div class="field"><label>ASSET</label><select class="input"><option>USDC</option><option>EURC</option><option>USDT</option></select></div>
+              </div>
+              <div class="field"><label>CHAIN</label>
+                <div class="seg"><button class="on">Base</button><button>Polygon</button><button>Arbitrum</button></div>
+              </div>
+
+              <div class="gatebox">
+                <div class="clab" style="margin-bottom:8px">COMPLIANCE GATE — CLEARED</div>
+                <div class="gate-row" data-ic-row="check"><b>Identity</b> · Nimbus DAO entity KYB verified (2026-04)</div>
+                <div class="gate-row" data-ic-row="check"><b>Sanctions</b> · source address clears OFAC + EU lists</div>
+                <div class="gate-row" data-ic-row="check"><b>Jurisdiction</b> · CH/EU/US permitted for this entity</div>
+                <div class="gate-row" data-ic-row="check"><b>Association set</b> · deposit will be added to ASP good-set</div>
+              </div>
+              <div class="actions"><button class="btn btn-solid" id="fundBtn">Shield 50,000 USDC<span class="arr">→</span></button></div>
+              <div class="note">The deposit commitment enters the canonical pool and the ASP association root. No payout can be traced back to it — but you can always prove it was clean.</div>
+            </div>
+
+            <div class="card">
+              <div class="clab">WHAT BECOMES PUBLIC</div>
+              <div style="margin-top:14px">
+                <div class="kv"><span class="k">Deposit tx (from)</span><span class="v pub">Nimbus public addr</span></div>
+                <div class="kv"><span class="k">Amount shielded</span><span class="v pub">50,000 USDC</span></div>
+                <div class="kv"><span class="k">Commitment</span><span class="v mono">0x9f…c41a</span></div>
+              </div>
+              <div class="clab" style="margin-top:22px">WHAT STAYS PRIVATE</div>
+              <div style="margin-top:14px">
+                <div class="kv"><span class="k">Future recipients</span><span class="v priv">hidden</span></div>
+                <div class="kv"><span class="k">Payout amounts</span><span class="v priv">hidden</span></div>
+                <div class="kv"><span class="k">Link deposit ↔ payout</span><span class="v priv">unlinkable</span></div>
+                <div class="kv"><span class="k">Remaining balance</span><span class="v priv">hidden</span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== DISBURSE ===== -->
+        <section class="view hidden" data-pane="disburse">
+          <div class="eyebrow"><span class="sq"></span>PRIVATE PAYOUT</div>
+          <div class="h2">Disburse.</div>
+          <p class="sub">Pay anyone — privately and compliantly. The proof generates in the background while you confirm, so it feels instant.</p>
+
+          <div class="seg" style="margin-top:22px" id="disburseMode">
+            <button class="on" data-mode="single">Single payment</button>
+            <button data-mode="batch">Batch payout</button>
+            <button data-mode="recurring">Payroll · recurring</button>
+          </div>
+
+          <!-- single -->
+          <div class="split" style="margin-top:22px" data-disburse="single">
+            <div class="card">
+              <div class="clab">SINGLE PAYMENT</div>
+              <div class="field"><label>RECIPIENT</label><select class="input"><option>Acme GmbH (B2B settlement)</option><option>Paste address / OCP quote / scan QR</option><option>Contributor — 0x7a…</option></select></div>
+              <div class="grid g2"><div class="field"><label>AMOUNT</label><input class="input" id="singleAmt" value="12,500" /></div><div class="field"><label>ASSET</label><select class="input"><option>USDC</option><option>EURC</option></select></div></div>
+              <div class="field"><label>MEMO (encrypted — viewing-key only)</label><input class="input" value="Invoice #INV-2291 — Q2 services" /></div>
+              <div class="actions"><button class="btn btn-solid" id="payBtn">Confirm & pay<span class="arr">→</span></button></div>
+              <div class="progress"><i id="prog"></i></div>
+              <div class="console" id="payConsole">cloister> ready. Proof pre-warms on confirm…</div>
+            </div>
+            <div class="card">
+              <div class="clab">ON-CHAIN OBSERVER SEES</div>
+              <div style="margin-top:14px">
+                <div class="kv"><span class="k">tx.from</span><span class="v priv">relayer (not you)</span></div>
+                <div class="kv"><span class="k">Payer address</span><span class="v priv">absent</span></div>
+                <div class="kv"><span class="k">Recipient</span><span class="v priv">absent on-chain</span></div>
+                <div class="kv"><span class="k">Amount</span><span class="v priv">absent on-chain</span></div>
+                <div class="kv"><span class="k">Nullifier</span><span class="v mono">published</span></div>
+                <div class="kv"><span class="k">ASP inclusion</span><span class="v pub">proven clean</span></div>
+              </div>
+              <div class="note">The recipient (e.g. DFX/OCP settlement address) receives a payment note. Amount + counterparty are known only to the settlement broker — never to the chain.</div>
+            </div>
+          </div>
+
+          <!-- batch -->
+          <div class="split hidden" style="margin-top:22px" data-disburse="batch">
+            <div class="card" style="grid-column:1 / -1">
+              <div class="clab" style="display:flex;justify-content:space-between">BATCH PAYOUT — DAO CONTRIBUTORS <button class="reveal-btn">import CSV</button></div>
+              <table style="margin-top:10px">
+                <thead><tr><th>Recipient</th><th>Role</th><th>Amount</th><th>Chain</th><th>Sanctions</th></tr></thead>
+                <tbody>
+                  <tr><td class="addr mono">0x7a3f…9c2d</td><td>Core dev</td><td class="addr">8,000 USDC</td><td>Base</td><td><span class="tag-ok"><span class="d ok"></span>clear</span></td></tr>
+                  <tr><td class="addr mono">0x1b88…4e10</td><td>Designer</td><td class="addr">4,200 USDC</td><td>Base</td><td><span class="tag-ok"><span class="d ok"></span>clear</span></td></tr>
+                  <tr><td class="addr mono">0xc4d2…77a1</td><td>Ops</td><td class="addr">3,500 USDC</td><td>Polygon</td><td><span class="tag-ok"><span class="d ok"></span>clear</span></td></tr>
+                  <tr><td class="addr mono">0x90fa…12bc</td><td>Auditor</td><td class="addr">6,000 USDC</td><td>Base</td><td><span class="tag-ok"><span class="d ok"></span>clear</span></td></tr>
+                </tbody>
+              </table>
+              <div class="grid g4" style="margin-top:20px">
+                <div><div class="clab">RECIPIENTS</div><div class="big" style="font-size:24px">4</div></div>
+                <div><div class="clab">TOTAL</div><div class="big" style="font-size:24px">21,700</div></div>
+                <div><div class="clab">SETTLEMENT</div><div class="big" style="font-size:24px">1 tx</div><div class="cfoot">aggregated</div></div>
+                <div><div class="clab">EST. PROOF</div><div class="big" style="font-size:24px">~9 s</div><div class="cfoot">background</div></div>
+              </div>
+              <div class="actions"><button class="btn btn-solid">Run private batch<span class="arr">→</span></button><button class="btn">Screen all recipients</button></div>
+              <div class="note">Each recipient gets an independent shielded payment (different lanes → same block). One aggregated unshield settles them — on-chain it looks like a single opaque movement.</div>
+            </div>
+          </div>
+
+          <!-- recurring -->
+          <div class="split hidden" style="margin-top:22px" data-disburse="recurring">
+            <div class="card">
+              <div class="clab">PAYROLL — RECURRING</div>
+              <div class="grid g2"><div class="field"><label>SCHEDULE</label><select class="input"><option>Monthly · 1st</option><option>Bi-weekly</option><option>Weekly</option></select></div><div class="field"><label>BUDGET CAP</label><input class="input" value="60,000 USDC" /></div></div>
+              <div class="field"><label>SPENDING SESSION</label>
+                <div class="gatebox"><div class="gate-row"><b>Session key</b> · authorise up to budget cap, expires after each run</div><div class="gate-row"><b>Bound in circuit</b> · limit + expiry enforced cryptographically</div><div class="gate-row"><b>Near-instant</b> · subsequent payouts skip re-auth</div></div>
+              </div>
+              <div class="actions"><button class="btn btn-solid">Authorise payroll session<span class="arr">→</span></button></div>
+              <div class="note">Programmatic/oracle payouts use the same session model via API — pre-authorised, rate-limited, fully auditable.</div>
+            </div>
+            <div class="card">
+              <div class="clab">NEXT RUN</div>
+              <div class="big" style="font-size:24px;margin-top:14px">Jul 1</div>
+              <div class="cfoot">14 recipients · 47,800 USDC</div>
+              <div class="kv" style="margin-top:18px"><span class="k">Last run</span><span class="v">Jun 1 · ✓ settled</span></div>
+              <div class="kv"><span class="k">Receipts</span><span class="v">auto-archived</span></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== RECIPIENTS ===== -->
+        <section class="view hidden" data-pane="recipients">
+          <div class="eyebrow"><span class="sq"></span>COUNTERPARTIES</div>
+          <div class="h2">Recipients.</div>
+          <p class="sub">Labels are encrypted with your viewing key and live only in your account. On-chain, the counterparty never appears.</p>
+          <div class="card" style="margin-top:24px;padding:0">
+            <table>
+              <thead><tr><th>Label (encrypted)</th><th>Type</th><th>Address</th><th>Last paid</th><th>Sanctions</th></tr></thead>
+              <tbody>
+                <tr><td class="addr">Acme GmbH</td><td>B2B vendor</td><td class="mono">0x4f21…ab90</td><td>Jun 11</td><td><span class="tag-ok"><span class="d ok"></span>clear</span></td></tr>
+                <tr><td class="addr">Core dev — Lena</td><td>Contributor</td><td class="mono">0x7a3f…9c2d</td><td>Jun 1</td><td><span class="tag-ok"><span class="d ok"></span>clear</span></td></tr>
+                <tr><td class="addr">DFX Settlement</td><td>PSP / broker</td><td class="mono">0x9C22…10FC</td><td>Jun 12</td><td><span class="tag-ok"><span class="d ok"></span>clear</span></td></tr>
+                <tr><td class="addr">Oracle payout bot</td><td>Programmatic</td><td class="mono">0x33ee…0f5a</td><td>Jun 13</td><td><span class="tag-ok"><span class="d ok"></span>clear</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ===== ACTIVITY ===== -->
+        <section class="view hidden" data-pane="activity">
+          <div class="eyebrow"><span class="sq"></span>YOUR LEDGER</div>
+          <div class="h2">Activity.</div>
+          <p class="sub">Decrypted with your viewing key — visible only to you. Read-only. Export for accounting or selective disclosure.</p>
+          <div class="actions" style="margin-top:18px"><button class="btn btn-sm">Filter</button><button class="btn btn-sm">Export CSV</button><button class="btn btn-sm" data-goto="compliance">Generate receipt</button></div>
+          <div class="card" style="margin-top:20px;padding:0">
+            <table>
+              <thead><tr><th>Date</th><th>Recipient</th><th>Purpose</th><th>Amount</th><th>Chain</th><th>Compliance</th><th>Status</th></tr></thead>
+              <tbody id="activityRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- ===== COMPLIANCE CENTER ===== -->
+        <section class="view hidden" data-pane="compliance">
+          <div class="eyebrow"><span class="sq"></span>THE DIFFERENTIATOR</div>
+          <div class="h2">Compliance Center.</div>
+          <p class="sub">Privacy you can prove. Generate clean-origin attestations and grant scoped, time-limited disclosure to banks, auditors and tax authorities — without ever exposing your full history.</p>
+
+          <div class="split" style="margin-top:26px">
+            <div>
+              <div class="card">
+                <div class="clab">COMPLIANCE RECEIPT · PROOF OF INNOCENCE</div>
+                <p class="sub" style="margin-top:12px">A signed attestation that selected funds belong to the ASP good-set and originate from a KYC'd source — revealing nothing else.</p>
+                <div class="grid g2" style="margin-top:14px"><div class="field" style="margin-top:0"><label>SCOPE</label><select class="input"><option>Single payment</option><option>Date range</option><option>Counterparty</option></select></div><div class="field" style="margin-top:0"><label>PERIOD</label><select class="input"><option>Q2 2026</option><option>Jun 2026</option><option>Custom</option></select></div></div>
+                <div class="actions"><button class="btn btn-solid" id="receiptBtn">Generate receipt<span class="arr">→</span></button></div>
+                <div class="console hidden" id="receiptConsole"></div>
+              </div>
+
+              <div class="card" style="margin-top:18px">
+                <div class="clab">SCOPED VIEWING-KEY DISCLOSURE</div>
+                <p class="sub" style="margin-top:12px">Hand an auditor a read-only token limited by time and scope. They see exactly what you grant — nothing more. Revoke anytime.</p>
+                <div class="disclosure-card"><span class="dot2"></span><div class="info"><b>Tax authority — CH</b><span>Q2 2026 · expires in 12 days · read-only</span></div><button class="reveal-btn">revoke</button></div>
+                <div class="disclosure-card"><span class="dot2"></span><div class="info"><b>External auditor (PwC)</b><span>Payroll only · expires in 4 days · read-only</span></div><button class="reveal-btn">revoke</button></div>
+                <div class="actions"><button class="btn">+ New disclosure grant</button></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="card">
+                <div class="clab">ASP — ASSOCIATION SET</div>
+                <div class="clist">
+                  <div class="ci"><span class="t">Provider</span><span class="s">DFX AG</span></div>
+                  <div class="ci"><span class="t">Association root</span><span class="s"><span class="d ok"></span>fresh · 4 min</span></div>
+                  <div class="ci"><span class="t">Inclusion proof</span><span class="s"><span class="d ok"></span>all funds ∈ good-set</span></div>
+                  <div class="ci"><span class="t">Bad-set exclusion</span><span class="s"><span class="d ok"></span>enforced</span></div>
+                </div>
+              </div>
+              <div class="card" style="margin-top:18px">
+                <div class="clab">JURISDICTION PROFILE</div>
+                <div class="clist">
+                  <div class="ci"><span class="t">EU — MiCA / AMLR</span><span class="s"><span class="d ok"></span>active</span></div>
+                  <div class="ci"><span class="t">EU — Travel Rule (TFR)</span><span class="s"><span class="d ok"></span>off-chain payload</span></div>
+                  <div class="ci"><span class="t">US — FinCEN / BSA</span><span class="s"><span class="d ok"></span>active</span></div>
+                  <div class="ci"><span class="t">US — OFAC screening</span><span class="s"><span class="d ok"></span>at shield</span></div>
+                  <div class="ci"><span class="t">GDPR — data minimisation</span><span class="s"><span class="d ok"></span>no plaintext on-chain</span></div>
+                </div>
+                <div class="actions"><button class="btn btn-sm">Export audit log</button></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== SETTINGS ===== -->
+        <section class="view hidden" data-pane="settings">
+          <div class="eyebrow"><span class="sq"></span>ACCOUNT</div>
+          <div class="h2">Settings.</div>
+          <p class="sub">Self-custody. Your spend / view / nullifier keys derive from one seed and never leave the device. Notes are recoverable from chain history via the viewing key.</p>
+          <div class="grid g2" style="margin-top:24px">
+            <div class="card"><div class="clab">KEYS & RECOVERY</div><div class="clist"><div class="ci"><span class="t">Seed backup</span><span class="s"><span class="d ok"></span>confirmed</span></div><div class="ci"><span class="t">Viewing key</span><span class="s">read-only · shareable</span></div><div class="ci"><span class="t">Note cache</span><span class="s">encrypted · local</span></div></div></div>
+            <div class="card"><div class="clab">INFRASTRUCTURE</div><div class="clist"><div class="ci"><span class="t">Relayer</span><span class="s"><span class="d ok"></span>DFX managed</span></div><div class="ci"><span class="t">Indexer</span><span class="s"><span class="d ok"></span>view-tags</span></div><div class="ci"><span class="t">Registry</span><span class="s">3 chains</span></div><div class="ci"><span class="t">Mode</span><span class="s">White-label ready</span></div></div></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      // ---------- icon set (reused from website) ----------
+      const ICONS = {
+        logo:'<svg width="50" height="14" viewBox="0 0 120 32" fill="none" aria-label="Cloister"><circle cx="13" cy="16" r="9" fill="#f4f5f7"/><rect x="27" y="14.4" width="16" height="3.2" rx="1.6" fill="#f4f5f7"/><circle cx="60" cy="16" r="8.5" stroke="#f4f5f7" stroke-width="3"/><rect x="77" y="14.4" width="16" height="3.2" rx="1.6" fill="#f4f5f7"/><circle cx="107" cy="16" r="9" fill="#f4f5f7"/></svg>',
+        grid:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+        shield:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l7 3v5c0 4.4-3 8-7 10-4-2-7-5.6-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+        send:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 12l16-7-7 16-2-7z"/></svg>',
+        users:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 5.5a3 3 0 0 1 0 6M21 20c0-2.8-1.6-4.7-4-5.3"/></svg>',
+        list:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>',
+        doc:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M9.5 13h5M9.5 16h5"/></svg>',
+        cog:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg>',
+        check:'<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#7ee0a8" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>',
+      };
+      document.getElementById('logo-slot').innerHTML = ICONS.logo + '<span>CLOISTER<br><span class="sub">CONSOLE</span></span>';
+      document.querySelectorAll('[data-ic]').forEach(e => e.innerHTML = ICONS[e.dataset.ic] || '');
+      document.querySelectorAll('[data-ic-row]').forEach(e => e.insertAdjacentHTML('afterbegin', ICONS.check + ' '));
+
+      // ---------- data ----------
+      const TX = [
+        ['Acme GmbH','B2B settlement','12,500 USDC','Base','clean','settled'],
+        ['Core dev — Lena','Contributor payout','8,000 USDC','Base','clean','settled'],
+        ['Oracle payout bot','Programmatic','2,400 USDC','Polygon','clean','pending'],
+        ['DFX Settlement','Merchant checkout','340 EURC','Base','clean','settled'],
+        ['Auditor','DAO payout','6,000 USDC','Arbitrum','clean','settled'],
+      ];
+      const tagFor = s => s==='pending' ? '<span class="tag-pend"><span class="d warn"></span>proving</span>'
+                                        : '<span class="tag-ok"><span class="d ok"></span>'+s+'</span>';
+      const compTag = '<span class="tag-ok"><span class="d ok"></span>clean</span>';
+      const rowHtml = (t, withDate, i) =>
+        (withDate ? '<td>Jun '+(12-i)+'</td>' : '') +
+        '<td class="addr">'+t[0]+'</td><td>'+t[1]+'</td><td class="addr">'+t[2]+'</td><td>'+t[3]+'</td><td>'+compTag+'</td><td>'+tagFor(t[5])+'</td>';
+      document.getElementById('recentRows').innerHTML = TX.map(t=>'<tr>'+rowHtml(t,false)+'</tr>').join('');
+      document.getElementById('activityRows').innerHTML = TX.map((t,i)=>'<tr>'+rowHtml(t,true,i)+'</tr>').join('');
+
+      // ---------- navigation ----------
+      const TITLES = {overview:['CONSOLE','Overview'],fund:['OPERATE','Fund'],disburse:['OPERATE','Disburse'],recipients:['OPERATE','Recipients'],activity:['OPERATE','Activity'],compliance:['COMPLIANCE','Compliance Center'],settings:['ACCOUNT','Settings']};
+      function go(view){
+        document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('on', n.dataset.view===view));
+        document.querySelectorAll('.view').forEach(v=>v.classList.toggle('hidden', v.dataset.pane!==view));
+        document.getElementById('crumb').textContent = TITLES[view][0];
+        document.getElementById('title').textContent = TITLES[view][1];
+        window.scrollTo({top:0,behavior:'smooth'});
+      }
+      document.querySelectorAll('[data-view]').forEach(n=>n.onclick=()=>go(n.dataset.view));
+      document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>go(b.dataset.goto));
+
+      // ---------- reveal balance ----------
+      const balVal=document.getElementById('balVal'), revealBtn=document.getElementById('revealBtn');
+      revealBtn.onclick=()=>{const m=balVal.classList.toggle('masked');revealBtn.textContent=m?'reveal':'hide';};
+
+      // ---------- disburse mode ----------
+      document.querySelectorAll('#disburseMode button').forEach(b=>b.onclick=()=>{
+        document.querySelectorAll('#disburseMode button').forEach(x=>x.classList.toggle('on',x===b));
+        document.querySelectorAll('[data-disburse]').forEach(d=>d.classList.toggle('hidden', d.dataset.disburse!==b.dataset.mode));
+      });
+
+      // ---------- segmented chain on fund ----------
+      document.querySelectorAll('.seg').forEach(seg=>seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+        if(b.closest('#disburseMode')) return;
+        seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+      }));
+
+      // ---------- simulated pay (background proving) ----------
+      const con=document.getElementById('payConsole'), prog=document.getElementById('prog'), payBtn=document.getElementById('payBtn');
+      function line(html){con.innerHTML += '\n'+html;}
+      payBtn && (payBtn.onclick=async()=>{
+        const amt=document.getElementById('singleAmt').value;
+        payBtn.style.pointerEvents='none'; con.textContent='cloister> confirm received — proof was pre-warming…'; prog.style.width='0';
+        const steps=[
+          ['12%','selecting notes ≥ '+amt+' USDC …'],
+          ['30%','building witness · balance · membership · nullifier'],
+          ['52%','<span class="hl">ASP inclusion proof</span> — funds ∈ good-set'],
+          ['78%','groth16 fullProve … <span class="hl">~2.3 s</span>'],
+          ['92%','relaying — gas paid by relayer, <span class="hl">your address never appears</span>'],
+          ['100%','<span class="ok">✓ settled</span> · change note returned · nothing linkable on-chain'],
+        ];
+        for(const [w,t] of steps){ await new Promise(r=>setTimeout(r,520)); prog.style.width=w; line('cloister> '+t); }
+        await new Promise(r=>setTimeout(r,300));
+        line('<span class="ok">cloister> receipt available in Compliance Center.</span>');
+        payBtn.style.pointerEvents='';
+      });
+
+      // ---------- simulated receipt ----------
+      const rcon=document.getElementById('receiptConsole'), rbtn=document.getElementById('receiptBtn');
+      rbtn && (rbtn.onclick=async()=>{
+        rcon.classList.remove('hidden'); rcon.textContent='cloister> assembling proof of innocence…';
+        const steps=['gathering selected notes (Q2 2026)','proving ∈ associationRoot — <span class="hl">no history revealed</span>','attesting KYC origin (DFX onramp)','signing attestation','<span class="ok">✓ receipt.json + receipt.pdf ready — download</span>'];
+        for(const t of steps){ await new Promise(r=>setTimeout(r,480)); rcon.innerHTML+='\ncloister> '+t; }
+      });
+    </script>
+  </body>
+</html>

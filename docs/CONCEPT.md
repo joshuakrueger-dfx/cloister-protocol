@@ -156,11 +156,36 @@ und Wallet-SDK-Patterns von Railgun adaptieren. Eigentum/Lizenzierbarkeit bleibt
 
 ## 7. Geschäftsmodell (verkauf-/vermietbar)
 
-- **Managed Service:** DFX betreibt Relayer-Infra + ASP + Compliance-/Viewing-Key-Dashboard.
-  Abrechnung: per-Tx-Relayer-Fee + SaaS-Abo pro Händler/PSP.
-- **Lizenz/SDK:** PSPs/Händler lizenzieren Wallet-SDK + Pool-Deployment, fahren optional
-  eigene Relayer (White-Label).
-- **Add-on-Verkauf:** als optionales Privacy-Modul oben auf jedes OpenCryptoPay-Deployment.
+> Volle Herleitung, Preise, Stückkosten und Reihenfolge in [`BUSINESS_MODEL.md`](BUSINESS_MODEL.md).
+> Kern hier in Kurzform.
+
+**These:** *Verschenke das Krypto-Gut, verkaufe die Regulierung und die Bilanz.* Pool, Relayer,
+SDK und Prover sind per Design forkbar/permissionless (§12) — drei der vier Rollen konkurrieren
+ihre Marge gegen die Gas-Kosten weg. Nicht forkbar sind nur ein **regulatorisch akzeptierter
+ASP-Root** und eine **lizenzierte Bilanz** (Settlement + Float). Dort, und nur dort, verdient DFX.
+Alles andere bleibt gratis, weil es die einzige Produktqualität füttert, die zählt: die **Größe des
+Anonymitäts-Sets**.
+
+**Die Hebel:**
+- **Settlement-Clip (Volumenmotor):** 0,15–0,30 % auf den gesettelten Wert — den DFX fürs
+  Händler-Settlement *ohnehin* kennt (§51), also **privacy-neutral**. Schlägt Karten-Interchange
+  (1,5–3,5 %), unterbietet Krypto-PSPs (~0,5–1 %).
+- **ASP-as-a-Service (Fixkosten-Deckung):** Subscription pro reguliertem Integrator für
+  signierten `associationRoot`-Feed + Viewing-Key-Disclosure + SLA + Konformitäts-Zertifikat —
+  der eigentliche Moat (Vertrauen ist nicht forkbar).
+- **White-Label-Lizenz:** auditierte Circuits + ASP-Framework + Indemnity (nicht der Code).
+- **Float-Yield (optional):** Treasury-Ertrag auf Aggregat-Settlement-Working-Capital;
+  abschaltbar via Instant-Unshield (kein Float, kein Honeypot).
+
+**Bewusster Verzicht:** **Shield bleibt gratis** (jede Einzahlung *kauft* ein Set-Mitglied — eine
+Deposit-Fee würde das Produkt besteuern), **Relayer läuft zu Kosten** (permissionless → kein
+Profit-Center), **keine Pool-/Contract-Fee** (würde geforkt, widerspricht der neutralen Governance
+aus §12.4).
+
+**Reihenfolge:** zuerst das `[P0]`-Legal-Memo (= die Investitionsentscheidung, das gesamte Modell
+ist *downstream* davon), dann Settlement-Clip auf DFX-eigenem Wallet-Volumen (kein externer Kunde
+nötig), dann ASP-Subscription an den ersten externen PSP, dann der kanonische geteilte Pool als
+Asset des Standards.
 
 ---
 

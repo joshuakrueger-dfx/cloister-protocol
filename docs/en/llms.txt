@@ -1,0 +1,54 @@
+# Cloister
+
+> Compliant, encrypted-UTXO shielded pool for EVM chains. A privacy layer for payments:
+> a payer settles without revealing the on-chain payer↔recipient link, while proving in
+> zero knowledge that the funds belong to a compliance good-set (ASP). Standalone DFX
+> product; OpenCryptoPay is the first integration. Self-built on gnark (Apache-2), no GPL.
+
+## Facts
+
+- ZK: Groth16 over BN254, Poseidon2 hash, 2-in/2-out circuit, 50,481 R1CS constraints.
+- Prove time: ~190–220 ms (gnark, desktop) vs ~1.78 s (old circom/snarkjs WebView) ≈ 8×.
+- Note: curve-free, pubKey = H(privKey); commitment = H(amount, pubKey, blinding);
+  nullifier = H(commitment, leafIndex, H(privKey, commitment, leafIndex)).
+- Merkle: fixed depth 20 (2^20 ≈ 1.05M notes), empty leaf 0, node H(l,r), off-chain insertion.
+- Public signals (order): Root, PublicAmount, ExtDataHash, InputNullifier[2],
+  OutputCommitment[2], NewRoot, PairIndex, AssociationRoot.
+- Proving runs on-device (native gomobile module); the witness never leaves the device.
+- Relayer is broadcast-only (sees the proof, never the witness).
+- Licensing: product code proprietary (DFX AG); deps Apache-2/MIT/BSD/Unlicense only.
+
+## Components
+
+- packages/prover-gnark: ZK layer (zk/), prover lib (prover/), gomobile binding (mobile/),
+  cmd/setup (keys+verifier), cmd/proverd (dev HTTP prover). Go, gnark.
+- packages/contracts: ShieldedPool.sol, Groth16Verifier.sol (MIT), TransactionVerifier.sol
+  (a,b,c adapter), PoolRegistry.sol. Solidity 0.8.20, OpenZeppelin.
+- packages/sdk: keys, notes, merkle tree, note encryption (nacl + view tags), buildWitness,
+  pluggable backend (backend.js), submit.js (idempotent fallback), sync.js (indexer→chain).
+- packages/api: broadcast-only relayer. packages/indexer: commitment/discovery service.
+- dfx-wallet/modules/cloister-prover: native Expo module wrapping Cloister.xcframework.
+
+## Docs
+
+- [Architecture](ARCHITECTURE.md): system, components, lifecycle, design decisions.
+- [Circuit](CIRCUIT.md): primitives, public signals, constraints, soundness, setup.
+- [Security](SECURITY.md): threat model, contract/circuit/relayer controls, residual risks.
+- [Privacy](PRIVACY.md): what's hidden/revealed, proving location, trust boundaries.
+- [Fallbacks](FALLBACKS.md): proving + submission + sync fallback chains, idempotency.
+- [Integration](INTEGRATION.md): native module, SDK wiring, build/prove/submit, deploy.
+- [Validation](VALIDATION.md): test suites, 1000-tx soak, adversarial battery, results.
+
+## Build / test
+
+- go test ./... (in packages/prover-gnark): primitives, circuit, prover, mobile.
+- npx hardhat test (in packages/contracts): contract + real-proof E2E.
+- node test/e2e-native.mjs (in packages/sdk, with proverd): SDK↔circuit consistency.
+- node soak/soak.mjs 1000 + node soak/adversarial.mjs (local hardhat + proverd).
+
+## Caveats
+
+- Trusted setup is a single groth16.Setup run; mainnet needs a multi-party Phase-2 ceremony.
+- proverd sees the witness → dev/CI only, never production.
+- ASP good-set is a policy/operational trust; owner/guardian/ASP must be multisig+timelock.
+- Independent external audit required before handling real value.

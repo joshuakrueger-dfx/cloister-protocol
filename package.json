@@ -16,7 +16,9 @@
     "demo:gas": "node apps/demo/src/gas-measure.js",
     "demo:parallel": "node apps/demo/src/parallel-demo.js",
     "demo:trace": "node apps/demo/src/trace-audit.js",
-    "demo:spike": "node apps/demo/src/prover-spike.mjs"
+    "demo:spike": "node apps/demo/src/prover-spike.mjs",
+    "app": "pnpm --filter @cloister/web dev",
+    "dev:stack": "bash scripts/dev-stack.sh"
   },
   "engines": {
     "node": ">=20"
