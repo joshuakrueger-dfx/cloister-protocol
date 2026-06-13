@@ -1,0 +1,87 @@
+// =====================================================================
+// CloisterApi — DIE zentrale Abstraktion.
+//
+// Sämtliche Screens sprechen ausschließlich gegen dieses Interface, nie
+// direkt gegen das SDK. So lässt sich die `MockApi` (unten) später 1:1
+// durch eine `RealApi` (siehe realApi.ts) ersetzen, die `@cloister/sdk`
+// + Indexer + Relayer anbindet — ohne dass eine UI-Komponente sich ändert.
+// =====================================================================
+
+import type {
+  AnonymitySet,
+  AspStatus,
+  Asset,
+  Backend,
+  Balance,
+  BatchDisburseParams,
+  ChainId,
+  ComplianceStatus,
+  Disbursement,
+  Disclosure,
+  DisclosureParams,
+  DisburseResult,
+  JurisdictionProfile,
+  KycStatus,
+  KycSubmitPayload,
+  Note,
+  PayrollSession,
+  PayrollSessionParams,
+  ProgressCallback,
+  Receipt,
+  ReceiptParams,
+  Recipient,
+  Session,
+  SingleDisburseParams,
+  Wallet,
+} from "./types";
+
+export interface CloisterApi {
+  // ---------- Session / Auth ----------
+  getSession(): Promise<Session>;
+  createWallet(seed?: string[]): Promise<Wallet>;
+  unlock(password: string): Promise<Session>;
+  getKycStatus(): Promise<KycStatus>;
+  submitKyc(payload: KycSubmitPayload, onProgress?: ProgressCallback): Promise<KycStatus>;
+  loginWithDfx(): Promise<Session>;
+
+  // ---------- Treasury / Notes ----------
+  getBalance(chain?: ChainId | "all"): Promise<Balance>;
+  getNotes(): Promise<Note[]>;
+  getAnonymitySet(): Promise<AnonymitySet>;
+  getComplianceStatus(): Promise<ComplianceStatus>;
+
+  // ---------- Fund / Disburse ----------
+  shield(params: {
+    amount: string;
+    asset: Asset;
+    chain: ChainId;
+    source: string;
+  }): Promise<{ commitment: string }>;
+  disburseSingle(
+    params: SingleDisburseParams,
+    onProgress?: ProgressCallback,
+  ): Promise<DisburseResult>;
+  disburseBatch(
+    params: BatchDisburseParams,
+    onProgress?: ProgressCallback,
+  ): Promise<DisburseResult>;
+  authorizePayrollSession(params: PayrollSessionParams): Promise<PayrollSession>;
+  getPayrollSession(): Promise<PayrollSession>;
+
+  // ---------- Directory / Ledger ----------
+  getRecipients(): Promise<Recipient[]>;
+  getActivity(): Promise<Disbursement[]>;
+  getRecentDisbursements(): Promise<Disbursement[]>;
+
+  // ---------- Compliance Center ----------
+  generateReceipt(params: ReceiptParams, onProgress?: ProgressCallback): Promise<Receipt>;
+  createDisclosure(params: DisclosureParams): Promise<Disclosure>;
+  listDisclosures(): Promise<Disclosure[]>;
+  revokeDisclosure(id: string): Promise<void>;
+  getAspStatus(): Promise<AspStatus>;
+  getJurisdictionProfile(): Promise<JurisdictionProfile>;
+
+  // ---------- Backends ----------
+  getBackends(): Promise<Backend[]>;
+  setBackend(id: string): Promise<Backend[]>;
+}

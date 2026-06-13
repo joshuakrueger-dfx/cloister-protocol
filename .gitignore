@@ -1,16 +1,21 @@
 node_modules/
-# Circuit-Build-Artefakte & Powers-of-Tau (groß, reproduzierbar via build:circuits)
-packages/circuits/build/
+
 # Hardhat
 packages/contracts/artifacts/
 packages/contracts/cache/
-# generierter Verifier (wird aus circuits gespiegelt)
-packages/contracts/contracts/TransactionVerifier.sol
-# prover-webview: große/kopierte Binaries (via setup.sh reproduzierbar)
-packages/prover-webview/snarkjs.min.js
-packages/prover-webview/cloister-sdk.browser.js
-packages/prover-webview/fixtures/*.wasm
-packages/prover-webview/fixtures/*.zkey
+
+# prover-gnark: large/regenerable artifacts (rebuild via cmd/setup + scripts/build-ios.sh).
+# Kept (small, source of truth): build/Verifier.sol, keys/vk.bin
+packages/prover-gnark/keys/pk.bin
+packages/prover-gnark/keys/circuit.r1cs
+packages/prover-gnark/build/Cloister.xcframework/
+packages/prover-gnark/build/*.wasm
+packages/prover-gnark/proverd
+
+# web demo: built assets + large prover artifacts (regenerable)
+apps/web/dist/
+apps/web/public/gnark/
+
 *.log
 .DS_Store
 .env
