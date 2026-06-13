@@ -55,6 +55,7 @@ async function main() {
       [shield.proof.a, shield.proof.b, shield.proof.c],
       shield.root,
       shield.newRoot,
+      shield.associationRoot,
       shield.inputNullifiers,
       shield.outputCommitments,
       [
@@ -104,6 +105,7 @@ async function main() {
     proof: pay.proof,
     root: pay.root,
     newRoot: pay.newRoot,
+    associationRoot: pay.associationRoot,
     inputNullifiers: pay.inputNullifiers,
     outputCommitments: pay.outputCommitments,
     extData: pay.extData,

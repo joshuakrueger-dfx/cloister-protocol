@@ -49,6 +49,13 @@ async function main() {
   setInterval(() => poll().catch(() => {}), 1000);
 
   const app = express();
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "content-type");
+    res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+    if (req.method === "OPTIONS") return res.sendStatus(204);
+    next();
+  });
 
   app.get("/health", (_req, res) => res.json({ ok: true, pool: poolAddr, count: commitments.length }));
 

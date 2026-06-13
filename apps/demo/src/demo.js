@@ -42,7 +42,7 @@ async function applyTx(receipt, pool, tree, wallets) {
 async function send(pool, signer, t) {
   const tx = await pool
     .connect(signer)
-    .transact(proofTuple(t.proof), t.root, t.newRoot, t.inputNullifiers, t.outputCommitments, extTuple(t.extData));
+    .transact(proofTuple(t.proof), t.root, t.newRoot, t.associationRoot, t.inputNullifiers, t.outputCommitments, extTuple(t.extData));
   return tx.wait();
 }
 

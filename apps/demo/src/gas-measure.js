@@ -38,7 +38,7 @@ async function main() {
     tree, inputs: [], outputs: [{ note: new Note({ amount: 1000n, pubKey: alice.publicKey }), encPubKey: alice.address().encPubKey }],
     extAmount: 1000n, wasmPath, zkeyPath,
   });
-  const shTx = await pool.connect(deployer).transact(proofTuple(shield.proof), shield.root, shield.newRoot, shield.inputNullifiers, shield.outputCommitments, extTuple(shield.extData));
+  const shTx = await pool.connect(deployer).transact(proofTuple(shield.proof), shield.root, shield.newRoot, shield.associationRoot, shield.inputNullifiers, shield.outputCommitments, extTuple(shield.extData));
   const shRc = await shTx.wait();
   await applyTx(shRc, pool, tree, [aliceW]);
 
@@ -52,7 +52,7 @@ async function main() {
     ],
     extAmount: 0n, wasmPath, zkeyPath,
   });
-  const payRc = await (await pool.connect(deployer).transact(proofTuple(pay.proof), pay.root, pay.newRoot, pay.inputNullifiers, pay.outputCommitments, extTuple(pay.extData))).wait();
+  const payRc = await (await pool.connect(deployer).transact(proofTuple(pay.proof), pay.root, pay.newRoot, pay.associationRoot, pay.inputNullifiers, pay.outputCommitments, extTuple(pay.extData))).wait();
 
   const levels = Number(await pool.levels());
   console.log("\n=== Gas-Messung (Off-chain-Insertion: Root-Transition im Proof) ===");

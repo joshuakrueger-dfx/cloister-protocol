@@ -35,7 +35,7 @@ async function shieldInto(pool, funder, lane, alice, laneTrees, amount) {
     inputs: [], outputs: [{ note: new Note({ amount: BigInt(amount), pubKey: alice.publicKey }), encPubKey: alice.address().encPubKey }],
     extAmount: BigInt(amount), wasmPath, zkeyPath,
   });
-  const rc = await (await pool.connect(funder).transactLane(lane, proofTuple(t.proof), t.root, t.newRoot, t.inputNullifiers, t.outputCommitments, extTuple(t.extData))).wait();
+  const rc = await (await pool.connect(funder).transactLane(lane, proofTuple(t.proof), t.root, t.newRoot, t.associationRoot, t.inputNullifiers, t.outputCommitments, extTuple(t.extData))).wait();
   return rc;
 }
 
@@ -57,7 +57,7 @@ async function submitInOneBlock(provider, pool, relayer, built) {
   await provider.send("evm_setAutomine", [false]);
   const responses = [];
   for (const t of built) {
-    const r = await pool.connect(relayer).transactLane(t.lane, proofTuple(t.proof), t.root, t.newRoot, t.inputNullifiers, t.outputCommitments, extTuple(t.extData), { gasLimit: GAS });
+    const r = await pool.connect(relayer).transactLane(t.lane, proofTuple(t.proof), t.root, t.newRoot, t.associationRoot, t.inputNullifiers, t.outputCommitments, extTuple(t.extData), { gasLimit: GAS });
     responses.push(r);
   }
   await provider.send("evm_mine", []);
