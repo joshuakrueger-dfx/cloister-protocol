@@ -10,7 +10,7 @@ contract MockVerifier is ITransactionVerifier {
         uint256[2] calldata,
         uint256[2][2] calldata,
         uint256[2] calldata,
-        uint256[9] calldata
+        uint256[10] calldata
     ) external pure returns (bool) {
         return true;
     }
@@ -81,6 +81,7 @@ interface IPoolReenter {
         Proof calldata proof,
         uint256 oldRoot,
         uint256 newRoot,
+        uint256 associationRoot,
         uint256[2] calldata inputNullifiers,
         uint256[2] calldata outputCommitments,
         ExtData calldata extData
