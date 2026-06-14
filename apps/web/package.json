@@ -13,6 +13,7 @@
   "dependencies": {
     "@cloister/sdk": "workspace:*",
     "buffer": "^6.0.3",
+    "ethers": "^6.13.0",
     "jspdf": "^4.2.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

@@ -31,6 +31,7 @@ import type {
   Receipt,
   ReceiptParams,
   Recipient,
+  AddRecipientInput,
   Session,
   SingleDisburseParams,
   Wallet,
@@ -43,7 +44,6 @@ export interface CloisterApi {
   unlock(password: string): Promise<Session>;
   getKycStatus(): Promise<KycStatus>;
   submitKyc(payload: KycSubmitPayload, onProgress?: ProgressCallback): Promise<KycStatus>;
-  loginWithDfx(): Promise<Session>;
 
   // ---------- Treasury / Notes ----------
   getBalance(chain?: ChainId | "all"): Promise<Balance>;
@@ -71,6 +71,7 @@ export interface CloisterApi {
 
   // ---------- Directory / Ledger ----------
   getRecipients(): Promise<Recipient[]>;
+  addRecipient(input: AddRecipientInput): Promise<Recipient[]>;
   getActivity(): Promise<Disbursement[]>;
   getRecentDisbursements(): Promise<Disbursement[]>;
 

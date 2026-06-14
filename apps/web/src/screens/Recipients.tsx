@@ -1,10 +1,31 @@
+import { useState } from "react";
 import { useApi } from "../lib/ApiProvider";
 import { useAsync } from "../lib/useAsync";
-import { Card, ScreenHead, SanctionsTag } from "../components/primitives";
+import { Button, Card, Field, ScreenHead, SanctionsTag } from "../components/primitives";
 
 export function Recipients() {
   const api = useApi();
-  const { data, loading, error } = useAsync(() => api.getRecipients(), []);
+  const { data, loading, error, reload } = useAsync(() => api.getRecipients(), []);
+
+  const [showForm, setShowForm] = useState(false);
+  const [label, setLabel] = useState("");
+  const [type, setType] = useState("B2B vendor");
+  const [address, setAddress] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function add() {
+    if (!label.trim() || !address.trim()) return;
+    setBusy(true);
+    try {
+      await api.addRecipient({ label: label.trim(), type, address: address.trim() });
+      setLabel("");
+      setAddress("");
+      setShowForm(false);
+      reload();
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <section className="view">
@@ -13,7 +34,38 @@ export function Recipients() {
         title="Recipients"
         sub="Labels are encrypted with your viewing key and live only in your account. On-chain, the counterparty never appears."
       />
-      <Card style={{ marginTop: 24, padding: 0 }}>
+
+      <div className="actions" style={{ marginTop: 18 }}>
+        <Button sm onClick={() => setShowForm((s) => !s)}>{showForm ? "Close" : "+ Add recipient"}</Button>
+      </div>
+
+      {showForm ? (
+        <Card style={{ marginTop: 14 }}>
+          <div className="grid g3">
+            <Field label="LABEL (encrypted)" style={{ marginTop: 0 }}>
+              <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Acme GmbH" />
+            </Field>
+            <Field label="TYPE" style={{ marginTop: 0 }}>
+              <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
+                <option>B2B vendor</option>
+                <option>Contributor</option>
+                <option>PSP / broker</option>
+                <option>Programmatic</option>
+              </select>
+            </Field>
+            <Field label="ADDRESS" style={{ marginTop: 0 }}>
+              <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="0x…" />
+            </Field>
+          </div>
+          <div className="actions">
+            <Button variant="solid" arrow onClick={add} disabled={busy || !label.trim() || !address.trim()}>
+              {busy ? "Adding…" : "Add recipient"}
+            </Button>
+          </div>
+        </Card>
+      ) : null}
+
+      <Card style={{ marginTop: 16, padding: 0 }}>
         <table>
           <thead>
             <tr>

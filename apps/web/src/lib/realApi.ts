@@ -246,18 +246,6 @@ export class RealApi implements CloisterApi {
     return kyc;
   }
 
-  async loginWithDfx(): Promise<Session> {
-    await new Promise((r) => setTimeout(r, 500));
-    await this.ready();
-    if (!this.mnemonic && !vaultExists()) { this.mnemonic = generateMnemonic(); this.kp = null; }
-    await this.getKeypair();
-    lsSet("cloister.dfx", true);
-    // DFX (CH/EU) führt die regulierte Identität → EU-Profil, KYC vom Provider bestätigt.
-    lsSet("cloister.kyc", { status: "verified", subjectType: "entity", jurisdiction: "EU", verifiedAt: new Date().toISOString(), level: "L3" });
-    if (!lsGet("cloister.org", null)) lsSet("cloister.org", { name: "DFX-linked account", kind: "Managed · DFX" });
-    return this.getSession();
-  }
-
   // ---------- Treasury / Notes ----------
   async getBalance(): Promise<Balance> {
     await this.sync();
@@ -385,7 +373,7 @@ export class RealApi implements CloisterApi {
   }
 
   async authorizePayrollSession(params: PayrollSessionParams): Promise<PayrollSession> {
-    const s: PayrollSession = { authorized: true, nextRun: "scheduled", recipients: 0, amount: params.budgetCap, lastRun: "—" };
+    const s: PayrollSession = { authorized: true, nextRun: params.schedule, recipients: 0, amount: params.budgetCap, lastRun: "—" };
     lsSet(`${this.ns}.payroll`, s);
     return s;
   }
@@ -405,6 +393,17 @@ export class RealApi implements CloisterApi {
     ];
     lsSet(`${this.ns}.recipients`, seed);
     return seed;
+  }
+
+  async addRecipient(input: import("./types").AddRecipientInput): Promise<Recipient[]> {
+    await this.getConfig();
+    const list = await this.getRecipients();
+    const next: Recipient[] = [
+      { id: `r_${Date.now()}`, label: input.label, type: input.type, address: input.address, lastPaid: "—", sanctions: "ok" },
+      ...list,
+    ];
+    lsSet(`${this.ns}.recipients`, next);
+    return next;
   }
 
   async getActivity(): Promise<Disbursement[]> { await this.getConfig(); return lsGet<Disbursement[]>(`${this.ns}.activity`, []); }

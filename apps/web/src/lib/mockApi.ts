@@ -179,22 +179,6 @@ export class MockApi implements CloisterApi {
     return structuredClone(this.session.kyc);
   }
 
-  async loginWithDfx(): Promise<Session> {
-    await wait(520);
-    this.session.authenticated = true;
-    this.session.unlocked = true;
-    this.session.dfxLinked = true;
-    this.session.kyc = {
-      status: "verified",
-      subjectType: "entity",
-      jurisdiction: "EU",
-      verifiedAt: new Date().toISOString(),
-      level: "L3",
-    };
-    if (!this.wallet) await this.createWallet();
-    return structuredClone(this.session);
-  }
-
   // ---------- Treasury / Notes ----------
   async getBalance(): Promise<Balance> {
     await wait(260);
@@ -284,7 +268,7 @@ export class MockApi implements CloisterApi {
 
   async authorizePayrollSession(params: PayrollSessionParams): Promise<PayrollSession> {
     await wait(700);
-    this.payroll = { ...this.payroll, authorized: true, amount: params.budgetCap };
+    this.payroll = { ...this.payroll, authorized: true, amount: params.budgetCap, nextRun: params.schedule };
     return structuredClone(this.payroll);
   }
 
@@ -294,14 +278,25 @@ export class MockApi implements CloisterApi {
   }
 
   // ---------- Directory / Ledger ----------
+  private recipients: Recipient[] = [
+    { id: uid("r"), label: "Acme GmbH", type: "B2B vendor", address: "0x4f21…ab90", lastPaid: "Jun 11", sanctions: "ok" },
+    { id: uid("r"), label: "Core dev — Lena", type: "Contributor", address: "0x7a3f…9c2d", lastPaid: "Jun 1", sanctions: "ok" },
+    { id: uid("r"), label: "DFX Settlement", type: "PSP / broker", address: "0x9C22…10FC", lastPaid: "Jun 12", sanctions: "ok" },
+    { id: uid("r"), label: "Oracle payout bot", type: "Programmatic", address: "0x33ee…0f5a", lastPaid: "Jun 13", sanctions: "ok" },
+  ];
+
   async getRecipients(): Promise<Recipient[]> {
     await wait(300);
-    return [
-      { id: uid("r"), label: "Acme GmbH", type: "B2B vendor", address: "0x4f21…ab90", lastPaid: "Jun 11", sanctions: "ok" },
-      { id: uid("r"), label: "Core dev — Lena", type: "Contributor", address: "0x7a3f…9c2d", lastPaid: "Jun 1", sanctions: "ok" },
-      { id: uid("r"), label: "DFX Settlement", type: "PSP / broker", address: "0x9C22…10FC", lastPaid: "Jun 12", sanctions: "ok" },
-      { id: uid("r"), label: "Oracle payout bot", type: "Programmatic", address: "0x33ee…0f5a", lastPaid: "Jun 13", sanctions: "ok" },
+    return structuredClone(this.recipients);
+  }
+
+  async addRecipient(input: import("./types").AddRecipientInput): Promise<Recipient[]> {
+    await wait(220);
+    this.recipients = [
+      { id: uid("r"), label: input.label, type: input.type, address: input.address, lastPaid: "—", sanctions: "ok" },
+      ...this.recipients,
     ];
+    return structuredClone(this.recipients);
   }
 
   async getActivity(): Promise<Disbursement[]> {
