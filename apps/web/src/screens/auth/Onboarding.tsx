@@ -10,7 +10,7 @@ import { useApi } from "../../lib/ApiProvider";
 import { useSession } from "../../lib/SessionProvider";
 import { Logo } from "../../components/icons";
 import { vaultExists, clearVault } from "../../lib/vault";
-import type { KycSubjectType, ProofStep, Wallet } from "../../lib/types";
+import type { Jurisdiction, KycSubjectType, ProofStep, Wallet } from "../../lib/types";
 
 type Step = 0 | 1 | 2 | 3;
 
@@ -54,11 +54,17 @@ export function Onboarding() {
 
   // Schritt 2 — KYC
   const [subject, setSubject] = useState<KycSubjectType>("entity");
-  const [legalName, setLegalName] = useState("Nimbus DAO");
+  const [jurisdiction, setJurisdiction] = useState<Jurisdiction>("EU");
+  const [legalName, setLegalName] = useState("");
+  const [country, setCountry] = useState("");
+  const [idType, setIdType] = useState("passport");
+  const [idNumber, setIdNumber] = useState("");
+  const [dob, setDob] = useState("");
   const [kycLines, setKycLines] = useState<ProofStep[]>([]);
   const [kycProgress, setKycProgress] = useState(0);
   const [kycBusy, setKycBusy] = useState(false);
   const [kycDone, setKycDone] = useState(false);
+  const [kycError, setKycError] = useState<string | null>(null);
 
   // Schritt 3 — DFX / Enter
   const [dfxBusy, setDfxBusy] = useState(false);
@@ -102,16 +108,32 @@ export function Onboarding() {
     setKycBusy(true);
     setKycLines([]);
     setKycProgress(0);
+    setKycError(null);
     try {
-      await api.submitKyc({ subjectType: subject, legalName, jurisdiction: "CH/EU/US" }, (s) => {
-        setKycProgress(s.progress);
-        setKycLines((p) => [...p, s]);
-      });
+      await api.submitKyc(
+        { subjectType: subject, jurisdiction, legalName, country, idType, idNumber, dateOfBirth: dob },
+        (s) => {
+          setKycProgress(s.progress);
+          setKycLines((p) => [...p, s]);
+        },
+      );
       setKycDone(true);
+    } catch (e) {
+      // Screening kann ablehnen (Embargo/Sanktionen/fehlende Felder) → Flow bricht ab.
+      setKycError(e instanceof Error ? e.message : "Verification failed.");
     } finally {
       setKycBusy(false);
     }
   }
+
+  const COUNTRIES_EU = [
+    ["", "Select country"], ["CH", "Switzerland"], ["DE", "Germany"], ["FR", "France"], ["IT", "Italy"],
+    ["ES", "Spain"], ["NL", "Netherlands"], ["AT", "Austria"], ["PT", "Portugal"], ["IE", "Ireland"],
+    ["IR", "Iran (embargoed)"],
+  ];
+  const COUNTRIES_US = [
+    ["", "Select state/country"], ["US", "United States"], ["CA", "Canada"], ["KP", "North Korea (embargoed)"],
+  ];
 
   async function enterConsole() {
     const session = await api.getSession();
@@ -293,36 +315,69 @@ export function Onboarding() {
           <>
             <h2>Verify identity</h2>
             <p className="hint">
-              The one-time public touchpoint. KYC + sanctions screening run here so every later
-              payout can prove clean origin without revealing history.
+              The one-time public touchpoint. Pick your regulatory home — the console then shows
+              only that jurisdiction's rules. KYC + sanctions screening run here so every later
+              payout proves clean origin without revealing history.
             </p>
+            <div className="field">
+              <label>REGULATORY JURISDICTION</label>
+              <div className="seg">
+                <button type="button" className={jurisdiction === "EU" ? "on" : ""} onClick={() => { setJurisdiction("EU"); setCountry(""); }}>
+                  EU-based
+                </button>
+                <button type="button" className={jurisdiction === "US" ? "on" : ""} onClick={() => { setJurisdiction("US"); setCountry(""); }}>
+                  US-based
+                </button>
+              </div>
+            </div>
             <div className="field">
               <label>SUBJECT</label>
               <div className="seg">
-                <button
-                  type="button"
-                  className={subject === "entity" ? "on" : ""}
-                  onClick={() => setSubject("entity")}
-                >
+                <button type="button" className={subject === "entity" ? "on" : ""} onClick={() => setSubject("entity")}>
                   Entity / DAO
                 </button>
-                <button
-                  type="button"
-                  className={subject === "individual" ? "on" : ""}
-                  onClick={() => setSubject("individual")}
-                >
+                <button type="button" className={subject === "individual" ? "on" : ""} onClick={() => setSubject("individual")}>
                   Individual
                 </button>
               </div>
             </div>
             <div className="field">
               <label>{subject === "entity" ? "LEGAL ENTITY NAME" : "FULL NAME"}</label>
-              <input
-                className="input"
-                value={legalName}
-                onChange={(e) => setLegalName(e.target.value)}
-              />
+              <input className="input" value={legalName} onChange={(e) => setLegalName(e.target.value)} placeholder={subject === "entity" ? "e.g. Acme GmbH" : "e.g. Jane Doe"} />
             </div>
+            <div className="grid g2">
+              <div className="field" style={{ marginTop: 0 }}>
+                <label>{jurisdiction === "EU" ? "COUNTRY" : "STATE / COUNTRY"}</label>
+                <select className="input" value={country} onChange={(e) => setCountry(e.target.value)}>
+                  {(jurisdiction === "EU" ? COUNTRIES_EU : COUNTRIES_US).map(([code, name]) => (
+                    <option key={code} value={code}>{name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field" style={{ marginTop: 0 }}>
+                <label>ID TYPE</label>
+                <select className="input" value={idType} onChange={(e) => setIdType(e.target.value)}>
+                  {subject === "entity" ? <option value="registration">Company registration</option> : <option value="passport">Passport</option>}
+                  {subject === "entity" ? <option value="lei">LEI</option> : <option value="national_id">National ID</option>}
+                </select>
+              </div>
+            </div>
+            <div className="grid g2">
+              <div className="field" style={{ marginTop: 0 }}>
+                <label>{subject === "entity" ? "REGISTRATION NO." : "ID NUMBER"}</label>
+                <input className="input" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} placeholder="e.g. CHE-123.456.789" />
+              </div>
+              {subject === "individual" ? (
+                <div className="field" style={{ marginTop: 0 }}>
+                  <label>DATE OF BIRTH</label>
+                  <input className="input" type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+                </div>
+              ) : <div />}
+            </div>
+
+            {kycError ? (
+              <p className="hint" style={{ color: "var(--bad)" }}>{kycError}</p>
+            ) : null}
 
             {kycLines.length ? (
               <>
@@ -354,7 +409,7 @@ export function Onboarding() {
         {/* ---- Step 3: Enter / DFX ---- */}
         {step === 3 ? (
           <>
-            <h2>You're set.</h2>
+            <h2>You're set</h2>
             <p className="hint">
               Your vault is created, secured and KYC-verified at level L3. Enter the console — or
               link a DFX account for managed onramp + relayer.

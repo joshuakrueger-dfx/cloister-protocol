@@ -1,7 +1,7 @@
 // Wiederverwendbare UI-Primitives — Styles aus prototype.reference.html.
 // Bewusst dünn gehalten; die meiste Optik kommt aus app.css-Klassen.
 
-import type { ReactNode, ButtonHTMLAttributes } from "react";
+import type { ReactNode, ButtonHTMLAttributes, CSSProperties } from "react";
 import type { StatusLevel } from "../lib/types";
 
 // ---------- Card ----------
@@ -94,6 +94,13 @@ export function Tag({ level, children }: { level: StatusLevel; children: ReactNo
   );
 }
 
+// Sanctions-screening tag — label tracks the screening level so a flagged or
+// blocked counterparty never renders as "clear".
+export function SanctionsTag({ level }: { level: StatusLevel }) {
+  const label = level === "ok" ? "clear" : level === "pending" ? "review" : "blocked";
+  return <Tag level={level}>{label}</Tag>;
+}
+
 // ---------- KeyValue ----------
 export function KeyValue({
   k,
@@ -183,9 +190,17 @@ export function Seg<T extends string>({
 }
 
 // ---------- Field / Input / Select ----------
-export function Field({ label, children }: { label: string; children: ReactNode }) {
+export function Field({
+  label,
+  children,
+  style,
+}: {
+  label: string;
+  children: ReactNode;
+  style?: CSSProperties;
+}) {
   return (
-    <div className="field">
+    <div className="field" style={style}>
       <label>{label}</label>
       {children}
     </div>

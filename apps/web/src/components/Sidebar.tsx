@@ -46,7 +46,7 @@ function Section({ title, items, onNav }: { title: string; items: NavDef[]; onNa
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { session } = useSession();
-  const org = session?.org ?? { name: "Nimbus DAO", kind: "Treasury · self-custody" };
+  const org = session?.org ?? { name: "Your Treasury", kind: "Treasury · self-custody" };
   return (
     <aside className={`sidebar${open ? " open" : ""}`}>
       <div className="brand">

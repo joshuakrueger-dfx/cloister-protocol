@@ -16,6 +16,9 @@ packages/prover-gnark/proverd
 apps/web/dist/
 apps/web/public/gnark/
 
+# TypeScript incremental build cache (regenerable, churns every build)
+*.tsbuildinfo
+
 *.log
 .DS_Store
 .env

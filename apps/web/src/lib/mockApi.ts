@@ -9,6 +9,25 @@
 
 import type { CloisterApi } from "./api";
 import { backendsView, setActiveBackendId } from "./backends";
+import { JURISDICTION_PROFILES, JURISDICTION_LABEL } from "./jurisdictions";
+import type { ExportFormat, KycCheck } from "./types";
+
+// Demo-Screening (lokal): Embargo-Länder + Sanktionsnamen — kann ablehnen (kein Theater).
+const EMBARGOED: Record<string, string> = { CU: "Cuba", IR: "Iran", KP: "North Korea (DPRK)", SY: "Syria" };
+const SANCTIONED = ["vladimir putin", "kim jong un", "bashar al assad", "wagner group", "tornado cash", "garantex"];
+function screenApplicantLocal(p: import("./types").KycSubmitPayload): KycCheck[] {
+  const norm = (s: string) => String(s || "").toLowerCase().normalize("NFD").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  const fieldsOk = Boolean(p.legalName && p.country && p.idType && p.idNumber && (p.subjectType === "entity" || p.dateOfBirth));
+  const cc = (p.country || "").toUpperCase();
+  const embargoed = Boolean(EMBARGOED[cc]);
+  const n = norm(p.legalName);
+  const hit = SANCTIONED.some((s) => s.split(" ").every((w) => n.includes(w)));
+  return [
+    { name: "Required fields", pass: fieldsOk, detail: fieldsOk ? "complete" : "missing required identity fields" },
+    { name: "Jurisdiction screening", pass: !embargoed, detail: embargoed ? `embargoed jurisdiction: ${EMBARGOED[cc]}` : `${cc || "—"} permitted` },
+    { name: "Sanctions screening (OFAC SDN / EU)", pass: !hit, detail: hit ? "potential match — referred for review" : "no match on sanctions lists" },
+  ];
+}
 import type {
   AnonymitySet,
   AspStatus,
@@ -83,8 +102,8 @@ export class MockApi implements CloisterApi {
   private session: Session = {
     authenticated: false,
     unlocked: false,
-    org: { name: "Nimbus DAO", kind: "Treasury · self-custody" },
-    kyc: { status: "unverified", subjectType: null, verifiedAt: null, level: null },
+    org: { name: "Your Treasury", kind: "Treasury · self-custody" },
+    kyc: { status: "unverified", subjectType: null, jurisdiction: null, verifiedAt: null, level: null },
     dfxLinked: false,
   };
   private wallet: Wallet | null = null;
@@ -130,21 +149,32 @@ export class MockApi implements CloisterApi {
   }
 
   async submitKyc(payload: KycSubmitPayload, onProgress?: ProgressCallback): Promise<KycStatus> {
-    const steps = [
-      [20, "submitting identity document …"],
-      [48, "screening against OFAC + EU sanctions lists"],
-      [72, "verifying jurisdiction · CH/EU/US permitted"],
-      [100, "<span class='ok'>✓ verified</span> — added to ASP good-set"],
-    ] as const;
-    for (const [p, t] of steps) {
-      await wait(620);
-      onProgress?.({ progress: p, html: t });
+    // Demo-Screen — auch hier kein reines Theater: Embargo-Länder + ein paar
+    // Sanktionsnamen werden lokal geprüft und können ABLEHNEN.
+    const checks = screenApplicantLocal(payload);
+    let p = 18;
+    const inc = Math.floor(74 / checks.length);
+    for (const c of checks) {
+      await wait(440);
+      p += inc;
+      const mark = c.pass ? "<span class='ok'>✓</span>" : "<span style='color:var(--bad)'>✗</span>";
+      onProgress?.({ progress: p, html: `${mark} ${c.name} — ${c.detail}` });
     }
+    if (!checks.every((c) => c.pass)) {
+      onProgress?.({ progress: 100, html: "<span style='color:var(--bad)'>✗ rejected</span> — resolve the flagged checks above" });
+      throw new Error("KYC rejected: " + checks.filter((c) => !c.pass).map((c) => `${c.name} (${c.detail})`).join("; "));
+    }
+    onProgress?.({ progress: 100, html: "<span class='ok'>✓ verified</span> — added to ASP good-set" });
     this.session.kyc = {
       status: "verified",
       subjectType: payload.subjectType,
+      jurisdiction: payload.jurisdiction,
       verifiedAt: new Date().toISOString(),
       level: "L3",
+    };
+    this.session.org = {
+      name: payload.legalName,
+      kind: payload.subjectType === "entity" ? "Treasury · self-custody" : "Individual · self-custody",
     };
     return structuredClone(this.session.kyc);
   }
@@ -157,6 +187,7 @@ export class MockApi implements CloisterApi {
     this.session.kyc = {
       status: "verified",
       subjectType: "entity",
+      jurisdiction: "EU",
       verifiedAt: new Date().toISOString(),
       level: "L3",
     };
@@ -286,25 +317,44 @@ export class MockApi implements CloisterApi {
   // ---------- Compliance Center ----------
   async generateReceipt(params: ReceiptParams, onProgress?: ProgressCallback): Promise<Receipt> {
     const steps = [
-      "gathering selected notes (Q2 2026)",
+      "gathering selected notes",
       "proving ∈ associationRoot — <span class='hl'>no history revealed</span>",
-      "attesting KYC origin (DFX onramp)",
+      "attesting KYC origin",
       "signing attestation",
-      "<span class='ok'>✓ receipt.json + receipt.pdf ready — download</span>",
     ];
     let i = 0;
     for (const t of steps) {
-      await wait(480);
+      await wait(420);
       i++;
-      onProgress?.({ progress: Math.round((i / steps.length) * 100), html: t });
+      onProgress?.({ progress: Math.round((i / (steps.length + 1)) * 100), html: t });
     }
-    return {
-      id: uid("rcpt"),
+    const signed = {
+      kind: "cloister.proof-of-innocence.v1",
+      issuer: "Cloister ASP (DFX)",
+      subject: this.session.org.name,
       scope: params.scope,
       period: params.period,
-      files: ["receipt.json", "receipt.pdf"],
-      createdAt: new Date().toISOString(),
+      statement: "Selected funds belong to the ASP good-set and originate from a KYC-verified source. No transaction history is revealed.",
+      issuedAt: new Date().toISOString(),
     };
+    const { downloadJson, downloadCsv, downloadPdf } = await import("./exporters");
+    const base = `cloister-receipt-${params.period.replace(/\s+/g, "_")}`;
+    const fields = Object.entries(signed).map(([k, v]) => [k, String(v)] as [string, string]);
+    if (params.format === "json") downloadJson(`${base}.json`, signed);
+    else if (params.format === "csv") downloadCsv(`${base}.csv`, [["field", "value"], ...fields]);
+    else downloadPdf(`${base}.pdf`, { title: "Cloister — Proof of Innocence", subtitle: signed.statement, fields });
+    onProgress?.({ progress: 100, html: `<span class='ok'>✓ receipt.${params.format} ready — downloaded</span>` });
+    return { id: uid("rcpt"), scope: params.scope, period: params.period, files: [`receipt.${params.format}`], createdAt: new Date().toISOString() };
+  }
+
+  async exportAuditLog(format: ExportFormat): Promise<void> {
+    const { downloadJson, downloadCsv, downloadPdf } = await import("./exporters");
+    const acts = TX.map((t, i) => txToDisbursement(t, i, true));
+    const headers = ["Date", "Recipient", "Purpose", "Amount", "Chain", "Compliance", "Status"];
+    const rows = acts.map((a) => [a.date, a.recipient, a.purpose, a.amount, a.chain, a.compliance, a.status]);
+    if (format === "json") downloadJson("cloister-audit-log.json", acts);
+    else if (format === "csv") downloadCsv("cloister-audit-log.csv", [headers, ...rows]);
+    else downloadPdf("cloister-audit-log.pdf", { title: "Cloister — Audit Log", subtitle: `${acts.length} disbursement events`, table: { headers, rows } });
   }
 
   async createDisclosure(params: DisclosureParams): Promise<Disclosure> {
@@ -348,16 +398,8 @@ export class MockApi implements CloisterApi {
 
   async getJurisdictionProfile(): Promise<JurisdictionProfile> {
     await wait(220);
-    return {
-      label: "EU + US profile",
-      items: [
-        { label: "EU — MiCA / AMLR", value: "active", level: "ok" },
-        { label: "EU — Travel Rule (TFR)", value: "off-chain payload", level: "ok" },
-        { label: "US — FinCEN / BSA", value: "active", level: "ok" },
-        { label: "US — OFAC screening", value: "at shield", level: "ok" },
-        { label: "GDPR — data minimisation", value: "no plaintext on-chain", level: "ok" },
-      ],
-    };
+    const j = this.session.kyc.jurisdiction ?? "EU";
+    return { label: JURISDICTION_LABEL[j], items: JURISDICTION_PROFILES[j] };
   }
 
   // ---------- Backends (an das geteilte Modul delegiert) ----------

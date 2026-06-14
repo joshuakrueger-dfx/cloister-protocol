@@ -3,14 +3,14 @@ import { useApi } from "../lib/ApiProvider";
 import { useAsync } from "../lib/useAsync";
 import { Button, Card, ComplianceList, Field, ScreenHead } from "../components/primitives";
 import { ProofConsole } from "../components/ProofConsole";
-import type { Disclosure, ProofStep, ReceiptScope } from "../lib/types";
+import type { Disclosure, ExportFormat, ProofStep, ReceiptScope } from "../lib/types";
 
 export function Compliance() {
   return (
     <section className="view">
       <ScreenHead
         eyebrow="THE DIFFERENTIATOR"
-        title="Compliance Center."
+        title="Compliance Center"
         sub="Privacy you can prove. Generate clean-origin attestations and grant scoped, time-limited disclosure to banks, auditors and tax authorities — without ever exposing your full history."
       />
       <div className="split" style={{ marginTop: 26 }}>
@@ -31,6 +31,7 @@ function ReceiptCard() {
   const api = useApi();
   const [scope, setScope] = useState<ReceiptScope>("single");
   const [period, setPeriod] = useState("Q2 2026");
+  const [format, setFormat] = useState<ExportFormat>("pdf");
   const [lines, setLines] = useState<ProofStep[]>([]);
   const [busy, setBusy] = useState(false);
   const [started, setStarted] = useState(false);
@@ -40,7 +41,7 @@ function ReceiptCard() {
     setStarted(true);
     setLines([{ progress: 0, html: "assembling proof of innocence…" }]);
     try {
-      await api.generateReceipt({ scope, period }, (s) => setLines((p) => [...p, s]));
+      await api.generateReceipt({ scope, period, format }, (s) => setLines((p) => [...p, s]));
     } finally {
       setBusy(false);
     }
@@ -73,9 +74,16 @@ function ReceiptCard() {
           </select>
         </Field>
       </div>
+      <Field label="EXPORT FORMAT">
+        <select className="input" value={format} onChange={(e) => setFormat(e.target.value as ExportFormat)}>
+          <option value="pdf">PDF document</option>
+          <option value="csv">Spreadsheet (CSV — Excel / Google Sheets)</option>
+          <option value="json">JSON (signed, machine-readable)</option>
+        </select>
+      </Field>
       <div className="actions">
         <Button variant="solid" arrow onClick={generate} disabled={busy}>
-          {busy ? "Generating…" : "Generate receipt"}
+          {busy ? "Generating…" : `Generate receipt · ${format.toUpperCase()}`}
         </Button>
       </div>
       {started ? <ProofConsole lines={lines} idle="" /> : null}
@@ -88,6 +96,10 @@ function DisclosureCard() {
   const { data, loading, error, reload } = useAsync<Disclosure[]>(() => api.listDisclosures(), []);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [grantee, setGrantee] = useState("");
+  const [scope, setScope] = useState("Q2 2026");
+  const [days, setDays] = useState(14);
 
   async function revoke(id: string) {
     setBusyId(id);
@@ -100,9 +112,12 @@ function DisclosureCard() {
   }
 
   async function create() {
+    if (!grantee.trim()) return;
     setCreating(true);
     try {
-      await api.createDisclosure({ grantee: "New grantee", scope: "Q2 2026", days: 14 });
+      await api.createDisclosure({ grantee: grantee.trim(), scope, days });
+      setGrantee("");
+      setShowForm(false);
       reload();
     } finally {
       setCreating(false);
@@ -140,11 +155,35 @@ function DisclosureCard() {
           </div>
         ))
       )}
-      <div className="actions">
-        <Button onClick={create} disabled={creating}>
-          {creating ? "Creating…" : "+ New disclosure grant"}
-        </Button>
-      </div>
+      {showForm ? (
+        <div style={{ marginTop: 14 }}>
+          <Field label="GRANTEE (auditor / bank / tax authority)">
+            <input className="input" value={grantee} onChange={(e) => setGrantee(e.target.value)} placeholder="e.g. Tax authority — CH" />
+          </Field>
+          <div className="grid g2">
+            <Field label="SCOPE" style={{ marginTop: 0 }}>
+              <select className="input" value={scope} onChange={(e) => setScope(e.target.value)}>
+                <option>Q2 2026</option>
+                <option>Payroll only</option>
+                <option>Full history</option>
+              </select>
+            </Field>
+            <Field label="EXPIRES (DAYS)" style={{ marginTop: 0 }}>
+              <input className="input" type="number" min={1} max={365} value={days} onChange={(e) => setDays(Number(e.target.value))} />
+            </Field>
+          </div>
+          <div className="actions">
+            <Button variant="solid" onClick={create} disabled={creating || !grantee.trim()}>
+              {creating ? "Issuing…" : "Issue read-only token"}
+            </Button>
+            <Button onClick={() => setShowForm(false)}>Cancel</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="actions">
+          <Button onClick={() => setShowForm(true)}>+ New disclosure grant</Button>
+        </div>
+      )}
     </Card>
   );
 }
@@ -171,9 +210,24 @@ function AspCard() {
 function JurisdictionCard() {
   const api = useApi();
   const { data, loading, error } = useAsync(() => api.getJurisdictionProfile(), []);
+  const [fmt, setFmt] = useState<ExportFormat>("pdf");
+  const [exporting, setExporting] = useState(false);
+
+  async function exportLog() {
+    setExporting(true);
+    try {
+      await api.exportAuditLog(fmt);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <Card style={{ marginTop: 18 }}>
-      <div className="clab">JURISDICTION PROFILE</div>
+      <div className="clab" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span>JURISDICTION PROFILE</span>
+        {data ? <span className="chip">{data.label}</span> : null}
+      </div>
       {loading ? (
         <div className="note">Loading…</div>
       ) : error ? (
@@ -183,8 +237,15 @@ function JurisdictionCard() {
       ) : (
         <ComplianceList items={data!.items} />
       )}
-      <div className="actions">
-        <Button sm>Export audit log</Button>
+      <div className="actions" style={{ alignItems: "center", gap: 10 }}>
+        <select className="input" style={{ width: "auto" }} value={fmt} onChange={(e) => setFmt(e.target.value as ExportFormat)}>
+          <option value="pdf">PDF</option>
+          <option value="csv">CSV (Excel / Sheets)</option>
+          <option value="json">JSON</option>
+        </select>
+        <Button sm onClick={exportLog} disabled={exporting}>
+          {exporting ? "Exporting…" : "Export audit log"}
+        </Button>
       </div>
     </Card>
   );

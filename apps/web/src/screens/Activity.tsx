@@ -13,7 +13,7 @@ export function Activity() {
     <section className="view">
       <ScreenHead
         eyebrow="YOUR LEDGER"
-        title="Activity."
+        title="Activity"
         sub="Decrypted with your viewing key — visible only to you. Read-only. Export for accounting or selective disclosure."
       />
       <div className="actions" style={{ marginTop: 18 }}>

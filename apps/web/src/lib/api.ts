@@ -20,6 +20,7 @@ import type {
   Disclosure,
   DisclosureParams,
   DisburseResult,
+  ExportFormat,
   JurisdictionProfile,
   KycStatus,
   KycSubmitPayload,
@@ -75,6 +76,7 @@ export interface CloisterApi {
 
   // ---------- Compliance Center ----------
   generateReceipt(params: ReceiptParams, onProgress?: ProgressCallback): Promise<Receipt>;
+  exportAuditLog(format: ExportFormat): Promise<void>;
   createDisclosure(params: DisclosureParams): Promise<Disclosure>;
   listDisclosures(): Promise<Disclosure[]>;
   revokeDisclosure(id: string): Promise<void>;

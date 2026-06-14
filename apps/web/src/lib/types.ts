@@ -22,12 +22,28 @@ export type Asset = "USDC" | "EURC" | "USDT";
 // ---------- Session / Auth ----------
 export type KycStatusValue = "unverified" | "pending" | "verified";
 export type KycSubjectType = "individual" | "entity";
+// Regulatorisches Heimatprofil des Nutzers — bestimmt, welche Compliance-Regeln
+// (EU: MiCA/AMLR/TFR/GDPR · US: FinCEN/BSA/OFAC) angezeigt + angewendet werden.
+export type Jurisdiction = "EU" | "US";
 
 export interface KycStatus {
   status: KycStatusValue;
   subjectType: KycSubjectType | null;
+  jurisdiction: Jurisdiction | null;
   verifiedAt: string | null;
   level: "L1" | "L2" | "L3" | null;
+}
+
+// Einzelnes Screening-Ergebnis (Pflichtfelder, Alter, Jurisdiktion, Sanktionen).
+export interface KycCheck {
+  name: string;
+  pass: boolean;
+  detail: string;
+}
+
+export interface KycScreenResult {
+  status: "verified" | "rejected" | "review";
+  checks: KycCheck[];
 }
 
 export interface Session {
@@ -47,8 +63,12 @@ export interface Wallet {
 
 export interface KycSubmitPayload {
   subjectType: KycSubjectType;
+  jurisdiction: Jurisdiction;
   legalName: string;
-  jurisdiction: string;
+  country: string; // ISO-3166 alpha-2
+  idType: string;
+  idNumber: string;
+  dateOfBirth: string; // ISO date (individuals)
 }
 
 // ---------- Balance / Notes ----------
@@ -179,10 +199,12 @@ export interface DisburseResult {
 
 // ---------- Compliance Receipt / Disclosure ----------
 export type ReceiptScope = "single" | "range" | "counterparty";
+export type ExportFormat = "pdf" | "csv" | "json";
 
 export interface ReceiptParams {
   scope: ReceiptScope;
   period: string;
+  format: ExportFormat;
 }
 
 export interface Receipt {

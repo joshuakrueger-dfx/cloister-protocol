@@ -1,6 +1,7 @@
 import express from "express";
 import { JsonRpcProvider, Contract } from "ethers";
 import { deployAll, loadAbi } from "@cloister/contracts/deploy";
+import { screenApplicant } from "./kyc.js";
 import {
   Keypair,
   MerkleTree,
@@ -86,6 +87,17 @@ async function main() {
       aspEnforced: ASP_ENFORCE,
       aspRoot,
     });
+  });
+
+  // KYC/AML-Screening (echt): validiert Felder, prüft Jurisdiktion-Embargo + Sanktionslisten.
+  // Kann ABLEHNEN. Dokumenten-/Liveness-Verifikation ist Aufgabe des lizenzierten Providers.
+  app.post("/v1/kyc/screen", (req, res) => {
+    try {
+      const result = screenApplicant(req.body || {});
+      res.json(result);
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
   });
 
   // Fund/Shield — der Provider (Onramp) zahlt öffentlich in den Pool ein und schreibt das
