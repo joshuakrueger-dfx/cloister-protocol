@@ -35,10 +35,7 @@ export function Topbar({
       </div>
       <div className="spacer" />
       <span className="chip hide-sm">Base · Polygon · Arbitrum</span>
-      <span className={`status-pill status-${kycLevel}`}>
-        <span className={`d ${kycLevel}`} />
-        {kycLabel}
-      </span>
+      <span className={`status-pill status-${kycLevel}`}>{kycLabel}</span>
       <BackendSwitcher />
     </div>
   );

@@ -149,6 +149,12 @@ export interface Recipient {
   sanctions: StatusLevel;
 }
 
+export interface AddRecipientInput {
+  label: string;
+  type: string;
+  address: string;
+}
+
 export interface BatchRow {
   address: string;
   role: string;

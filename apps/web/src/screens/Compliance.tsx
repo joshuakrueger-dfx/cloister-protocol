@@ -30,6 +30,7 @@ export function Compliance() {
 function ReceiptCard() {
   const api = useApi();
   const [scope, setScope] = useState<ReceiptScope>("single");
+  const [periodMode, setPeriodMode] = useState("Q2 2026");
   const [period, setPeriod] = useState("Q2 2026");
   const [format, setFormat] = useState<ExportFormat>("pdf");
   const [lines, setLines] = useState<ProofStep[]>([]);
@@ -67,13 +68,30 @@ function ReceiptCard() {
           </select>
         </Field>
         <Field label="PERIOD">
-          <select className="input" value={period} onChange={(e) => setPeriod(e.target.value)}>
+          <select
+            className="input"
+            value={periodMode}
+            onChange={(e) => {
+              setPeriodMode(e.target.value);
+              setPeriod(e.target.value === "Custom" ? "" : e.target.value);
+            }}
+          >
             <option>Q2 2026</option>
             <option>Jun 2026</option>
             <option>Custom</option>
           </select>
         </Field>
       </div>
+      {periodMode === "Custom" ? (
+        <Field label="CUSTOM PERIOD">
+          <input
+            className="input"
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            placeholder="e.g. 1 Apr – 30 Jun 2026"
+          />
+        </Field>
+      ) : null}
       <Field label="EXPORT FORMAT">
         <select className="input" value={format} onChange={(e) => setFormat(e.target.value as ExportFormat)}>
           <option value="pdf">PDF document</option>
@@ -82,7 +100,7 @@ function ReceiptCard() {
         </select>
       </Field>
       <div className="actions">
-        <Button variant="solid" arrow onClick={generate} disabled={busy}>
+        <Button variant="solid" arrow onClick={generate} disabled={busy || !period.trim()}>
           {busy ? "Generating…" : `Generate receipt · ${format.toUpperCase()}`}
         </Button>
       </div>

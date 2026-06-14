@@ -190,40 +190,29 @@ main.console-main {
 .d.bad {
   background: var(--bad);
 }
-/* Status-Pill (Topbar): getönt nach Status, kein Button-Look. */
+/* Status-Pill (Topbar): same chip chrome as its neighbours (chain chip, switcher) —
+   neutral border, no dot, no fill. The status is signalled by the label colour only. */
 .status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.01em;
-  border-radius: 999px;
-  padding: 6px 13px;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.025);
+  border-radius: 7px;
+  padding: 4px 9px;
+  background: none;
   color: var(--dim);
   white-space: nowrap;
 }
-.status-pill .d {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
 .status-pill.status-ok {
   color: var(--ok);
-  border-color: color-mix(in srgb, var(--ok) 32%, transparent);
-  background: color-mix(in srgb, var(--ok) 8%, transparent);
 }
 .status-pill.status-warn {
   color: var(--warn);
-  border-color: color-mix(in srgb, var(--warn) 32%, transparent);
-  background: color-mix(in srgb, var(--warn) 8%, transparent);
 }
 .status-pill.status-bad {
   color: var(--bad);
-  border-color: color-mix(in srgb, var(--bad) 32%, transparent);
-  background: color-mix(in srgb, var(--bad) 8%, transparent);
 }
 .chip {
   font-size: 11px;

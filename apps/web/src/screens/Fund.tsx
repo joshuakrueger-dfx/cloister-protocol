@@ -3,6 +3,7 @@ import { useApi } from "../lib/ApiProvider";
 import { useSession } from "../lib/SessionProvider";
 import { Button, Card, Field, KeyValue, ScreenHead, Seg } from "../components/primitives";
 import { Icon } from "../components/icons";
+import { DfxOnramp } from "../components/DfxOnramp";
 import { CHAINS } from "../lib/types";
 import type { Asset, ChainId } from "../lib/types";
 
@@ -78,6 +79,13 @@ export function Fund() {
               options={CHAINS.map((c) => ({ value: c.id, label: c.label }))}
             />
           </Field>
+
+          {source.startsWith("DFX Onramp") ? (
+            <div style={{ marginTop: 18 }}>
+              <div className="clab" style={{ marginBottom: 4 }}>DFX ONRAMP — BANK → USDC</div>
+              <DfxOnramp chain={chain} />
+            </div>
+          ) : null}
 
           {(() => {
             const kyc = session?.kyc;

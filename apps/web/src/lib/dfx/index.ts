@@ -1,0 +1,155 @@
+// =====================================================================
+// High-level DFX facade for the Cloister Console. Ties together auth (3
+// methods), KYC status/continue, and the buy(onramp) — and persists the JWT
+// (tab-scoped) + the connected EVM address. Everything talks to the live
+// api.dfx.swiss; the actual SEPA transfer + document KYC happen out-of-band.
+// =====================================================================
+
+import { dfxApi, DfxApiError } from "./client";
+import {
+  dfxAuthService, dfxUserService, dfxKycService, dfxPaymentService,
+} from "./services";
+import { deriveEvmSigner, connectInjectedSigner, hasInjectedWallet } from "./evmAuth";
+import type { DfxAuthMethod } from "./evmAuth";
+import type { BuyPaymentInfoDto, KycLevel, UserDto } from "./dto";
+
+export { DfxApiError, hasInjectedWallet };
+export type { DfxAuthMethod, BuyPaymentInfoDto, UserDto };
+
+const JWT_KEY = "cloister.dfx.jwt"; // sessionStorage (tab-scoped)
+const ADDR_KEY = "cloister.dfx.address";
+const METHOD_KEY = "cloister.dfx.method";
+
+// ---------- session ----------
+export function restoreDfxSession(): boolean {
+  const jwt = sessionStorage.getItem(JWT_KEY);
+  if (jwt) { dfxAuthService.adoptToken(jwt); return true; }
+  return false;
+}
+export function isDfxConnected(): boolean {
+  return !!dfxApi.getAuthToken() || !!sessionStorage.getItem(JWT_KEY);
+}
+export function dfxAddress(): string | null { return localStorage.getItem(ADDR_KEY); }
+export function dfxMethod(): DfxAuthMethod | null {
+  return (localStorage.getItem(METHOD_KEY) as DfxAuthMethod) || null;
+}
+export function disconnectDfx(): void {
+  dfxAuthService.logout();
+  sessionStorage.removeItem(JWT_KEY);
+  localStorage.removeItem(ADDR_KEY);
+  localStorage.removeItem(METHOD_KEY);
+}
+
+function persist(jwt: string, address: string, method: DfxAuthMethod) {
+  sessionStorage.setItem(JWT_KEY, jwt);
+  localStorage.setItem(ADDR_KEY, address);
+  localStorage.setItem(METHOD_KEY, method);
+}
+
+// ---------- connect (wallet-signature methods) ----------
+/** Sign in with the in-app derived EVM key (needs the unlocked mnemonic). */
+export async function connectDerived(mnemonic: string): Promise<string> {
+  const signer = deriveEvmSigner(mnemonic);
+  const jwt = await dfxAuthService.login(signer.address, signer.signFn, { blockchain: "Ethereum" });
+  persist(jwt, signer.address, "derived");
+  return signer.address;
+}
+/** Sign in with an injected browser wallet (MetaMask / WalletConnect-style). */
+export async function connectWallet(): Promise<string> {
+  const signer = await connectInjectedSigner();
+  const jwt = await dfxAuthService.login(signer.address, signer.signFn, { blockchain: "Ethereum" });
+  persist(jwt, signer.address, "wallet");
+  return signer.address;
+}
+
+// ---------- connect (email OTP) ----------
+export async function requestDfxMail(mail: string): Promise<void> {
+  await dfxAuthService.requestMailLogin(mail);
+}
+export async function confirmDfxMail(otp: string): Promise<void> {
+  const jwt = await dfxAuthService.confirmMailLogin(otp);
+  // email login has no EVM address; store an empty marker
+  persist(jwt, "", "mail");
+}
+
+// ---------- KYC ----------
+export interface DfxKycView {
+  level: KycLevel;
+  status: "unverified" | "pending" | "verified";
+  tradingLimit: { limit: number; period: string };
+  mail: string | null;
+}
+
+/** DFX KYC levels: 0 none · 10 contact · 20 personal/link · 30 full · 40/50 enhanced.
+ *  We treat ≥ 30 as verified, 10–20 as pending, 0/negative as unverified. */
+function levelToStatus(level: KycLevel): DfxKycView["status"] {
+  if (level >= 30) return "verified";
+  if (level >= 10) return "pending";
+  return "unverified";
+}
+
+export async function getDfxKyc(): Promise<DfxKycView> {
+  const [user, kyc] = await Promise.all([dfxUserService.getUser(), dfxKycService.getStatus()]);
+  return {
+    level: kyc.kycLevel,
+    status: levelToStatus(kyc.kycLevel),
+    tradingLimit: kyc.tradingLimit,
+    mail: user.mail,
+  };
+}
+
+/** Advance KYC; returns a provider URL to open in a new tab, or null if no
+ *  interactive step is pending (already complete or server-side). */
+export async function startDfxKyc(): Promise<string | null> {
+  const session = await dfxKycService.continueKyc();
+  return session.currentStep?.session?.url ?? null;
+}
+
+export async function setDfxMail(mail: string): Promise<void> {
+  await dfxUserService.updateMail(mail);
+}
+
+// ---------- onramp (buy) ----------
+export interface OnrampResult {
+  info: BuyPaymentInfoDto;
+  /** human-readable blocker if DFX gated the buy (KYC/email/limit), else null */
+  blocked: string | null;
+}
+
+function paymentErrorMessage(e: string): string {
+  switch (e) {
+    case "KycRequired": case "KycDataRequired": return "KYC verification required before you can buy.";
+    case "EmailRequired": return "Add an email to your DFX account before buying.";
+    case "RecommendationRequired": return "This account needs a one-time DFX approval before trading.";
+    case "LimitExceeded": return "Amount exceeds your current trading limit.";
+    case "AmountTooLow": return "Amount is below the minimum.";
+    case "AmountTooHigh": return "Amount is above the maximum.";
+    case "CountryNotAllowed": case "NationalityNotAllowed": return "Your country is not permitted for this buy.";
+    default: return `Buy not available (${e}).`;
+  }
+}
+
+/** Create a real DFX buy route and return the SEPA payment instructions.
+ *  The bought USDC is delivered to the authenticated EVM address (the buy
+ *  route address). Surfaces DFX gating errors instead of throwing. */
+export async function dfxBuyOnramp(p: {
+  amount: number; currency: string; asset: string; blockchain: string;
+}): Promise<OnrampResult> {
+  try {
+    const info = await dfxPaymentService.createBuyPaymentInfo(p);
+    const err = info.error ?? info.errors?.[0];
+    return { info, blocked: err ? paymentErrorMessage(err) : null };
+  } catch (e) {
+    if (e instanceof DfxApiError && e.isKycRequired) {
+      throw new Error("KYC verification required before you can buy. Start KYC first.");
+    }
+    throw e;
+  }
+}
+
+/** Price preview without creating a route (works pre-KYC for the estimate). */
+export async function dfxBuyQuote(p: {
+  amount: number; currency: string; asset: string; blockchain: string;
+}): Promise<BuyPaymentInfoDto> {
+  return dfxPaymentService.buyQuote(p);
+}

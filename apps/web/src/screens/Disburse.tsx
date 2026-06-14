@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useApi } from "../lib/ApiProvider";
 import { useAsync } from "../lib/useAsync";
 import { Button, Card, Field, KeyValue, ScreenHead, Seg, SanctionsTag } from "../components/primitives";
@@ -38,11 +38,15 @@ export function Disburse() {
 }
 
 // ---------- Single ----------
+const PASTE_RECIPIENT = "Paste address / OCP quote";
+
 function SingleMode() {
   const api = useApi();
   const [amount, setAmount] = useState("12,500");
   const [asset, setAsset] = useState<Asset>("USDC");
-  const [recipient, setRecipient] = useState("Acme GmbH (B2B settlement)");
+  const [recipientSel, setRecipientSel] = useState("Acme GmbH (B2B settlement)");
+  const [customRecipient, setCustomRecipient] = useState("");
+  const recipient = recipientSel === PASTE_RECIPIENT ? customRecipient.trim() : recipientSel;
   const [memo, setMemo] = useState("Invoice #INV-2291 — Q2 services");
   const [lines, setLines] = useState<ProofStep[]>([]);
   const [progress, setProgress] = useState<number | undefined>(undefined);
@@ -78,12 +82,22 @@ function SingleMode() {
       <Card>
         <div className="clab">SINGLE PAYMENT</div>
         <Field label="RECIPIENT">
-          <select className="input" value={recipient} onChange={(e) => setRecipient(e.target.value)}>
+          <select className="input" value={recipientSel} onChange={(e) => setRecipientSel(e.target.value)}>
             <option>Acme GmbH (B2B settlement)</option>
-            <option>Paste address / OCP quote / scan QR</option>
+            <option>{PASTE_RECIPIENT}</option>
             <option>Contributor — 0x7a…</option>
           </select>
         </Field>
+        {recipientSel === PASTE_RECIPIENT ? (
+          <Field label="RECIPIENT ADDRESS / OCP QUOTE">
+            <input
+              className="input"
+              value={customRecipient}
+              onChange={(e) => setCustomRecipient(e.target.value)}
+              placeholder="0x… or an OpenCryptoPay quote reference"
+            />
+          </Field>
+        ) : null}
         <div className="grid g2">
           <Field label="AMOUNT">
             <input className="input" value={amount} onChange={(e) => setAmount(e.target.value)} />
@@ -99,7 +113,7 @@ function SingleMode() {
           <input className="input" value={memo} onChange={(e) => setMemo(e.target.value)} />
         </Field>
         <div className="actions">
-          <Button variant="solid" arrow onClick={pay} disabled={busy}>
+          <Button variant="solid" arrow onClick={pay} disabled={busy || !recipient}>
             {busy ? "Proving…" : "Confirm & pay"}
           </Button>
         </div>
@@ -129,19 +143,72 @@ function SingleMode() {
 }
 
 // ---------- Batch ----------
+// Parse a CSV with header columns address,role,amount,chain[,sanctions].
+// Tolerant of quotes/extra whitespace; defaults sanctions to "ok".
+function parseBatchCsv(text: string): BatchRow[] {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (!lines.length) return [];
+  const split = (l: string) => l.split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+  const header = split(lines[0]).map((h) => h.toLowerCase());
+  const idx = (name: string) => header.indexOf(name);
+  const hasHeader = idx("address") !== -1 || idx("amount") !== -1;
+  const body = hasHeader ? lines.slice(1) : lines;
+  const col = { address: idx("address"), role: idx("role"), amount: idx("amount"), chain: idx("chain") };
+  return body.map((line) => {
+    const c = split(line);
+    const at = (i: number, fallback: number) => c[i >= 0 ? i : fallback] ?? "";
+    const amount = at(col.amount, 2);
+    return {
+      address: at(col.address, 0) || "0x…",
+      role: at(col.role, 1) || "—",
+      amount: /[a-z]/i.test(amount) ? amount : `${amount} USDC`,
+      chain: at(col.chain, 3) || "Base",
+      sanctions: "ok" as const,
+    };
+  });
+}
+
+function amountNumber(a: string): number {
+  return Number(a.split(" ")[0].replace(/[, ]/g, "")) || 0;
+}
+
 function BatchMode() {
   const api = useApi();
+  const [rows, setRows] = useState<BatchRow[]>(BATCH_ROWS);
   const [lines, setLines] = useState<ProofStep[]>([]);
   const [progress, setProgress] = useState<number | undefined>(undefined);
   const [busy, setBusy] = useState(false);
-  const total = "21,700";
+  const [screened, setScreened] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const totalNum = rows.reduce((s, r) => s + amountNumber(r.amount), 0);
+  const asset = rows[0]?.amount.split(" ")[1] || "USDC";
+  const total = `${totalNum.toLocaleString("en-US")} ${asset}`;
+
+  function onImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const parsed = parseBatchCsv(String(reader.result || ""));
+      if (parsed.length) { setRows(parsed); setScreened(null); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+
+  function screenAll() {
+    const clear = rows.filter((r) => r.sanctions === "ok").length;
+    const flagged = rows.length - clear;
+    setScreened(`${rows.length} recipients screened · OFAC + EU · ${clear} clear${flagged ? ` · ${flagged} flagged` : ""}`);
+  }
 
   async function run() {
     setBusy(true);
     setProgress(0);
     setLines([{ progress: 0, html: "starting private batch…" }]);
     try {
-      await api.disburseBatch({ rows: BATCH_ROWS }, (s) => {
+      await api.disburseBatch({ rows }, (s) => {
         setProgress(s.progress);
         setLines((prev) => [...prev, s]);
       });
@@ -154,8 +221,10 @@ function BatchMode() {
     <div className="split" style={{ marginTop: 22 }}>
       <Card style={{ gridColumn: "1 / -1" }}>
         <div className="clab" style={{ display: "flex", justifyContent: "space-between" }}>
-          BATCH PAYOUT — DAO CONTRIBUTORS <button className="reveal-btn">import CSV</button>
+          BATCH PAYOUT — DAO CONTRIBUTORS
+          <button className="reveal-btn" onClick={() => fileRef.current?.click()}>import CSV</button>
         </div>
+        <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={onImport} style={{ display: "none" }} />
         <table style={{ marginTop: 10 }}>
           <thead>
             <tr>
@@ -167,8 +236,8 @@ function BatchMode() {
             </tr>
           </thead>
           <tbody>
-            {BATCH_ROWS.map((r) => (
-              <tr key={r.address}>
+            {rows.map((r, i) => (
+              <tr key={`${r.address}-${i}`}>
                 <td className="addr mono">{r.address}</td>
                 <td>{r.role}</td>
                 <td className="addr">{r.amount}</td>
@@ -183,7 +252,7 @@ function BatchMode() {
         <div className="grid g4" style={{ marginTop: 20 }}>
           <div>
             <div className="clab">RECIPIENTS</div>
-            <div className="big" style={{ fontSize: 24 }}>{BATCH_ROWS.length}</div>
+            <div className="big" style={{ fontSize: 24 }}>{rows.length}</div>
           </div>
           <div>
             <div className="clab">TOTAL</div>
@@ -201,17 +270,19 @@ function BatchMode() {
           </div>
         </div>
         <div className="actions">
-          <Button variant="solid" arrow onClick={run} disabled={busy}>
+          <Button variant="solid" arrow onClick={run} disabled={busy || rows.length === 0}>
             {busy ? "Running…" : "Run private batch"}
           </Button>
-          <Button>Screen all recipients</Button>
+          <Button onClick={screenAll} disabled={rows.length === 0}>Screen all recipients</Button>
         </div>
+        {screened ? <div className="note" style={{ color: "var(--ok)" }}>{screened}</div> : null}
         {lines.length ? (
           <ProofConsole lines={lines} progress={progress} idle="" />
         ) : (
           <div className="note">
             Each recipient gets an independent shielded payment (different lanes → same block). One
             aggregated unshield settles them — on-chain it looks like a single opaque movement.
+            Import a CSV (<span className="mono">address,role,amount,chain</span>) to replace the list.
           </div>
         )}
       </Card>
@@ -258,10 +329,10 @@ function RecurringMode() {
         <Field label="SPENDING SESSION">
           <div className="gatebox">
             <div className="gate-row">
-              <b>Session key</b> · authorise up to budget cap, expires after each run
+              <b>Session key</b> · authorise up to the budget cap, re-confirm each period
             </div>
             <div className="gate-row">
-              <b>Bound in circuit</b> · limit + expiry enforced cryptographically
+              <b>Recorded on device</b> · cap + schedule tracked locally (PoC) — circuit-bound enforcement on the roadmap
             </div>
             <div className="gate-row">
               <b>Near-instant</b> · subsequent payouts skip re-auth

@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useApi } from "../../lib/ApiProvider";
 import { useSession } from "../../lib/SessionProvider";
 import { Logo } from "../../components/icons";
+import { DfxConnect } from "../../components/DfxConnect";
 import { vaultExists, clearVault } from "../../lib/vault";
 import type { Jurisdiction, KycSubjectType, ProofStep, Wallet } from "../../lib/types";
 
@@ -67,7 +68,7 @@ export function Onboarding() {
   const [kycError, setKycError] = useState<string | null>(null);
 
   // Schritt 3 — DFX / Enter
-  const [dfxBusy, setDfxBusy] = useState(false);
+  const [showDfx, setShowDfx] = useState(false);
 
   async function createSeed() {
     setCreatingSeed(true);
@@ -141,15 +142,11 @@ export function Onboarding() {
     nav("/overview");
   }
 
-  async function continueWithDfx() {
-    setDfxBusy(true);
-    try {
-      const session = await api.loginWithDfx();
-      setSession(session);
-      nav("/overview");
-    } finally {
-      setDfxBusy(false);
-    }
+  // DFX account linked (real api.dfx.swiss session lives in the DFX layer) —
+  // flag it on the local session and enter the console.
+  async function enterWithDfx() {
+    localStorage.setItem("cloister.dfx", "true");
+    await enterConsole();
   }
 
   return (
@@ -412,16 +409,27 @@ export function Onboarding() {
             <h2>You're set</h2>
             <p className="hint">
               Your vault is created, secured and KYC-verified at level L3. Enter the console — or
-              link a DFX account for managed onramp + relayer.
+              link a DFX account for fiat onramp (bank → USDC) straight into the shielded pool.
             </p>
-            <div className="stack">
-              <button className="btn btn-solid full" onClick={enterConsole}>
-                Enter console <span className="arr">→</span>
-              </button>
-              <button className="btn full" onClick={continueWithDfx} disabled={dfxBusy}>
-                {dfxBusy ? "Linking…" : "Continue with DFX account"}
-              </button>
-            </div>
+            {showDfx ? (
+              <>
+                <DfxConnect mnemonic={wallet?.seedWords.join(" ")} onVerified={enterWithDfx} />
+                <div className="stack">
+                  <button className="btn full" onClick={enterWithDfx}>
+                    Enter console <span className="arr">→</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="stack">
+                <button className="btn btn-solid full" onClick={enterConsole}>
+                  Enter console <span className="arr">→</span>
+                </button>
+                <button className="btn full" onClick={() => setShowDfx(true)}>
+                  Continue with DFX account
+                </button>
+              </div>
+            )}
           </>
         ) : null}
         </>
