@@ -1,45 +1,84 @@
-import { readFileSync, writeFileSync } from "node:fs";
+// Turnkey deployment of the full Cloister gnark stack to any EVM chain.
+//
+// Config via env vars (or a .env.testnet file at the repo root):
+//   RPC                 (or BASE_SEPOLIA_RPC)          — JSON-RPC endpoint
+//   DEPLOYER_KEY        (or BASE_SEPOLIA_DEPLOYER_KEY)  — funded deployer private key
+//   PROVERD_URL         — Poseidon2 backend for the empty-root calc (default 127.0.0.1:8799)
+//   ASSET               — asset symbol for the registry (default "USDC")
+//   ASP                 — ASP address (default ZeroAddress = permissive dev mode)
+//
+// Deploys verifier + token + pool + registry, registers the pool, and writes
+// deployment.<chainId>.json. Run a proverd (cmd/proverd) first.
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { JsonRpcProvider, Wallet } from "ethers";
+import { JsonRpcProvider, Wallet, NonceManager, ZeroAddress } from "ethers";
 import { deployAll } from "@cloister/contracts/deploy";
+import { useHttpBackend } from "@cloister/sdk";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..", "..", "..");
 
-const env = Object.fromEntries(
-  readFileSync(resolve(root, ".env.testnet"), "utf8")
-    .trim()
-    .split("\n")
-    .map((l) => {
-      const i = l.indexOf("=");
-      return [l.slice(0, i).trim(), l.slice(i + 1).trim()];
-    }),
-);
+const fileEnv = existsSync(resolve(root, ".env.testnet"))
+  ? Object.fromEntries(
+      readFileSync(resolve(root, ".env.testnet"), "utf8").trim().split("\n").map((l) => {
+        const i = l.indexOf("=");
+        return [l.slice(0, i).trim(), l.slice(i + 1).trim()];
+      }),
+    )
+  : {};
+const cfg = (...keys) => {
+  for (const key of keys) if (process.env[key] ?? fileEnv[key]) return process.env[key] ?? fileEnv[key];
+  return undefined;
+};
 
-const provider = new JsonRpcProvider(env.BASE_SEPOLIA_RPC);
-const wallet = new Wallet(env.BASE_SEPOLIA_DEPLOYER_KEY, provider);
+const RPC = cfg("RPC", "BASE_SEPOLIA_RPC");
+const KEY = cfg("DEPLOYER_KEY", "BASE_SEPOLIA_DEPLOYER_KEY");
+const PROVERD = cfg("PROVERD_URL") || "http://127.0.0.1:8799";
+const ASSET = cfg("ASSET") || "USDC";
+const ASP = cfg("ASP") || ZeroAddress;
+if (!RPC || !KEY) {
+  console.error("missing RPC and/or DEPLOYER_KEY (env vars or .env.testnet)");
+  process.exit(1);
+}
+
+// the empty-tree root is Poseidon2 → needs a hash backend (proverd)
+useHttpBackend(PROVERD);
+
+const provider = new JsonRpcProvider(RPC);
+const wallet = new NonceManager(new Wallet(KEY, provider));
+const me = await wallet.getAddress();
 const chainId = Number((await provider.getNetwork()).chainId);
-console.log("Deploying Cloister stack to Base Sepolia (chainId", chainId + ")…");
-console.log("deployer:", wallet.address);
+console.log(`Deploying Cloister stack to chainId ${chainId} as ${me}…`);
 
-const { token, pool, verifier, registry, initialRoot, numLanes } = await deployAll(wallet, { numLanes: 8 });
+const { token, pool, verifier, registry, initialRoot, numLanes } = await deployAll(wallet, {
+  numLanes: 8,
+  asp: ASP,
+});
+
+const levels = 20;
+const poolAddr = await pool.getAddress();
+const verifierAddr = await verifier.getAddress();
+const tokenAddr = await token.getAddress();
+await (await registry.register(chainId, ASSET, poolAddr, verifierAddr, tokenAddr, levels)).wait();
 
 const out = {
   chainId,
-  rpc: env.BASE_SEPOLIA_RPC,
-  pool: await pool.getAddress(),
-  token: await token.getAddress(),
-  verifier: await verifier.getAddress(),
+  rpc: RPC,
+  asset: ASSET,
+  pool: poolAddr,
+  token: tokenAddr,
+  verifier: verifierAddr,
   registry: await registry.getAddress(),
   initialRoot,
   numLanes,
-  deployer: wallet.address,
+  levels,
+  asp: ASP,
+  deployer: me,
 };
-writeFileSync(resolve(root, "deployment.basesepolia.json"), JSON.stringify(out, null, 2));
+const outPath = resolve(root, `deployment.${chainId}.json`);
+writeFileSync(outPath, JSON.stringify(out, null, 2));
 
-console.log("\n✅ Deployed:");
+console.log("\n✅ Deployed + registered:");
 for (const [k, v] of Object.entries(out)) console.log(" ", k.padEnd(12), v);
-console.log("\nBasescan:");
-console.log("  pool    https://sepolia.basescan.org/address/" + out.pool);
-console.log("  token   https://sepolia.basescan.org/address/" + out.token);
+console.log("\nwrote", outPath);
