@@ -60,7 +60,6 @@ const levels = 20;
 const poolAddr = await pool.getAddress();
 const verifierAddr = await verifier.getAddress();
 const tokenAddr = await token.getAddress();
-await (await registry.register(chainId, ASSET, poolAddr, verifierAddr, tokenAddr, levels)).wait();
 
 const out = {
   chainId,
@@ -77,8 +76,16 @@ const out = {
   deployer: me,
 };
 const outPath = resolve(root, `deployment.${chainId}.json`);
+// Record the deployment FIRST — the addresses are the valuable artifact; the registry
+// entry is convenience and must never lose the deployment if it reverts.
 writeFileSync(outPath, JSON.stringify(out, null, 2));
-
-console.log("\n✅ Deployed + registered:");
+console.log("\n✅ Deployed:");
 for (const [k, v] of Object.entries(out)) console.log(" ", k.padEnd(12), v);
-console.log("\nwrote", outPath);
+console.log("wrote", outPath);
+
+try {
+  await (await registry.register(chainId, ASSET, poolAddr, verifierAddr, tokenAddr, levels)).wait();
+  console.log("✅ registered in PoolRegistry");
+} catch (e) {
+  console.warn("⚠️  registry.register skipped:", e.shortMessage || e.message);
+}
