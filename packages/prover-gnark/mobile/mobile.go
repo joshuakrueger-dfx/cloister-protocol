@@ -10,6 +10,8 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
+
 	"github.com/DFXswiss/cloister-protocol/prover-gnark/prover"
 	"github.com/DFXswiss/cloister-protocol/prover-gnark/zk"
 )
@@ -78,6 +80,75 @@ func Prove(witnessInputJSON string) (string, error) {
 		C:        res.C,
 		Public:   res.Public,
 	}
+	b, err := json.Marshal(out)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+// depositParams is the JSON the wallet passes to ProveDeposit. root/pairIndex/
+// pairPathEls/extDataHash come from the relayer's /v1/deposit/prepare; ownerPriv is
+// the device's spend key (the note owner).
+type depositParams struct {
+	Amount      string   `json:"amount"`
+	OwnerPriv   string   `json:"ownerPriv"`
+	Root        string   `json:"root"`
+	PairIndex   int      `json:"pairIndex"`
+	PairPathEls []string `json:"pairPathEls"`
+	ExtDataHash string   `json:"extDataHash"`
+}
+
+// ProveDeposit builds + proves a deposit (shield) witness entirely on-device from the
+// relayer-supplied insertion context — no JS SDK, no tree. Returns the same proof JSON
+// as Prove. This is the native shielding entry point for the wallet.
+func ProveDeposit(paramsJSON string) (string, error) {
+	mu.Lock()
+	p := pv
+	mu.Unlock()
+	if p == nil {
+		return "", errors.New("prover not initialized — call Init(keysDir) first")
+	}
+	var dp depositParams
+	if err := json.Unmarshal([]byte(paramsJSON), &dp); err != nil {
+		return "", err
+	}
+	amount, err := zk.ParseFE(dp.Amount)
+	if err != nil {
+		return "", err
+	}
+	ownerPriv, err := zk.ParseFE(dp.OwnerPriv)
+	if err != nil {
+		return "", err
+	}
+	root, err := zk.ParseFE(dp.Root)
+	if err != nil {
+		return "", err
+	}
+	extHash, err := zk.ParseFE(dp.ExtDataHash)
+	if err != nil {
+		return "", err
+	}
+	pathEls := make([]fr.Element, len(dp.PairPathEls))
+	for i, s := range dp.PairPathEls {
+		if pathEls[i], err = zk.ParseFE(s); err != nil {
+			return "", err
+		}
+	}
+	assignment := zk.BuildDepositAssignment(zk.DepositParams{
+		Amount:      amount,
+		OwnerPub:    zk.PubKey(ownerPriv),
+		Root:        root,
+		PairIndex:   dp.PairIndex,
+		PairPathEls: pathEls,
+		ExtDataHash: extHash,
+	})
+	wi := zk.ToWitnessInput(assignment)
+	res, err := p.ProveWitness(&wi)
+	if err != nil {
+		return "", err
+	}
+	out := proveResult{ProofHex: "0x" + toHex(res.ProofBytes), A: res.A, B: res.B, C: res.C, Public: res.Public}
 	b, err := json.Marshal(out)
 	if err != nil {
 		return "", err
