@@ -1,130 +1,163 @@
-# Cloister Protocol (PoC)
+# Cloister Protocol
 
-**Universeller Privacy-Layer für Zahlungen auf jeder EVM-Chain.** Ein **compliant
-encrypted-UTXO Shielded Pool**, der bei einer Zahlung die Verknüpfung *Wallet ↔ Zahlung*
-bricht: niemand (Händler, On-chain-Beobachter, selbst der Settlement-Broker) erfährt die
-Zahler-Adresse oder kann daraus Guthaben/weitere Wallets/Vermögen ableiten.
+**A universal privacy layer for payments on any EVM chain.** Cloister is a *compliant,
+encrypted-UTXO shielded pool* that breaks the on-chain link between a wallet and a payment:
+no one — not the merchant, not an on-chain observer, not even the settlement broker — learns
+the payer's address or can derive their balances, other wallets, or net worth from it.
 
-Cloister ist **nicht an ein Produkt gebunden** — jede Wallet, jeder PSP und jeder
-Payment-Flow kann den Pool als geteilte Privacy-Infrastruktur nutzen.
-[OpenCryptoPay](https://github.com/openCryptoPay) ist die **erste Integration**
-([`docs/INTEGRATION_DFX_WALLET.md`](docs/INTEGRATION_DFX_WALLET.md)).
+Crucially, privacy here is **provable, not opaque**. Every payout carries a zero-knowledge
+proof that the funds belong to a compliance good-set (the Association-Set Provider) and
+originate from a KYC-verified source — so a user can stay private *and* demonstrate clean
+origin to a bank, auditor, or tax authority on demand.
 
-> ⚠️ **Status: Proof of Concept — NICHT produktionsreif.** Es gab einen adversarialen
-> internen Audit; die Contract- und kritischen Circuit-Befunde sind gehärtet
-> (Reentrancy/CEI, SafeERC20, Skalar-Bindung u.a.) — siehe [`docs/SECURITY.md`](docs/SECURITY.md).
-> **Offen:** echte Multi-Party-Ceremony, zwei externe Audits, Compliance-Schicht im Circuit.
-> Konzept & Architektur: [`docs/CONCEPT.md`](docs/CONCEPT.md),
-> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/BENCHMARK.md`](docs/BENCHMARK.md).
+Cloister is **not tied to a single product**. Any wallet, PSP, or payment flow can use the
+pool as shared privacy infrastructure. [OpenCryptoPay](https://github.com/openCryptoPay) is
+the first integration (see [`docs/en/INTEGRATION.md`](docs/en/INTEGRATION.md)).
 
-## Was der PoC beweist
+> ⚠️ **Status: Proof of Concept — not production-ready.** The ZK layer, contracts, and
+> critical paths have passed an adversarial internal audit and are hardened (reentrancy/CEI,
+> SafeERC20, scalar binding, and more — see [`docs/en/SECURITY.md`](docs/en/SECURITY.md)).
+> **Still open for mainnet:** a real multi-party trusted-setup ceremony, two external audits,
+> and the compliance layer enforced inside the circuit.
 
-- **Payer-Privacy (P1/P2):** eine Zahlung wird per zk-SNARK ausgegeben und vom **Relayer**
-  broadcastet — die Zahler-Adresse taucht weder als `tx.from` noch im Calldata auf.
-- **Volle Abschirmung der Zahlung (Stufe 2):** die interne Zahlung an DFX bewegt **keinen
-  Token on-chain** (Payment-Note statt Transfer); erst DFX unshieldet beim Settlement.
-- **Korrektheit:** Werterhaltung, Nullifier (kein Double-Spend), Merkle-Membership und
-  On-chain-Groth16-Verifikation — Bilanz stimmt über Shield → Pay → Settle.
-- **Offene Integration:** der OCP-Flow wird über die additive „Shielded Methods"-Erweiterung
-  (`transferAmounts.shielded`) abgewickelt — per HTTP-API + SDK, ohne DFX-Lock-in.
-- **Skalierbares Gas:** Off-chain-Insertion — der Contract rechnet **0 Poseidon on-chain**,
-  die Merkle-Root-Transition wird im Proof bewiesen → **~350k statt ~1.74M Gas/Tx (~5×)**.
-- **Schnelle Note-Discovery:** Indexer + View-Tags filtern Fremd-Notes ohne Voll-Decrypt.
-- **Paralleler Durchsatz:** `numLanes` unabhängige Roots — Zahlungen in verschiedenen Lanes
-  landen gemeinsam in einem Block (im PoC 6/6), nur same-lane serialisiert.
+## What the PoC proves
 
-## Architektur (Monorepo)
+- **Payer privacy.** A payment is spent via a zk-SNARK and broadcast by a **relayer** — the
+  payer's address never appears as `tx.from` or in the calldata.
+- **Fully shielded payments.** The internal payment moves **no token on-chain** (a payment
+  note replaces the transfer); the broker unshields only at settlement.
+- **Correctness.** Value conservation, nullifiers (no double-spend), Merkle membership, and
+  on-chain Groth16 verification — the books balance across shield → pay → settle.
+- **Compliance without disclosure.** An **ASP good-set inclusion proof** attests that funds
+  are clean, revealing nothing about history — the basis for the *proof-of-innocence* receipt.
+- **Scalable gas.** Off-chain insertion means the contract computes **zero Poseidon hashes
+  on-chain**; the Merkle-root transition is proven in the circuit → **~350k vs ~1.74M gas/tx
+  (~5×)**.
+- **Fast note discovery.** An indexer plus view-tags filter foreign notes without full decrypt.
+- **Parallel throughput.** `numLanes` independent roots let payments in different lanes land
+  in the same block; only same-lane spends serialize.
 
-| Paket | Inhalt |
+## How it works
+
+The zero-knowledge layer is **self-built on [gnark](https://github.com/Consensys/gnark)**
+(Apache-2.0) — there is no GPL code anywhere in the stack (see [`docs/LICENSES.md`](docs/LICENSES.md)
+and [`docs/LICENSE_AUDIT.md`](docs/LICENSE_AUDIT.md)).
+
+- **Groth16 / BN254**, **Poseidon2**, a 2-in / 2-out transaction circuit, **50,481 constraints**.
+- Proving runs **on-device in ~190–220 ms** (≈ 8× faster than the superseded circom/snarkjs
+  WebView path). The witness never leaves the device.
+- The relayer is **broadcast-only**: it pays gas and submits, but cannot see or alter the
+  payment.
+
+For the full design — transaction lifecycle, the public signals, the soundness argument, and
+the trust boundaries — read [`docs/en/ARCHITECTURE.md`](docs/en/ARCHITECTURE.md) and
+[`docs/en/CIRCUIT.md`](docs/en/CIRCUIT.md).
+
+## Architecture (monorepo)
+
+| Package | Contents |
 |---|---|
-| `packages/circuits` | Circom-Circuits (transact 2×2, Poseidon/Groth16), Build + lokaler Setup |
-| `packages/contracts` | `ShieldedPool` (Off-chain-Insertion + Lane-Parallelisierung), generierter Verifier, Registry, Mock-USDC (Hardhat) |
-| `packages/sdk` | Keys (BabyJubJub-Pubkey), Notes, Merkle-Tree, Note-Verschlüsselung (nacl) + View-Tags, Proof-Gen, Chain-/Indexer-Sync, OCP-Client |
-| `packages/api` | Mock-OpenCryptoPay-Provider + Relayer (Shielded-Methods-Endpoints §9) |
-| `packages/indexer` | Commitment-Indexer mit View-Tags (schnelle Note-Discovery) |
-| `apps/demo` | E2E-Demos (direkt, über HTTP-API, mit Indexer/View-Tags) |
+| `packages/prover-gnark` | The ZK system in Go: Poseidon2 + Groth16 circuit, proving keys, the on-device prover (`mobile/`), and a dev proving daemon (`proverd`) |
+| `packages/contracts` | `ShieldedPool` (off-chain insertion + lane parallelism), the generated Groth16 verifier, the registry, and a mock USDC (Hardhat) |
+| `packages/sdk` | Curve-free keys, notes, Merkle tree, note encryption (nacl) + view-tags, proof generation, chain/indexer sync, and the OCP client |
+| `packages/api` | Mock OpenCryptoPay provider + broadcast-only relayer + ASP (the "shielded methods" endpoints) |
+| `packages/indexer` | Commitment indexer with view-tags for fast note discovery |
+| `apps/web` | **Cloister Console** — the operator front-end (Vite + React + TypeScript) |
+| `apps/demo` | End-to-end demos (direct, over the HTTP API, and with the indexer / view-tags) |
 
-## Voraussetzungen
+## Cloister Console (`apps/web`)
 
-- Node ≥ 20, `pnpm`
-- `bin/circom` (macOS-amd64-Binary liegt im Repo; läuft auf arm64 via Rosetta)
+The console is the human-facing surface: a self-custody, KYC-gated treasury app for private,
+compliant disbursements. It covers the full operator journey —
+
+- **Onboarding** — create or import a seed, set a vault password, complete one-time KYC +
+  sanctions screening, and (optionally) link a DFX account.
+- **Overview** — shielded balance, anonymity-set health per chain, and live compliance status.
+- **Fund** — the single public touchpoint; after funding, the link to the deposit is broken.
+- **Disburse** — single, batch, and recurring (payroll / programmatic) private payouts, each
+  with a live proving console.
+- **Recipients · Activity** — viewing-key-decrypted directory and ledger, visible only to you.
+- **Compliance Center** — generate proof-of-innocence receipts and grant scoped, time-limited
+  viewing-key disclosures to auditors, banks, and tax authorities.
+
+It ships with a **Demo backend** (mock data, no infrastructure required) so the entire flow
+is explorable offline, and a **Local backend** that drives the real stack.
+
+## Requirements
+
+- **Node ≥ 20** and **pnpm**
+- **Go ≥ 1.21** — only for the gnark prover / `proverd` (the Demo console needs no Go)
 
 ## Setup
 
 ```bash
 pnpm install
-pnpm build:circuits      # kompiliert Circuit, lädt ptau, Groth16-Setup, exportiert Verifier
 ```
 
-## Ausführen
+## Run
 
-**A) Direkter E2E-Flow** (Shield → private Zahlung → Settlement):
+**Just the console (Demo backend — no infrastructure):**
 
 ```bash
-pnpm node                # Terminal 1: lokales Hardhat-Devnet (127.0.0.1:8545)
-pnpm demo                # Terminal 2
+pnpm app          # Vite dev server → http://localhost:5180
 ```
 
-**B) Voller HTTP-Flow** über die OCP-API + Relayer:
+Open the app, complete onboarding, and the "Demo" backend serves realistic mock data end to
+end.
+
+**The full local stack (real proofs, devnet, relayer, indexer, console):**
 
 ```bash
-pnpm node                # Terminal 1
-pnpm api                 # Terminal 2: Mock-Provider + Relayer (127.0.0.1:8788)
-pnpm demo:api            # Terminal 3
+pnpm dev:stack    # Hardhat devnet → gnark proverd → provider/relayer/ASP → indexer → web
 ```
 
-**C) Note-Discovery** über Indexer + View-Tags:
+Then open <http://localhost:5180> and switch the backend to **Local**. A single `Ctrl-C`
+tears the whole stack down; logs land in `$TMPDIR/cloister-*.log`.
+
+**Demos and measurements** (each needs a devnet — run `pnpm node` in a separate terminal first):
 
 ```bash
-pnpm node                # Terminal 1
-pnpm api                 # Terminal 2
-pnpm indexer             # Terminal 3: Commitment-Indexer (127.0.0.1:8789)
-pnpm demo:indexer        # Terminal 4 — zeigt, wie der View-Tag Fremd-Notes ohne Decrypt verwirft
+pnpm demo:api        # E2E over the HTTP API (provider + relayer)
+pnpm demo:indexer    # E2E with the indexer + view-tags (foreign notes rejected without decrypt)
+pnpm demo:gas        # gas measurement — ~350k vs ~1.74M gas/tx
+pnpm demo:parallel   # lane parallelism — 6 payments across 6 lanes in ONE block
+pnpm demo:trace      # auditor trace — pay via the OCP flow, then prove no trace remains
 ```
 
-**Gas-Messung** (Off-chain-Insertion vs. altes Design):
+## Documentation
 
-```bash
-pnpm node                # Terminal 1
-pnpm demo:gas            # Terminal 2 — zeigt ~350k statt ~1.74M Gas/Tx
-```
+The **English, as-built** documentation lives in [`docs/en/`](docs/en/) and is the source of
+truth for the gnark system:
 
-**Parallelisierung** (mehrere Lanes landen gemeinsam):
+| Document | What it covers |
+|---|---|
+| [`docs/en/ARCHITECTURE.md`](docs/en/ARCHITECTURE.md) | System, components, transaction lifecycle, key design decisions |
+| [`docs/en/CIRCUIT.md`](docs/en/CIRCUIT.md) | The ZK contract: primitives, public signals, constraints, soundness |
+| [`docs/en/SECURITY.md`](docs/en/SECURITY.md) | Threat model, contract/circuit/relayer controls, residual risks |
+| [`docs/en/PRIVACY.md`](docs/en/PRIVACY.md) | What is hidden vs revealed, proving location, trust boundaries |
+| [`docs/en/FALLBACKS.md`](docs/en/FALLBACKS.md) | Proving / submission / sync fallback chains and idempotency |
+| [`docs/en/INTEGRATION.md`](docs/en/INTEGRATION.md) | Wiring the prover, SDK, relayer/indexer, and deployment |
+| [`docs/en/VALIDATION.md`](docs/en/VALIDATION.md) | Test suites, the 1000-transaction soak, the adversarial battery, results |
 
-```bash
-pnpm node                # Terminal 1
-pnpm demo:parallel       # Terminal 2 — 6 Zahlungen über 6 Lanes in EINEM Block; same-lane serialisiert
-```
+`docs/en/llms.txt` is a compact, machine-readable index of the whole system. The German
+`docs/*.md` are the original design-phase documents and may reference the superseded circom
+design.
 
-**Trace-Audit** (Zahlung ausführen + forensisch beweisen, dass keine Spur bleibt):
+## Limits & next steps
 
-```bash
-pnpm node                # Terminal 1
-pnpm demo:trace          # Terminal 2 — zahlt via OCP-Flow, scannt dann die ganze Chain
-```
-Zeigt: Zahler-Adresse nicht in Tx/Calldata, kein Betrag on-chain, Deposit↔Zahlung
-nicht verknüpfbar — mit Gegenprobe gegen eine normale ERC-20-Überweisung.
+Deliberately **out of scope** for the PoC — external gates, not code problems:
 
-Erwartete Ausgabe: alle Privacy-Checks ✅ und korrekte Bilanz.
+- **External security audits** of the circuit and contracts — mandatory before real funds.
+- **A production trusted setup** (multi-party ceremony) instead of the local single contributor.
+- **The compliance layer (ASP) enforced inside the circuit** — association-inclusion proofs and
+  Level-3 viewing-key disclosure are designed and demonstrated, but not yet circuit-enforced.
+- **Mainnet deployment** — the target is the major L2s (Polygon / Base / Arbitrum), not L1.
 
-## Grenzen & nächste Schritte
+The prioritized blocker list for productization lives in
+[`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md).
 
-Für die Produktisierung auf Base-Niveau (Millionen User/Payments) siehe die priorisierte
-Blocker-Liste in [`docs/PRODUCTION_READINESS.md`](docs/PRODUCTION_READINESS.md)
-(Regulatorik, Audit/Setup, Batched-Insertion + Indexer, Custody, Anonymitäts-Set).
+## License
 
-Bewusst **nicht** im PoC (externe Gates, kein Code-Problem):
-- **Security-Audit** der Circuits & Contracts — Pflicht vor echtem Geld.
-- **Produktiver Trusted-Setup** (Multi-Party-Ceremony) statt lokalem Single-Contributor.
-- **Compliance-Layer (ASP)** — Association-Inclusion-Proofs + Viewing-Key-Disclosure (Level 3)
-  sind im Design (`docs/ARCHITECTURE.md` §5), aber im PoC noch nicht im Circuit.
-- **Schlüsselmodell** — Owner ist jetzt ein echter BabyJubJub-Pubkey (privKey·Base8),
-  Nullifier deterministisch/nicht-malleable (Poseidon-PRF, wie Tornado Nova). Offen: volle
-  Key-Hierarchie (separate Spend-/View-/Nullifier-Keys) + formales Constraint-Review.
-- **Native Mobil-Prover** — der PoC nutzt WASM/snarkjs.
-- **Echte OCP/DFX-Backend-Anbindung** — hier durch einen Mock-Provider ersetzt.
-- **Mainnet-Deployment** — Ziel sind die großen L2 (Polygon/Base/Arbitrum), nicht Ethereum L1.
-
-## Lizenz
-
-MIT (PoC).
+MIT for this repository's code. The ZK layer is built on gnark (Apache-2.0); the stack is
+GPL-free by design. See [`docs/LICENSES.md`](docs/LICENSES.md) and
+[`docs/LICENSE_AUDIT.md`](docs/LICENSE_AUDIT.md).

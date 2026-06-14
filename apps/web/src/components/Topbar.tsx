@@ -13,11 +13,16 @@ export function Topbar({
   onMenu: () => void;
 }) {
   const { session } = useSession();
-  const kyc = session?.kyc.status ?? "verified";
+  const kyc = session?.kyc.status ?? "unverified";
+  const jurisdiction = session?.kyc.jurisdiction ?? null;
   const kycLevel: "ok" | "warn" | "bad" =
     kyc === "verified" ? "ok" : kyc === "pending" ? "warn" : "bad";
   const kycLabel =
-    kyc === "verified" ? "KYC verified" : kyc === "pending" ? "KYC pending" : "KYC required";
+    kyc === "verified"
+      ? `${jurisdiction ? `${jurisdiction} · ` : ""}KYC verified`
+      : kyc === "pending"
+        ? "KYC pending"
+        : "KYC required";
 
   return (
     <div className="topbar">
@@ -29,12 +34,8 @@ export function Topbar({
         <h1>{title}</h1>
       </div>
       <div className="spacer" />
-      <span className="chip">Base · Polygon · Arbitrum</span>
-      <span className="pill hide-sm">
-        <span className="d ok" />
-        EU + US profile
-      </span>
-      <span className="pill">
+      <span className="chip hide-sm">Base · Polygon · Arbitrum</span>
+      <span className={`status-pill status-${kycLevel}`}>
         <span className={`d ${kycLevel}`} />
         {kycLabel}
       </span>

@@ -92,6 +92,10 @@ rejecting everything.
   `MobileHash([1,2])` **executed on the booted iPhone-Air simulator** returned a value
   byte-identical to the Go/`proverd` Poseidon2 (`4443…2364`) — cross-platform consistency
   proven on the iOS runtime.
+- **On real iPhone Air hardware (iOS 26.5.1):** the native gnark prover produced a full
+  Groth16 proof (50,481 constraints) in **~366–438 ms** (verify ~1 ms); the 9.3 MB proving
+  key loaded and proved with no memory issue — **comfortably under the 1 s goal** (desktop
+  was ~200 ms; the ~2× is expected on mobile ARM).
 - The same witness verifies identically across the native verify path and the on-chain
   Solidity verifier (the contract E2E + the soak's per-tx verification).
 

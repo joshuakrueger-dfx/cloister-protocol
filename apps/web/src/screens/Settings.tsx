@@ -5,7 +5,7 @@ export function Settings() {
     <section className="view">
       <ScreenHead
         eyebrow="ACCOUNT"
-        title="Settings."
+        title="Settings"
         sub="Self-custody. Your spend / view / nullifier keys derive from one seed and never leave the device. Notes are recoverable from chain history via the viewing key."
       />
       <div className="grid g2" style={{ marginTop: 24 }}>

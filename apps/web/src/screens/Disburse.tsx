@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useApi } from "../lib/ApiProvider";
 import { useAsync } from "../lib/useAsync";
-import { Button, Card, Field, KeyValue, ScreenHead, Seg, Tag } from "../components/primitives";
+import { Button, Card, Field, KeyValue, ScreenHead, Seg, SanctionsTag } from "../components/primitives";
 import { ProofConsole } from "../components/ProofConsole";
 import type { Asset, BatchRow, PayrollSession, ProofStep } from "../lib/types";
 
@@ -26,7 +26,7 @@ export function Disburse() {
     <section className="view">
       <ScreenHead
         eyebrow="PRIVATE PAYOUT"
-        title="Disburse."
+        title="Disburse"
         sub="Pay anyone — privately and compliantly. The proof generates in the background while you confirm, so it feels instant."
       />
       <div style={{ marginTop: 22 }}>
@@ -174,7 +174,7 @@ function BatchMode() {
                 <td className="addr">{r.amount}</td>
                 <td>{r.chain}</td>
                 <td>
-                  <Tag level="ok">clear</Tag>
+                  <SanctionsTag level={r.sanctions} />
                 </td>
               </tr>
             ))}

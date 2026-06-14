@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useApi } from "../lib/ApiProvider";
+import { useSession } from "../lib/SessionProvider";
 import { Button, Card, Field, KeyValue, ScreenHead, Seg } from "../components/primitives";
 import { Icon } from "../components/icons";
 import { CHAINS } from "../lib/types";
@@ -7,6 +8,7 @@ import type { Asset, ChainId } from "../lib/types";
 
 export function Fund() {
   const api = useApi();
+  const { session } = useSession();
   const [chain, setChain] = useState<ChainId>("base");
   const [amount, setAmount] = useState("50,000");
   const [asset, setAsset] = useState<Asset>("USDC");
@@ -33,7 +35,7 @@ export function Fund() {
     <section className="view">
       <ScreenHead
         eyebrow="PUBLIC TOUCHPOINT"
-        title="Fund the shielded pool."
+        title="Fund the shielded pool"
         sub={
           <>
             This is the <b>only</b> public step. KYC, sanctions screening and geofencing run here.
@@ -77,24 +79,36 @@ export function Fund() {
             />
           </Field>
 
-          <div className="gatebox">
-            <div className="clab" style={{ marginBottom: 8 }}>
-              COMPLIANCE GATE — CLEARED
-            </div>
-            {[
-              ["Identity", "Nimbus DAO entity KYB verified (2026-04)"],
-              ["Sanctions", "source address clears OFAC + EU lists"],
-              ["Jurisdiction", "CH/EU/US permitted for this entity"],
-              ["Association set", "deposit will be added to ASP good-set"],
-            ].map(([b, rest]) => (
-              <div className="gate-row" key={b}>
-                <Icon name="check" size={15} />
-                <span>
-                  <b>{b}</b> · {rest}
-                </span>
+          {(() => {
+            const kyc = session?.kyc;
+            const verified = kyc?.status === "verified";
+            const who = session?.org.name || "this account";
+            const subj = kyc?.subjectType === "entity" ? "entity" : "individual";
+            const jx = kyc?.jurisdiction;
+            const rows: Array<[string, string]> = verified
+              ? [
+                  ["Identity", `${who} (${subj}) KYC-verified at level ${kyc?.level ?? "L3"}`],
+                  ["Sanctions", "screened against OFAC SDN + EU consolidated list"],
+                  ["Jurisdiction", `${jx ?? "—"} profile · permitted`],
+                  ["Association set", "deposit will be added to the ASP good-set"],
+                ]
+              : [["KYC required", "complete identity verification before funding"]];
+            return (
+              <div className={`gatebox${verified ? "" : " warn"}`}>
+                <div className="clab" style={{ marginBottom: 8 }}>
+                  {verified ? "COMPLIANCE GATE — CLEARED" : "COMPLIANCE GATE — ACTION REQUIRED"}
+                </div>
+                {rows.map(([b, rest]) => (
+                  <div className="gate-row" key={b}>
+                    <Icon name={verified ? "check" : "shield"} size={15} />
+                    <span>
+                      <b>{b}</b> · {rest}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            );
+          })()}
           <div className="actions">
             <Button variant="solid" arrow onClick={onShield} disabled={busy}>
               {busy ? "Shielding…" : `Shield ${amount} ${asset}`}
@@ -121,7 +135,7 @@ export function Fund() {
           <div className="clab">WHAT BECOMES PUBLIC</div>
           <div style={{ marginTop: 14 }}>
             <KeyValue k="Deposit tx (from)" tone="pub">
-              Nimbus public addr
+              {source.startsWith("DFX") ? "DFX onramp" : "your public address"}
             </KeyValue>
             <KeyValue k="Amount shielded" tone="pub">
               {amount} {asset}

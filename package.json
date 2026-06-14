@@ -5,7 +5,6 @@
   "description": "Privacy layer for OpenCryptoPay — compliant encrypted-UTXO shielded pool (PoC)",
   "license": "MIT",
   "scripts": {
-    "build:circuits": "pnpm --filter @cloister/circuits build",
     "compile:contracts": "pnpm --filter @cloister/contracts compile",
     "node": "pnpm --filter @cloister/contracts node",
     "api": "pnpm --filter @cloister/api start",

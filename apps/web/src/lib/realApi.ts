@@ -35,6 +35,8 @@ import type { BackendConfig } from "./backends";
 import { backendsView, setActiveBackendId } from "./backends";
 import { initGnarkBackend, type ProverStatus } from "./gnarkWasm";
 import { vaultExists, saveVault, openVault } from "./vault";
+import { JURISDICTION_PROFILES } from "./jurisdictions";
+import type { ExportFormat } from "./types";
 
 // ---------- Persistenz-Helfer (namespaced pro Backend) ----------
 const lsGet = <T>(k: string, fallback: T): T => {
@@ -124,7 +126,17 @@ export class RealApi implements CloisterApi {
     return this.kp;
   }
 
-  private async sync(): Promise<{ cfg: RemoteConfig; kp: any }> {
+  // Serialisiert: zwei gleichzeitige sync() (z.B. React-StrictMode-Doppel-Effekte oder
+  // parallele Screen-Loads) würden sonst auf dem geteilten tree/wallet dieselben Commitments
+  // doppelt einfügen → doppelte Balance. Der Lock kettet die Läufe streng nacheinander.
+  private _syncLock: Promise<unknown> = Promise.resolve();
+  private sync(): Promise<{ cfg: RemoteConfig; kp: any }> {
+    const run = this._syncLock.then(() => this._doSync(), () => this._doSync());
+    this._syncLock = run.catch(() => {});
+    return run;
+  }
+
+  private async _doSync(): Promise<{ cfg: RemoteConfig; kp: any }> {
     await this.ready();
     const cfg = await this.getConfig();
     const kp = await this.getKeypair();
@@ -151,7 +163,7 @@ export class RealApi implements CloisterApi {
 
   // ---------- Session / Auth ----------
   async getSession(): Promise<Session> {
-    const kyc = lsGet<KycStatus>("cloister.kyc", { status: "unverified", subjectType: null, verifiedAt: null, level: null });
+    const kyc = lsGet<KycStatus>("cloister.kyc", { status: "unverified", subjectType: null, jurisdiction: null, verifiedAt: null, level: null });
     const dfxLinked = lsGet<boolean>("cloister.dfx", false);
     const org = lsGet("cloister.org", { name: "Your Treasury", kind: "Treasury · self-custody" });
     return { authenticated: vaultExists() || dfxLinked || !!this.mnemonic, unlocked: !!this.mnemonic, org, kyc, dfxLinked };
@@ -187,20 +199,50 @@ export class RealApi implements CloisterApi {
   }
 
   async getKycStatus(): Promise<KycStatus> {
-    return lsGet<KycStatus>("cloister.kyc", { status: "unverified", subjectType: null, verifiedAt: null, level: null });
+    return lsGet<KycStatus>("cloister.kyc", { status: "unverified", subjectType: null, jurisdiction: null, verifiedAt: null, level: null });
   }
 
   async submitKyc(payload: KycSubmitPayload, onProgress?: ProgressCallback): Promise<KycStatus> {
-    const steps = [
-      [20, "submitting identity document …"],
-      [48, "screening against OFAC + EU sanctions lists"],
-      [72, "verifying jurisdiction · CH/EU/US permitted"],
-      [100, "<span class='ok'>✓ verified</span> — added to ASP good-set"],
-    ] as const;
-    for (const [p, t] of steps) { await new Promise((r) => setTimeout(r, 560)); onProgress?.({ progress: p, html: t }); }
-    const kyc: KycStatus = { status: "verified", subjectType: payload.subjectType, verifiedAt: new Date().toISOString(), level: "L3" };
+    // ECHTES Screening über den Provider (server /v1/kyc/screen): Pflichtfelder,
+    // Jurisdiktions-Embargo, Sanktionslisten (OFAC/EU) — kann ABLEHNEN. Dokumenten-/
+    // Liveness-Verifikation = Aufgabe des lizenzierten Providers (Adapter-Naht).
+    onProgress?.({ progress: 10, html: "submitting application — screening…" });
+    const r = await fetch(`${this.apiBase}/v1/kyc/screen`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const result = await r.json();
+    if (!r.ok) throw new Error(result.error || "screening failed");
+
+    let p = 18;
+    const inc = Math.floor(74 / Math.max(1, result.checks.length));
+    for (const c of result.checks as Array<{ name: string; pass: boolean; detail: string }>) {
+      await new Promise((res) => setTimeout(res, 420));
+      p += inc;
+      const mark = c.pass ? "<span class='ok'>✓</span>" : "<span style='color:var(--bad)'>✗</span>";
+      onProgress?.({ progress: p, html: `${mark} ${c.name} — ${c.detail}` });
+    }
+
+    if (result.status !== "verified") {
+      const failed = (result.checks as Array<{ name: string; pass: boolean; detail: string }>).filter((c) => !c.pass);
+      onProgress?.({ progress: 100, html: "<span style='color:var(--bad)'>✗ rejected</span> — resolve the flagged checks above" });
+      throw new Error("KYC rejected: " + failed.map((c) => `${c.name} (${c.detail})`).join("; "));
+    }
+
+    onProgress?.({ progress: 100, html: "<span class='ok'>✓ verified</span> — added to ASP good-set" });
+    const kyc: KycStatus = {
+      status: "verified",
+      subjectType: payload.subjectType,
+      jurisdiction: payload.jurisdiction,
+      verifiedAt: new Date().toISOString(),
+      level: "L3",
+    };
     lsSet("cloister.kyc", kyc);
-    lsSet("cloister.org", { name: payload.legalName, kind: payload.subjectType === "entity" ? "Treasury · self-custody" : "Individual · self-custody" });
+    lsSet("cloister.org", {
+      name: payload.legalName,
+      kind: payload.subjectType === "entity" ? "Treasury · self-custody" : "Individual · self-custody",
+    });
     return kyc;
   }
 
@@ -210,7 +252,9 @@ export class RealApi implements CloisterApi {
     if (!this.mnemonic && !vaultExists()) { this.mnemonic = generateMnemonic(); this.kp = null; }
     await this.getKeypair();
     lsSet("cloister.dfx", true);
-    lsSet("cloister.kyc", { status: "verified", subjectType: "entity", verifiedAt: new Date().toISOString(), level: "L3" });
+    // DFX (CH/EU) führt die regulierte Identität → EU-Profil, KYC vom Provider bestätigt.
+    lsSet("cloister.kyc", { status: "verified", subjectType: "entity", jurisdiction: "EU", verifiedAt: new Date().toISOString(), level: "L3" });
+    if (!lsGet("cloister.org", null)) lsSet("cloister.org", { name: "DFX-linked account", kind: "Managed · DFX" });
     return this.getSession();
   }
 
@@ -379,20 +423,47 @@ export class RealApi implements CloisterApi {
       kind: "cloister.proof-of-innocence.v1",
       issuer: "Cloister ASP (DFX)",
       subject: shortHex(kp.publicKey),
-      scope: params.scope, period: params.period,
-      associationRoot: cfg.aspRoot, chainId: cfg.chainId, pool: cfg.pool,
+      scope: params.scope,
+      period: params.period,
+      associationRoot: cfg.aspRoot,
+      chainId: cfg.chainId,
+      pool: cfg.pool,
       statement: "Selected funds are members of the ASP good-set and originate from a KYC-verified source. No transaction history is revealed.",
       issuedAt: new Date().toISOString(),
       signature: sig.toString(),
     };
-    const blob = new Blob([JSON.stringify(signed, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `cloister-receipt-${params.period.replace(/\s+/g, "_")}.json`;
-    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 
-    onProgress?.({ progress: 100, html: "<span class='ok'>✓ receipt.json ready — downloaded</span>" });
-    return { id: `rcpt_${Date.now()}`, scope: params.scope, period: params.period, files: ["receipt.json"], createdAt: new Date().toISOString() };
+    const { downloadJson, downloadCsv, downloadPdf } = await import("./exporters");
+    const base = `cloister-receipt-${params.period.replace(/\s+/g, "_")}`;
+    const fields = Object.entries(signed).map(([k, v]) => [k, String(v)] as [string, string]);
+    if (params.format === "json") downloadJson(`${base}.json`, signed);
+    else if (params.format === "csv") downloadCsv(`${base}.csv`, [["field", "value"], ...fields]);
+    else
+      downloadPdf(`${base}.pdf`, {
+        title: "Cloister — Proof of Innocence",
+        subtitle: "Signed attestation that the selected funds belong to the ASP good-set and originate from a KYC-verified source. No transaction history is revealed.",
+        fields,
+        footer: "Cloister Protocol · compliant shielded payments · verify the signature against the issuer's viewing key.",
+      });
+
+    onProgress?.({ progress: 100, html: `<span class='ok'>✓ receipt.${params.format} ready — downloaded</span>` });
+    return { id: `rcpt_${Date.now()}`, scope: params.scope, period: params.period, files: [`receipt.${params.format}`], createdAt: new Date().toISOString() };
+  }
+
+  async exportAuditLog(format: ExportFormat): Promise<void> {
+    const { downloadJson, downloadCsv, downloadPdf } = await import("./exporters");
+    const acts = await this.getActivity();
+    const headers = ["Date", "Recipient", "Purpose", "Amount", "Chain", "Compliance", "Status"];
+    const rows = acts.map((a) => [a.date, a.recipient, a.purpose, a.amount, a.chain, a.compliance, a.status]);
+    if (format === "json") downloadJson("cloister-audit-log.json", acts);
+    else if (format === "csv") downloadCsv("cloister-audit-log.csv", [headers, ...rows]);
+    else
+      downloadPdf("cloister-audit-log.pdf", {
+        title: "Cloister — Audit Log",
+        subtitle: `${acts.length} disbursement events · viewing-key-decrypted ledger`,
+        table: { headers, rows },
+        footer: "Cloister Protocol · selective disclosure · no plaintext on-chain.",
+      });
   }
 
   async createDisclosure(params: DisclosureParams): Promise<Disclosure> {
@@ -426,16 +497,9 @@ export class RealApi implements CloisterApi {
   }
 
   async getJurisdictionProfile(): Promise<JurisdictionProfile> {
-    return {
-      label: "EU + US profile",
-      items: [
-        { label: "EU — MiCA / AMLR", value: "active", level: "ok" },
-        { label: "EU — Travel Rule (TFR)", value: "off-chain payload", level: "ok" },
-        { label: "US — FinCEN / BSA", value: "active", level: "ok" },
-        { label: "US — OFAC screening", value: "at shield", level: "ok" },
-        { label: "GDPR — data minimisation", value: "no plaintext on-chain", level: "ok" },
-      ],
-    };
+    const kyc = await this.getKycStatus();
+    const j = kyc.jurisdiction ?? "EU"; // bis KYC abgeschlossen: EU als Default-Anzeige
+    return { label: j === "EU" ? "EU profile" : "US profile", items: JURISDICTION_PROFILES[j] };
   }
 
   // ---------- Backends ----------

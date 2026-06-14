@@ -57,7 +57,11 @@ export function DisbursementTable({
               <td className="addr">{t.amount}</td>
               <td>{t.chain}</td>
               <td>
-                <Tag level="ok">clean</Tag>
+                {t.compliance === "flagged" ? (
+                  <Tag level="bad">flagged</Tag>
+                ) : (
+                  <Tag level="ok">clean</Tag>
+                )}
               </td>
               <td>{statusTag(t.status)}</td>
             </tr>

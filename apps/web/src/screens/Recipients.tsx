@@ -1,6 +1,6 @@
 import { useApi } from "../lib/ApiProvider";
 import { useAsync } from "../lib/useAsync";
-import { Card, ScreenHead, Tag } from "../components/primitives";
+import { Card, ScreenHead, SanctionsTag } from "../components/primitives";
 
 export function Recipients() {
   const api = useApi();
@@ -10,7 +10,7 @@ export function Recipients() {
     <section className="view">
       <ScreenHead
         eyebrow="COUNTERPARTIES"
-        title="Recipients."
+        title="Recipients"
         sub="Labels are encrypted with your viewing key and live only in your account. On-chain, the counterparty never appears."
       />
       <Card style={{ marginTop: 24, padding: 0 }}>
@@ -45,7 +45,7 @@ export function Recipients() {
                   <td className="mono">{r.address}</td>
                   <td>{r.lastPaid}</td>
                   <td>
-                    <Tag level={r.sanctions}>clear</Tag>
+                    <SanctionsTag level={r.sanctions} />
                   </td>
                 </tr>
               ))

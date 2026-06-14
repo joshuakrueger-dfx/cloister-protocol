@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApi } from "../lib/ApiProvider";
+import { useSession } from "../lib/SessionProvider";
 import { useAsync } from "../lib/useAsync";
 import {
   Button,
@@ -16,7 +17,9 @@ import { DisbursementTable } from "../components/DisbursementTable";
 export function Overview() {
   const api = useApi();
   const nav = useNavigate();
+  const { session } = useSession();
   const [revealed, setRevealed] = useState(false);
+  const orgName = session?.org.name && session.org.name !== "Your Treasury" ? session.org.name.split(" ")[0] : "there";
 
   const balance = useAsync(() => api.getBalance(), []);
   const anon = useAsync(() => api.getAnonymitySet(), []);
@@ -29,7 +32,7 @@ export function Overview() {
     <section className="view">
       <ScreenHead
         eyebrow="TREASURY"
-        title="Good morning, Nimbus."
+        title={`Good morning, ${orgName}`}
         sub="Your shielded treasury is healthy and compliant. Disburse privately — every payment carries a proof of clean origin, and nothing links a payout to your wallet on-chain."
       />
 
@@ -57,7 +60,7 @@ export function Overview() {
           </div>
           <div className="cfoot">
             {balance.data
-              ? `across ${balance.data.chains} chains · ${balance.data.notes} notes`
+              ? `across ${balance.data.chains} ${balance.data.chains === 1 ? "chain" : "chains"} · ${balance.data.notes} ${balance.data.notes === 1 ? "note" : "notes"}`
               : "—"}
           </div>
         </Card>
