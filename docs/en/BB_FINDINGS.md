@@ -14,13 +14,14 @@ the user's concurrent web/KYC WIP, which was left untouched).
   `latent-logic`**; recommended `companion-pr`. (`capability-profile.{md,json}`.)
 - Gate routing: `smart_contract → test-agent-contract-gate (mandatory)`.
 
-**Limitation (honest):** the deep gate agents (`contract-gate`, `latent-logic-gate`) need a
-dependency-provisioned checkout (node_modules, `hardhat compile`). The clean worktree has
-no installed deps, so the gates could not execute to a full verdict. This is an
-environment-provisioning limitation of running BB on a throwaway worktree, **not** a code
-finding. The substantive defect search was therefore completed via the equivalent
-BB-mandate review below (the same Tester/Fixer mandate, run against the real tree where the
-tests already pass).
+**Limitation (honest, confirmed from the run log):** after classification, the
+`01-orchestrator` agent **timed out after 2400 s (exit 124)** — the *documented*
+Big-Brother failure mode on monorepos (the orchestrator runs scope-unbounded on a pnpm
+workspace and does not converge; previously observed on the realunit-app monorepo). It
+therefore never reached the `contract`/`latent-logic` gate verdicts. This is a known BB
+infra limitation on monorepos, **not** a code finding. Per the documented workaround
+("run the gates directly / do the review"), the substantive defect search was completed via
+the equivalent BB-mandate review below, run against the real tree where the suites pass.
 
 ## Findings (BB-mandate review)
 
