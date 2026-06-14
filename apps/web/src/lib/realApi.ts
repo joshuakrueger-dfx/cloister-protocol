@@ -81,9 +81,12 @@ export class RealApi implements CloisterApi {
   // letzter Prover-Lade-Status (für UI-Anzeige des einmaligen ~Init)
   proverStatus: ProverStatus = { phase: "idle" };
 
+  private baseId: string;
+
   constructor(config: BackendConfig) {
     if (!config.apiBase) throw new Error(`backend ${config.id} has no apiBase`);
     this.apiBase = config.apiBase.replace(/\/$/, "");
+    this.baseId = config.id;
     this.ns = `cloister.${config.id}`;
     // Prover im Hintergrund vorwärmen (einmaliger WASM-/Key-Load), wenn schon entsperrt.
     if (this.mnemonic) void this.ready().catch(() => {});
@@ -106,6 +109,9 @@ export class RealApi implements CloisterApi {
     const r = await fetch(`${this.apiBase}/config`);
     if (!r.ok) throw new Error(`provider offline (${this.apiBase})`);
     this.cfg = (await r.json()) as RemoteConfig;
+    // Pro Pool-Deployment getrennter Namespace: ein frischer Deploy (Dev-Restart) startet
+    // mit leerem App-State statt veraltete Activity/Spent-Notes des alten Pools zu zeigen.
+    this.ns = `cloister.${this.baseId}.${(this.cfg.pool || "").toLowerCase().slice(2, 10)}`;
     return this.cfg;
   }
 
@@ -341,14 +347,15 @@ export class RealApi implements CloisterApi {
   }
 
   async getPayrollSession(): Promise<PayrollSession> {
+    await this.getConfig();
     return lsGet<PayrollSession>(`${this.ns}.payroll`, { authorized: false, nextRun: "—", recipients: 0, amount: "—", lastRun: "—" });
   }
 
   // ---------- Directory / Ledger ----------
   async getRecipients(): Promise<Recipient[]> {
+    const cfg = await this.getConfig();
     const stored = lsGet<Recipient[] | null>(`${this.ns}.recipients`, null);
     if (stored) return stored;
-    const cfg = await this.getConfig();
     const seed: Recipient[] = [
       { id: "r_dfx", label: "DFX Settlement", type: "PSP / broker", address: shortHex(BigInt(cfg.dfxShieldAddress.pubKey)), lastPaid: "—", sanctions: "ok" },
     ];
@@ -356,7 +363,7 @@ export class RealApi implements CloisterApi {
     return seed;
   }
 
-  async getActivity(): Promise<Disbursement[]> { return lsGet<Disbursement[]>(`${this.ns}.activity`, []); }
+  async getActivity(): Promise<Disbursement[]> { await this.getConfig(); return lsGet<Disbursement[]>(`${this.ns}.activity`, []); }
   async getRecentDisbursements(): Promise<Disbursement[]> { return (await this.getActivity()).slice(0, 5); }
 
   // ---------- Compliance Center ----------
