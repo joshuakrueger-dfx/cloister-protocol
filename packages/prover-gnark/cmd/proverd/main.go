@@ -23,7 +23,9 @@ var pv *prover.Prover
 
 func main() {
 	keysDir := "./keys"
-	addr := ":8799"
+	// Bind localhost by default: proverd sees the private witness and must not be exposed
+	// on the LAN. Pass an explicit host:port (e.g. 0.0.0.0:8799) to override deliberately.
+	addr := "127.0.0.1:8799"
 	if len(os.Args) > 1 {
 		keysDir = os.Args[1]
 	}
