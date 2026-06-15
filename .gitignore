@@ -36,3 +36,6 @@ packages/prover-gnark/depositdirect
 packages/prover-gnark/provefromleaves
 packages/prover-gnark/setup
 packages/prover-gnark/emitproof
+
+# Docs site build output (source: docs-site/build.mjs + docs.css)
+/docs-site/dist/
