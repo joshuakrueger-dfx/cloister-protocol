@@ -5,9 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 import {
   restoreDfxSession, isDfxConnected, dfxAddress, dfxMethod, disconnectDfx,
   connectDerived, connectWallet, requestDfxMail, confirmDfxMail,
-  getDfxKyc, startDfxKyc, setDfxMail, dfxBuyOnramp,
+  getDfxKyc, startDfxKyc, setDfxMail, dfxBuyOnramp, dfxReceivedUsdc,
   type DfxAuthMethod, type DfxKycView, type OnrampResult,
 } from "./index";
+import type { ChainId } from "../types";
 
 // The unlocked mnemonic is kept tab-scoped by RealApi under this key.
 const SESSION_MNEMONIC = "cloister.session.mnemonic";
@@ -104,10 +105,12 @@ export function useDfx() {
     return dfxBuyOnramp(p);
   }, []);
 
+  const receivedUsdc = useCallback((chain: ChainId): Promise<number> => dfxReceivedUsdc(chain), []);
+
   const disconnect = useCallback(() => {
     disconnectDfx();
     setState({ connected: false, address: null, method: null, kyc: null, awaitingOtp: false, busy: false, error: null });
   }, []);
 
-  return { ...state, connect, confirmMail, startKyc, addMail, onramp, refreshKyc, disconnect };
+  return { ...state, connect, confirmMail, startKyc, addMail, onramp, receivedUsdc, refreshKyc, disconnect };
 }
