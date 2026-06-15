@@ -20,7 +20,9 @@ export const BACKENDS: BackendConfig[] = [
 ];
 
 const ACTIVE_KEY = "cloister.backend.v1";
-const DEFAULT_ID = "local";
+// Deployed (prod) build defaults to the self-contained Demo backend so the
+// hosted tool works with no infrastructure; local dev defaults to the Local stack.
+const DEFAULT_ID = import.meta.env.PROD ? "demo" : "local";
 
 export function getActiveBackendId(): string {
   const id = localStorage.getItem(ACTIVE_KEY);
