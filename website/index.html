@@ -222,6 +222,13 @@
         <div class="metric"><div class="n">~56.7k</div><div class="l" data-i18n="m.constraints"></div></div>
       </section>
 
+      <!-- POSITIONING -->
+      <section class="section reveal" id="why" style="border-top:none;padding-top:24px;padding-bottom:8px">
+        <div class="sec-label"><span class="sq"></span><span data-i18n="pos.label"></span></div>
+        <h2 data-i18n="pos.title"></h2>
+        <p class="sec-sub" data-i18n="pos.text"></p>
+      </section>
+
       <!-- FEATURES -->
       <section class="features" id="product">
         <div class="feat reveal"><div class="ic">__EYE__</div><h3 data-i18n="v1.t"></h3><p data-i18n="v1.d"></p></div>
@@ -356,7 +363,10 @@
           "btn.launch":"API ansehen","btn.docs":"Doku lesen",
           "hero.eyebrow":"EIN PRODUKT DER DFX AG · PRIVACY-PROTOKOLL",
           "hero.title":"Privatsphäre für Zahlungen<br>auf jeder EVM-Chain.",
-          "hero.sub":"Cloister ist ein abgeschirmter Zahlungspool, der die Verknüpfung zwischen Wallet und Zahlung bricht. Niemand — weder Händler, On-chain-Beobachter noch der Settlement-Broker — erfährt die Zahler-Adresse oder kann daraus ein Vermögen ableiten. Cloister ist an kein Produkt gebunden; OpenCryptoPay ist die erste Integration.",
+          "hero.sub":"Cloister ist ein abgeschirmter Zahlungspool, der die Verknüpfung zwischen Wallet und Zahlung bricht. Niemand — weder Händler, On-chain-Beobachter noch der Settlement-Broker — erfährt die Zahler-Adresse oder kann daraus ein Vermögen ableiten.",
+          "pos.label":"WARUM CLOISTER",
+          "pos.title":"Privatsphäre, die im Gesetz bleibt.",
+          "pos.text":"Cloister existiert aus einem einzigen Grund: damit niemand mitliest, was du zahlst, an wen oder wie viel du hältst. Nicht, um Regeln zu umgehen — sondern von Grund auf gebaut, um EU- und US-Regulierung zu erfüllen: geprüfte Einzahlungen und Viewing-Keys allein für berechtigte Auditoren. Überwachungsfrei und compliant zugleich.",
           "flow.sender":"Sender","flow.recipient":"Empfänger","flow.cap":"Zahlungen bleiben privat — auf jeder EVM-Chain.","flow.more":"… und mehr",
           "m.gas":"Gas pro Zahlung","m.less":"weniger Gas als zuvor","m.poseidon":"Poseidon-Hashes on-chain","m.lanes":"Zahlungen parallel in einem Block","m.constraints":"Circuit-Constraints",
           "v1.t":"Privatsphäre als Standard","v1.d":"Eine Zahlung verrät nicht, wer zahlt: Die Zahler-Adresse taucht weder als Absender noch in den Transaktionsdaten auf.",
@@ -385,7 +395,10 @@
           "btn.launch":"View API","btn.docs":"Read Docs",
           "hero.eyebrow":"A PRODUCT OF DFX AG · PRIVACY PROTOCOL",
           "hero.title":"Privacy for payments<br>on any EVM chain.",
-          "hero.sub":"Cloister is a shielded payment pool that breaks the link between wallet and payment. Nobody — not the merchant, not an on-chain observer, not even the settlement broker — learns the payer's address or can derive their wealth from it. Cloister is tied to no single product; OpenCryptoPay is the first integration.",
+          "hero.sub":"Cloister is a shielded payment pool that breaks the link between wallet and payment. Nobody — not the merchant, not an on-chain observer, not even the settlement broker — learns the payer's address or can derive their wealth from it.",
+          "pos.label":"WHY CLOISTER",
+          "pos.title":"Privacy that stays inside the law.",
+          "pos.text":"Cloister exists for one reason: so that no one can watch what you pay, to whom, or how much you hold. Not to slip past the rules — it's built from the ground up to meet EU and US regulation: screened deposits and viewing keys reserved for authorized auditors. Surveillance-free and compliant at once.",
           "flow.sender":"Sender","flow.recipient":"Recipient","flow.cap":"Payments stay private — on any EVM chain.","flow.more":"… and more",
           "m.gas":"Gas per payment","m.less":"less gas than before","m.poseidon":"Poseidon hashes on-chain","m.lanes":"payments parallel in one block","m.constraints":"circuit constraints",
           "v1.t":"Privacy by default","v1.d":"A payment never reveals who pays: the payer's address appears neither as sender nor in the transaction data.",
@@ -602,7 +615,7 @@
           en:{t:"Quick explainer",s:"Get an AI to explain Cloister in 30 seconds.",x:"Close"}
         };
         function lang(){var l="en";try{l=localStorage.getItem("cloister-lang-v2")||"en";}catch(e){}return TR[l]?l:"en";}
-        var PROMPT=encodeURIComponent("Read https://cloister.swiss/llms.txt for context about Cloister, a compliant privacy layer for stablecoin payments on EVM chains by DFX AG. Give a brief, friendly 2-3 sentence overview of what it is and how it provides privacy with compliance, then invite the user to ask questions.");
+        var PROMPT=encodeURIComponent("Read https://cloister-protocol.com/llms.txt for context about Cloister, a compliant privacy layer for stablecoin payments on EVM chains by DFX AG. Give a brief, friendly 2-3 sentence overview of what it is and how it provides privacy with compliance, then invite the user to ask questions.");
         var CLAUDE='<svg class="ic ic-claude" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><g>'+
           [0,30,60,90,120,150,180,210,240,270,300,330].map(function(a){return '<path transform="rotate('+a+' 12 12)" d="M12 1.4L13.15 11L10.85 11Z"/>';}).join('')+
           '<circle cx="12" cy="12" r="1.7"/></g></svg>';
