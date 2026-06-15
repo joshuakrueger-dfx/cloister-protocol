@@ -151,7 +151,16 @@ func DepositAndSubmit(p *prover.Prover, cfg Config) (Result, error) {
 	// can simulate against pre-approve state and falsely revert ("allowance"). The tx itself
 	// executes against the mined chain where the allowance is set.
 	opts.GasLimit = 900000
+	// Manage the nonce explicitly: fetch once, then increment locally. Relying on the RPC's
+	// pending-nonce per tx collides on load-balanced endpoints (nonce too low) when an
+	// earlier tx hasn't propagated to the node answering the next query.
+	nonce, err := client.PendingNonceAt(ctx, from)
+	if err != nil {
+		return Result{}, fmt.Errorf("nonce: %w", err)
+	}
+	nextNonce := func() { opts.Nonce = new(big.Int).SetUint64(nonce); nonce++ }
 	send := func(c *bind.BoundContract, method string, args ...interface{}) error {
+		nextNonce()
 		tx, err := c.Transact(opts, method, args...)
 		if err != nil {
 			return fmt.Errorf("%s: %w", method, err)
@@ -178,6 +187,7 @@ func DepositAndSubmit(p *prover.Prover, cfg Config) (Result, error) {
 		B: [2][2]*big.Int{{hexToBig(res.B[0][0]), hexToBig(res.B[0][1])}, {hexToBig(res.B[1][0]), hexToBig(res.B[1][1])}},
 		C: [2]*big.Int{hexToBig(res.C[0]), hexToBig(res.C[1])},
 	}
+	nextNonce()
 	tx, err := poolC.Transact(opts, "transact",
 		proof, hexToBig(ps[0]), hexToBig(ps[7]), hexToBig(ps[9]),
 		[2]*big.Int{hexToBig(ps[3]), hexToBig(ps[4])},
