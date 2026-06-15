@@ -272,3 +272,32 @@ The cryptographic core (value conservation, nullifier/double-spend handling, CEI
 16. [ ] Archive/merge stale docs (§8); add hardhat Base networks + Etherscan verify; fix the duplicate gnark artifact build step; close remaining P2s.
 
 Mainnet GO is contingent on Phases A-D complete and the independent audit (step 6) clean.
+
+---
+
+## 10. Phase-A delta — post-audit changes (2026-06-15)
+
+After the audit above, the on-device go-ethereum submit path was replaced. The new components
+(wallet `deposit.ts`/`treeCache.ts`/`ownerKey.ts`, `mobile.go` `ProveDepositFromLeaves`, the
+key-less `prepare-server.mjs`) were reviewed in a focused follow-up audit.
+
+**Verdict:** the new deposit path is **sound and fail-closed for the testnet pilot** — a
+pre-broadcast root check (proof `oldRoot` must equal the on-chain `laneRoot`) defeats a
+malicious/buggy relayer, a wrong-but-count-correct leaf set, and a malformed insertion
+context (no fund loss in any case). extDataHash and the publicSignals→`transact` mapping were
+re-verified against the contract. No license regression (gnark Apache + ethers/express MIT).
+
+**Resolved by Phase A**
+- **P0-2 (go-ethereum LGPL):** removed from the mobile bind — verified `go list -deps ./mobile` = 0 ethereum, and `strings` over the shipped `Cloister.xcframework` = 0 go-ethereum symbols (107→62 MB).
+- **P0-3 (owner key):** the `'12345'` constant is gone (per-install random key in SecureStore); a real WDK user-wallet signing path now exists; the embedded demo key is quarantined to the testnet pilot.
+- **P1-5 / P1-6:** mitigated (persisted incremental leaf cache + relayer-served constant-size context; bounded `waitForTransaction`).
+
+**New findings (this delta) — fixed now**
+- **NEW-1 (P1):** leaf-cache could misalign on a getLogs gap → now only contiguous `leafIndex` prefixes are accepted/appended, and the cache is evicted on a root mismatch.
+- **NEW-2 (P1):** relayer `pairPathEls`/`pairIndex` shape is validated before proving; `mobile.go` bounds-checks the pair-path length (no native panic).
+- **NEW-3 (P1, the open half of P0-3):** runtime guard refuses the embedded demo key on Base mainnet. (Still TODO: a CI build-time assert that `EXPO_PUBLIC_CLOISTER_KEY` is unset for release builds.)
+
+**New findings — tracked for production**
+- **NEW-4 (P2):** per-install owner key is not recoverable on reinstall → derive deterministically from the wallet seed.
+- **NEW-5 (P2):** `prepare-server` has no rate-limit and re-syncs the full tree on drift (DoS). Tailnet-only today (low risk); add rate-limit + incremental sync + pagination before any public exposure.
+- **NEW-6 (info):** deposits set `associationRoot = poolRoot` (dev mode); a mainnet pool with a real ASP needs a published good-set root.

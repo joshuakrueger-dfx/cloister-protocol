@@ -8,6 +8,7 @@ package mobile
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
@@ -128,6 +129,11 @@ func ProveDeposit(paramsJSON string) (string, error) {
 	extHash, err := zk.ParseFE(dp.ExtDataHash)
 	if err != nil {
 		return "", err
+	}
+	// The pair-path is a fixed Levels-1 siblings; reject a malformed (relayer-supplied)
+	// length instead of indexing out of range in BuildDepositAssignment.
+	if len(dp.PairPathEls) != zk.Levels-1 {
+		return "", fmt.Errorf("pairPathEls must have %d elements, got %d", zk.Levels-1, len(dp.PairPathEls))
 	}
 	pathEls := make([]fr.Element, len(dp.PairPathEls))
 	for i, s := range dp.PairPathEls {
