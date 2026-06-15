@@ -12,6 +12,7 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 
+	"github.com/DFXswiss/cloister-protocol/prover-gnark/onchain"
 	"github.com/DFXswiss/cloister-protocol/prover-gnark/prover"
 	"github.com/DFXswiss/cloister-protocol/prover-gnark/zk"
 )
@@ -153,6 +154,44 @@ func ProveDeposit(paramsJSON string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return string(b), nil
+}
+
+type depositDirectParams struct {
+	RPC         string `json:"rpc"`
+	Pool        string `json:"pool"`
+	Token       string `json:"token"`
+	DeployerKey string `json:"deployerKey"`
+	Amount      string `json:"amount"`
+	OwnerPriv   string `json:"ownerPriv"`
+}
+
+// DepositDirect builds + proves a deposit on-device AND broadcasts it straight to the
+// public RPC (no relayer, no LAN) — the always-works fallback path. Returns JSON
+// { txHash, basescan, proveMs }.
+func DepositDirect(paramsJSON string) (string, error) {
+	mu.Lock()
+	p := pv
+	mu.Unlock()
+	if p == nil {
+		return "", errors.New("prover not initialized — call Init(keysDir) first")
+	}
+	var dp depositDirectParams
+	if err := json.Unmarshal([]byte(paramsJSON), &dp); err != nil {
+		return "", err
+	}
+	res, err := onchain.DepositAndSubmit(p, onchain.Config{
+		RPC: dp.RPC, PoolAddr: dp.Pool, TokenAddr: dp.Token,
+		DeployerKey: dp.DeployerKey, Amount: dp.Amount, OwnerPriv: dp.OwnerPriv,
+	})
+	if err != nil {
+		return "", err
+	}
+	b, _ := json.Marshal(map[string]any{
+		"txHash":   res.TxHash,
+		"basescan": "https://sepolia.basescan.org/tx/" + res.TxHash,
+		"proveMs":  res.ProveMs,
+	})
 	return string(b), nil
 }
 
