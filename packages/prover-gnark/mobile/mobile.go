@@ -12,7 +12,6 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 
-	"github.com/DFXswiss/cloister-protocol/prover-gnark/onchain"
 	"github.com/DFXswiss/cloister-protocol/prover-gnark/prover"
 	"github.com/DFXswiss/cloister-protocol/prover-gnark/zk"
 )
@@ -157,43 +156,72 @@ func ProveDeposit(paramsJSON string) (string, error) {
 	return string(b), nil
 }
 
-type depositDirectParams struct {
-	RPC         string `json:"rpc"`
-	Pool        string `json:"pool"`
-	Token       string `json:"token"`
-	DeployerKey string `json:"deployerKey"`
-	Amount      string `json:"amount"`
-	OwnerPriv   string `json:"ownerPriv"`
-	FromBlock   uint64 `json:"fromBlock"`
+// depositFromLeavesParams is the fallback (relayer-less) deposit input: the wallet
+// fetches the pool's existing commitments itself (via ethers getLogs in JS) and passes
+// them here; this package rebuilds the Merkle tree + insertion context and proves —
+// entirely in gnark, with NO go-ethereum / no on-chain access (that moved to the wallet).
+type depositFromLeavesParams struct {
+	Amount      string   `json:"amount"`
+	OwnerPriv   string   `json:"ownerPriv"`
+	Leaves      []string `json:"leaves"` // existing commitments in leaf-index order
+	ExtDataHash string   `json:"extDataHash"`
 }
 
-// DepositDirect builds + proves a deposit on-device AND broadcasts it straight to the
-// public RPC (no relayer, no LAN) — the always-works fallback path. Returns JSON
-// { txHash, basescan, proveMs }.
-func DepositDirect(paramsJSON string) (string, error) {
+// ProveDepositFromLeaves rebuilds the lane tree from the supplied commitments, derives the
+// insertion context (root, pairIndex, pairPath) and proves the deposit. Pure proving — the
+// caller broadcasts the resulting transact() tx with the user's own wallet.
+func ProveDepositFromLeaves(paramsJSON string) (string, error) {
 	mu.Lock()
 	p := pv
 	mu.Unlock()
 	if p == nil {
 		return "", errors.New("prover not initialized — call Init(keysDir) first")
 	}
-	var dp depositDirectParams
+	var dp depositFromLeavesParams
 	if err := json.Unmarshal([]byte(paramsJSON), &dp); err != nil {
 		return "", err
 	}
-	res, err := onchain.DepositAndSubmit(p, onchain.Config{
-		RPC: dp.RPC, PoolAddr: dp.Pool, TokenAddr: dp.Token,
-		DeployerKey: dp.DeployerKey, Amount: dp.Amount, OwnerPriv: dp.OwnerPriv,
-		FromBlock: dp.FromBlock,
-	})
+	tree := zk.NewTree()
+	for _, s := range dp.Leaves {
+		fe, err := zk.ParseFE(s)
+		if err != nil {
+			return "", err
+		}
+		tree.Insert(fe)
+	}
+	pairIndex := tree.Len() / 2
+	pairEls, _ := tree.PairPath(pairIndex)
+
+	amount, err := zk.ParseFE(dp.Amount)
 	if err != nil {
 		return "", err
 	}
-	b, _ := json.Marshal(map[string]any{
-		"txHash":   res.TxHash,
-		"basescan": "https://sepolia.basescan.org/tx/" + res.TxHash,
-		"proveMs":  res.ProveMs,
+	ownerPriv, err := zk.ParseFE(dp.OwnerPriv)
+	if err != nil {
+		return "", err
+	}
+	extHash, err := zk.ParseFE(dp.ExtDataHash)
+	if err != nil {
+		return "", err
+	}
+	assignment := zk.BuildDepositAssignment(zk.DepositParams{
+		Amount:      amount,
+		OwnerPub:    zk.PubKey(ownerPriv),
+		Root:        tree.Root(),
+		PairIndex:   pairIndex,
+		PairPathEls: pairEls,
+		ExtDataHash: extHash,
 	})
+	wi := zk.ToWitnessInput(assignment)
+	res, err := p.ProveWitness(&wi)
+	if err != nil {
+		return "", err
+	}
+	out := proveResult{ProofHex: "0x" + toHex(res.ProofBytes), A: res.A, B: res.B, C: res.C, Public: res.Public}
+	b, err := json.Marshal(out)
+	if err != nil {
+		return "", err
+	}
 	return string(b), nil
 }
 
