@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useApi } from "../lib/ApiProvider";
 import { useSession } from "../lib/SessionProvider";
-import { Button, Card, Field, KeyValue, ScreenHead, Seg } from "../components/primitives";
+import { Button, Card, Dots, Field, KeyValue, ScreenHead, Seg } from "../components/primitives";
 import { Icon } from "../components/icons";
 import { DfxOnramp } from "../components/DfxOnramp";
 import { CHAINS } from "../lib/types";
@@ -18,13 +18,16 @@ export function Fund() {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [shieldedAmt, setShieldedAmt] = useState<string | null>(null);
   async function shieldAmount(amt: string) {
     setBusy(true);
     setError(null);
     setResult(null);
+    setShieldedAmt(null);
     try {
       const r = await api.shield({ amount: amt, asset, chain, source });
       setResult(r.commitment);
+      setShieldedAmt(`${amt} ${asset}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Shield failed.");
     } finally {
@@ -32,6 +35,7 @@ export function Fund() {
     }
   }
   const onShield = () => shieldAmount(amount);
+  const isDfxOnramp = source.startsWith("DFX Onramp");
 
   return (
     <section className="view">
@@ -57,22 +61,6 @@ export function Fund() {
               <option>Existing treasury address</option>
             </select>
           </Field>
-          <div className="grid g2" style={{ marginTop: 0 }}>
-            <Field label="AMOUNT">
-              <input className="input" value={amount} onChange={(e) => setAmount(e.target.value)} />
-            </Field>
-            <Field label="ASSET">
-              <select
-                className="input"
-                value={asset}
-                onChange={(e) => setAsset(e.target.value as Asset)}
-              >
-                <option>USDC</option>
-                <option>EURC</option>
-                <option>USDT</option>
-              </select>
-            </Field>
-          </div>
           <Field label="CHAIN">
             <Seg
               value={chain}
@@ -81,63 +69,81 @@ export function Fund() {
             />
           </Field>
 
-          {source.startsWith("DFX Onramp") ? (
+          {isDfxOnramp ? (
+            // DFX onramp: you shield exactly what the buy delivers on-chain — no
+            // free-form amount, so you can never "shield" funds you don't hold.
             <div style={{ marginTop: 18 }}>
               <div className="clab" style={{ marginBottom: 4 }}>DFX ONRAMP — BANK → USDC</div>
               <DfxOnramp chain={chain} onShield={shieldAmount} />
             </div>
-          ) : null}
-
-          {(() => {
-            const kyc = session?.kyc;
-            const verified = kyc?.status === "verified";
-            const who = session?.org.name || "this account";
-            const subj = kyc?.subjectType === "entity" ? "entity" : "individual";
-            const jx = kyc?.jurisdiction;
-            const rows: Array<[string, string]> = verified
-              ? [
-                  ["Identity", `${who} (${subj}) KYC-verified at level ${kyc?.level ?? "L3"}`],
-                  ["Sanctions", "screened against OFAC SDN + EU consolidated list"],
-                  ["Jurisdiction", `${jx ?? "—"} profile · permitted`],
-                  ["Association set", "deposit will be added to the ASP good-set"],
-                ]
-              : [["KYC required", "complete identity verification before funding"]];
-            return (
-              <div className={`gatebox${verified ? "" : " warn"}`}>
-                <div className="clab" style={{ marginBottom: 8 }}>
-                  {verified ? "COMPLIANCE GATE — CLEARED" : "COMPLIANCE GATE — ACTION REQUIRED"}
-                </div>
-                {rows.map(([b, rest]) => (
-                  <div className="gate-row" key={b}>
-                    <Icon name={verified ? "check" : "shield"} size={15} />
-                    <span>
-                      <b>{b}</b> · {rest}
-                    </span>
-                  </div>
-                ))}
+          ) : (
+            <>
+              <div className="grid g2" style={{ marginTop: 18 }}>
+                <Field label="AMOUNT" style={{ marginTop: 0 }}>
+                  <input className="input" value={amount} onChange={(e) => setAmount(e.target.value)} />
+                </Field>
+                <Field label="ASSET" style={{ marginTop: 0 }}>
+                  <select className="input" value={asset} onChange={(e) => setAsset(e.target.value as Asset)}>
+                    <option>USDC</option>
+                    <option>EURC</option>
+                    <option>USDT</option>
+                  </select>
+                </Field>
               </div>
-            );
-          })()}
-          <div className="actions">
-            <Button variant="solid" arrow onClick={onShield} disabled={busy}>
-              {busy ? "Shielding…" : `Shield ${amount} ${asset}`}
-            </Button>
-          </div>
+
+              {(() => {
+                const kyc = session?.kyc;
+                const verified = kyc?.status === "verified";
+                const who = session?.org.name || "this account";
+                const subj = kyc?.subjectType === "entity" ? "entity" : "individual";
+                const jx = kyc?.jurisdiction;
+                const rows: Array<[string, string]> = verified
+                  ? [
+                      ["Identity", `${who} (${subj}) KYC-verified at level ${kyc?.level ?? "L3"}`],
+                      ["Sanctions", "screened against OFAC SDN + EU consolidated list"],
+                      ["Jurisdiction", `${jx ?? "—"} profile · permitted`],
+                      ["Association set", "deposit will be added to the ASP good-set"],
+                    ]
+                  : [["KYC required", "complete identity verification before funding"]];
+                return (
+                  <div className={`gatebox${verified ? "" : " warn"}`}>
+                    <div className="clab" style={{ marginBottom: 8 }}>
+                      {verified ? "COMPLIANCE GATE — CLEARED" : "COMPLIANCE GATE — ACTION REQUIRED"}
+                    </div>
+                    {rows.map(([b, rest]) => (
+                      <div className="gate-row" key={b}>
+                        <Icon name={verified ? "check" : "shield"} size={15} />
+                        <span>
+                          <b>{b}</b> · {rest}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+              <div className="actions">
+                <Button variant="solid" arrow onClick={onShield} disabled={busy}>
+                  {busy ? "Shielding" : `Shield ${amount} ${asset}`}
+                  {busy ? <Dots /> : null}
+                </Button>
+              </div>
+              <div className="note">
+                Shields USDC you already hold at this address. The deposit commitment enters the pool
+                and the ASP good-set — no payout can be traced back to it.
+              </div>
+            </>
+          )}
+
           {result ? (
             <div className="note" style={{ color: "var(--ok)" }}>
-              Shielded. Deposit commitment {result} entered the canonical pool + ASP association
-              root.
+              ✓ Shielded {shieldedAmt ?? ""} — your shielded balance updated (see Overview). Deposit
+              commitment {result} entered the canonical pool + ASP association root.
             </div>
           ) : error ? (
             <div className="note" style={{ color: "var(--bad)" }}>
               {error}
             </div>
-          ) : (
-            <div className="note">
-              The deposit commitment enters the canonical pool and the ASP association root. No
-              payout can be traced back to it — but you can always prove it was clean.
-            </div>
-          )}
+          ) : null}
         </Card>
 
         <Card>

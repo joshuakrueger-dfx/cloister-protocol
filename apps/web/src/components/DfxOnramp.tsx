@@ -78,7 +78,7 @@ export function DfxOnramp({ chain, onShield }: { chain: ChainId; onShield?: (amo
   if (!dfx.connected || !verified) {
     return (
       <div>
-        <DfxConnect compact />
+        <DfxConnect compact methods={["mail"]} />
         {dfx.connected && !verified ? (
           <div className="note">A DFX buy needs a verified account. Complete KYC above, then return to onramp.</div>
         ) : null}

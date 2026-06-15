@@ -79,6 +79,19 @@ export function Button({
   );
 }
 
+// ---------- Animated loading dots ----------
+// Three pulsing dots for busy states ("Unlocking" + <Dots />). Inherits the
+// surrounding text colour and keeps a fixed width (no layout shift).
+export function Dots() {
+  return (
+    <span className="dots" aria-hidden="true">
+      <i />
+      <i />
+      <i />
+    </span>
+  );
+}
+
 // ---------- Status dot + tags ----------
 export function Dot({ level }: { level: StatusLevel }) {
   return <span className={`d ${level === "ok" ? "ok" : level === "pending" ? "warn" : "bad"}`} />;

@@ -72,14 +72,14 @@ export function useDfx() {
     }
   }, [refreshKyc]);
 
-  const confirmMail = useCallback(async (otp: string) => {
+  const confirmMail = useCallback(async () => {
     setState((s) => ({ ...s, busy: true, error: null }));
     try {
-      await confirmDfxMail(otp);
+      await confirmDfxMail();
       setState((s) => ({ ...s, connected: true, awaitingOtp: false, method: "mail", busy: false }));
       await refreshKyc();
     } catch (e) {
-      setState((s) => ({ ...s, busy: false, error: e instanceof Error ? e.message : "Invalid code." }));
+      setState((s) => ({ ...s, busy: false, error: e instanceof Error ? e.message : "Not confirmed yet." }));
     }
   }, [refreshKyc]);
 
