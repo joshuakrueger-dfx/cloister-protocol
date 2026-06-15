@@ -39,3 +39,4 @@ packages/prover-gnark/emitproof
 
 # Docs site build output (source: docs-site/build.mjs + docs.css)
 /docs-site/dist/
+packages/prover-gnark/build/Verifier.sol
