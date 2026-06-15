@@ -85,6 +85,13 @@ aside.sidebar {
   border-top: 1px solid var(--line);
   padding-top: 14px;
 }
+.nav-foot .copyright {
+  font-size: 10px;
+  color: var(--faint);
+  letter-spacing: 0.03em;
+  padding: 12px 8px 2px;
+  line-height: 1.5;
+}
 .org {
   display: flex;
   align-items: center;
@@ -123,10 +130,6 @@ main.console-main {
   flex-direction: column;
 }
 .topbar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 32px;
   border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
@@ -134,6 +137,17 @@ main.console-main {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   z-index: 5;
+}
+/* Inner content shares the same centered max-width as the view, so on wide
+   screens the title + pills align with the content instead of hugging the edges. */
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 1180px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 16px 32px;
 }
 .topbar h1 {
   font-size: 16px;
@@ -237,6 +251,7 @@ main.console-main {
   padding: 32px;
   max-width: 1180px;
   width: 100%;
+  margin: 0 auto;
   animation: fade 0.5s var(--ease);
 }
 @keyframes fade {
@@ -306,6 +321,7 @@ main.console-main {
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--glass);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   padding: 24px;
   position: relative;
@@ -428,6 +444,13 @@ main.console-main {
 }
 
 /* ---------- Tables ---------- */
+/* Wrapper keeps wide data tables horizontally scrollable inside their card on
+   narrow screens, so every column stays readable instead of overflowing. */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
 table {
   width: 100%;
   border-collapse: collapse;
@@ -922,6 +945,7 @@ textarea.input {
   border: 1px solid var(--line-2);
   border-radius: 12px;
   background: rgba(14, 15, 18, 0.96);
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   padding: 6px;
   z-index: 20;
@@ -967,6 +991,7 @@ textarea.input {
     z-index: 30;
     width: 280px;
     background: rgba(8, 9, 11, 0.98);
+    -webkit-backdrop-filter: blur(14px);
     backdrop-filter: blur(14px);
     transform: translateX(-100%);
     transition: transform 0.4s var(--ease);
@@ -983,7 +1008,7 @@ textarea.input {
   .menu-btn {
     display: inline-block;
   }
-  .topbar {
+  .topbar-inner {
     padding: 14px 18px;
   }
   .view {
@@ -995,7 +1020,12 @@ textarea.input {
     grid-template-columns: 1fr;
   }
   .topbar .chip,
-  .topbar .pill.hide-sm {
+  .topbar .pill.hide-sm,
+  .topbar .status-pill.hide-sm {
     display: none;
+  }
+  /* Wide data tables scroll horizontally inside their card on phones. */
+  .table-scroll > table {
+    min-width: 560px;
   }
 }

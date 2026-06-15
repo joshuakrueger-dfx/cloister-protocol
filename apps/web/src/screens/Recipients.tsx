@@ -66,6 +66,7 @@ export function Recipients() {
       ) : null}
 
       <Card style={{ marginTop: 16, padding: 0 }}>
+        <div className="table-scroll">
         <table>
           <thead>
             <tr>
@@ -104,6 +105,7 @@ export function Recipients() {
             )}
           </tbody>
         </table>
+        </div>
       </Card>
     </section>
   );

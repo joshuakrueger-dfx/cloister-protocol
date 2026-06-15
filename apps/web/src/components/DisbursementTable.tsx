@@ -23,6 +23,7 @@ export function DisbursementTable({
 }) {
   const cols = withDate ? 7 : 6;
   return (
+    <div className="table-scroll">
     <table>
       <thead>
         <tr>
@@ -69,5 +70,6 @@ export function DisbursementTable({
         )}
       </tbody>
     </table>
+    </div>
   );
 }
