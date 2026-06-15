@@ -1,4 +1,4 @@
-// Copyright (c) 2026 DFX AG. All rights reserved. Proprietary and confidential.
+// Copyright (c) 2026 DFX AG. Licensed under the MIT License (see LICENSE).
 
 // Command emitscenario produces a real Groth16 proof + full transact calldata for a
 // deposit scenario, so the Hardhat E2E test can drive ShieldedPool.transact with a

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 DFX AG. All rights reserved. Proprietary and confidential.
+// Copyright (c) 2026 DFX AG. Licensed under the MIT License (see LICENSE).
 
 package prover
 

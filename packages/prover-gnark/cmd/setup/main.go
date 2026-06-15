@@ -1,4 +1,4 @@
-// Copyright (c) 2026 DFX AG. All rights reserved. Proprietary and confidential.
+// Copyright (c) 2026 DFX AG. Licensed under the MIT License (see LICENSE).
 
 // Command setup runs the Groth16 trusted setup once, persists the proving and
 // verifying keys, and exports the matching Solidity verifier. Re-running with

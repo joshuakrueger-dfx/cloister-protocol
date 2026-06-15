@@ -1,4 +1,4 @@
-// Copyright (c) 2026 DFX AG. All rights reserved. Proprietary and confidential.
+// Copyright (c) 2026 DFX AG. Licensed under the MIT License (see LICENSE).
 
 // Command depositdirect verifies the native direct-to-RPC deposit path (onchain pkg)
 // against a real chain BEFORE the mobile build — it does exactly what the on-device

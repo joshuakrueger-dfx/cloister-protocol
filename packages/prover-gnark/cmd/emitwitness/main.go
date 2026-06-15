@@ -1,4 +1,4 @@
-// Copyright (c) 2026 DFX AG. All rights reserved. Proprietary and confidential.
+// Copyright (c) 2026 DFX AG. Licensed under the MIT License (see LICENSE).
 
 // Command emitwitness prints the SDK wire witness (buildWitness format) for the
 // canonical internal-pay sample, so the browser WASM prover can be tested against a
