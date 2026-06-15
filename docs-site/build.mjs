@@ -8,99 +8,52 @@ import { marked } from "marked";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, "..");
 const DOCS = resolve(ROOT, "docs/en");
+const PAGES = resolve(__dirname, "pages");
 const OUT = resolve(__dirname, "dist");
 mkdirSync(OUT, { recursive: true });
 
-// ---- curated navigation (internal audit/plan docs are intentionally excluded) ----
-const FRESH = {
-  introduction: {
-    title: "Introduction",
-    md: `# Cloister Protocol
-
-> A compliant privacy layer for stablecoin payments on any EVM chain — by **DFX AG** (Switzerland).
-
-Cloister is a **shielded payment pool** that breaks the on-chain link between a wallet and a
-payment. Nobody — not the merchant, not an on-chain observer, not even the settlement broker —
-learns the payer's address or can derive their balances and net worth from it.
-
-Crucially, privacy here is **provable, not opaque**. Every payout carries a zero-knowledge proof
-that the funds belong to a screened compliance good-set and originate from a KYC-verified source.
-So a user can stay private **and** demonstrate clean origin to a bank, auditor or tax authority on
-demand. It is privacy *with* accountability — **not an anonymous mixer**.
-
-## At a glance
-
-- **Privacy by default** — the payer's address never appears as the transaction sender or in the calldata.
-- **Compliance by design** — only screened funds are admitted; viewing keys give authorized auditors selective, time-bounded disclosure.
-- **Any EVM chain** — identical contracts and once-compiled circuits deploy to any EVM L2 (Base, Polygon, Arbitrum, …).
-- **Built for builders** — an open, additive HTTP API + SDK; any wallet or PSP can integrate, with no lock-in.
-
-## Where to start
-
-- New here? Read **[How it works](how-it-works.html)** for the four-step payment flow.
-- Want the deep design? See **[Architecture](architecture.html)** and the **[Circuit specification](circuit.html)**.
-- Integrating? Jump to the **[Integration guide](integration.html)**.
-
-> **Status:** Proof of Concept. The contracts and circuit were hardened in an internal adversarial
-> audit; external audits and a production trusted-setup ceremony are still pending before mainnet.`,
-  },
-  "how-it-works": {
-    title: "How it works",
-    md: `# How it works
-
-A shielded, encrypted pool — deposit, pay privately, settle on-chain, without revealing the payer's
-identity. Four steps:
-
-## 1 · Shield
-
-You load funds into the pool once. This is the **only public touchpoint** — KYC, sanctions
-screening and geofencing run here. From then on your balance lives in the pool as an encrypted
-commitment.
-
-## 2 · Pay privately
-
-A **zk-SNARK proof** authorizes the payment and a **broadcast-only relayer** sends it and pays the
-gas. The payer's address never appears on-chain — the internal payment is an encrypted note, not a
-visible transfer.
-
-## 3 · Off-chain insertion
-
-The contract computes **zero hashes on-chain**; the proof itself attests to the Merkle update.
-Result: about **350k gas per payment instead of ~1.74M — roughly 5× less**.
-
-## 4 · Parallel lanes
-
-Multiple independent lanes let payments land in the **same block in parallel** (6 of 6 in the PoC).
-View-tags let wallets find their own notes quickly — without decrypting anyone else's.
-
----
-
-The privacy comes from the zero-knowledge note layer; the compliance comes from
-**[association-set inclusion](privacy.html)** and **[viewing keys](security.html)**. Read on for the
-full design.`,
-  },
-};
-
+// ---- curated navigation. Pages come from docs-site/pages/*.md (authored for the
+// docs site) or docs/en/*.md (the as-built technical spec). Internal audit/plan docs
+// are intentionally excluded. ----
 const NAV = [
   { section: "Overview", items: [
-    { slug: "index", title: "Introduction", fresh: "introduction" },
-    { slug: "how-it-works", title: "How it works", fresh: "how-it-works" },
+    { slug: "index", title: "Introduction", page: "introduction" },
+    { slug: "how-it-works", title: "How it works", page: "how-it-works" },
+    { slug: "why-cloister", title: "Why Cloister", page: "why-cloister" },
+  ]},
+  { section: "Core concepts", items: [
+    { slug: "concept-pool", title: "The shielded pool", page: "concept-pool" },
+    { slug: "concept-shield", title: "Shielding funds", page: "concept-shield" },
+    { slug: "concept-pay", title: "Private payments", page: "concept-pay" },
+    { slug: "concept-association", title: "Association sets & compliance", page: "concept-association" },
+    { slug: "concept-viewing-keys", title: "Viewing keys & disclosure", page: "concept-viewing-keys" },
+    { slug: "concept-keys", title: "Keys & recovery", page: "concept-keys" },
   ]},
   { section: "Protocol", items: [
     { slug: "architecture", title: "Architecture", file: "ARCHITECTURE.md" },
-    { slug: "circuit", title: "Circuit (ZK)", file: "CIRCUIT.md" },
-    { slug: "privacy", title: "Privacy", file: "PRIVACY.md" },
+    { slug: "circuit", title: "Circuit specification", file: "CIRCUIT.md" },
+    { slug: "privacy", title: "Privacy model", file: "PRIVACY.md" },
     { slug: "security", title: "Security", file: "SECURITY.md" },
+    { slug: "fallbacks", title: "Fallbacks & resilience", file: "FALLBACKS.md" },
   ]},
   { section: "Build", items: [
     { slug: "integration", title: "Integration", file: "INTEGRATION.md" },
+    { slug: "smart-contracts", title: "Smart contracts", page: "smart-contracts" },
     { slug: "deployment", title: "Deployment", file: "DEPLOYMENT.md" },
-    { slug: "fallbacks", title: "Fallbacks & resilience", file: "FALLBACKS.md" },
     { slug: "validation", title: "Validation", file: "VALIDATION.md" },
+  ]},
+  { section: "Resources", items: [
+    { slug: "faq", title: "FAQ", page: "faq" },
+    { slug: "glossary", title: "Glossary", page: "glossary" },
+  ]},
+  { section: "Legal", items: [
+    { slug: "disclaimer", title: "Disclaimer", page: "disclaimer" },
+    { slug: "privacy-policy", title: "Privacy policy", page: "privacy-policy" },
+    { slug: "imprint", title: "Imprint", page: "imprint" },
   ]},
 ];
 
-// filename -> output page, for rewriting intra-doc .md links
+// filename -> output page, for rewriting intra-doc .md links in docs/en sources
 const FILE2PAGE = {};
 for (const sec of NAV) for (const it of sec.items) {
   if (it.file) FILE2PAGE[it.file.toLowerCase()] = it.slug === "index" ? "index.html" : `${it.slug}.html`;
@@ -201,7 +154,9 @@ renderer.heading = ({ tokens, depth }) => {
 
 let count = 0;
 for (const sec of NAV) for (const it of sec.items) {
-  const md = it.fresh ? FRESH[it.fresh].md : readFileSync(resolve(DOCS, it.file), "utf8");
+  const md = it.page
+    ? readFileSync(resolve(PAGES, `${it.page}.md`), "utf8")
+    : readFileSync(resolve(DOCS, it.file), "utf8");
   const html = rewriteLinks(marked.parse(md, { renderer }));
   const out = it.slug === "index" ? "index.html" : `${it.slug}.html`;
   writeFileSync(resolve(OUT, out), page({ slug: it.slug, title: it.title, contentHtml: html }));
@@ -214,4 +169,72 @@ if (existsSync(fav)) copyFileSync(fav, resolve(OUT, "favicon.svg"));
 const og = resolve(ROOT, "coming-soon/og.png");
 if (existsSync(og)) copyFileSync(og, resolve(OUT, "og.png"));
 
-console.log(`built ${count} docs pages → ${OUT}`);
+// ---- SEO / agent-readable artifacts, derived from NAV so they never drift ----
+const BASE = "https://docs.cloister-protocol.com";
+const urlFor = (slug) => `${BASE}/${slug === "index" ? "" : slug + ".html"}`;
+const allItems = NAV.flatMap((s) => s.items);
+
+// sitemap.xml
+const SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9";
+const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="${SITEMAP_NS}">
+${allItems.map((it) => `  <url><loc>${urlFor(it.slug)}</loc><changefreq>weekly</changefreq><priority>${it.slug === "index" ? "1.0" : "0.7"}</priority></url>`).join("\n")}
+</urlset>
+`;
+writeFileSync(resolve(OUT, "sitemap.xml"), sitemap);
+
+// robots.txt — welcome indexers and AI agents
+writeFileSync(resolve(OUT, "robots.txt"), `# Cloister Protocol Docs — all crawlers and AI agents welcome
+User-agent: *
+Allow: /
+
+# Explicitly welcome AI/agent crawlers
+User-agent: GPTBot
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-Web
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: ${BASE}/sitemap.xml
+`);
+
+// llms.txt — a concise, agent-readable map of the docs (llmstxt.org convention)
+const llms = `# Cloister Protocol — Documentation
+
+> A compliant privacy layer for stablecoin payments on any EVM chain, by DFX AG (Switzerland).
+> Cloister is a shielded payment pool: it hides the payer's address, amount and the
+> payer-recipient link, while proving in zero knowledge that funds are clean (KYC-screened,
+> association-set membership) and allowing selective audit via viewing keys. It is privacy WITH
+> compliance — not an anonymous mixer. Status: Proof of Concept (pre-audit, test funds only).
+
+## Documentation
+
+${NAV.map((sec) => `### ${sec.section}\n${sec.items.map((it) => `- [${it.title}](${urlFor(it.slug)})`).join("\n")}`).join("\n\n")}
+
+## Key facts
+
+- Built by DFX AG, Switzerland. First integration: OpenCryptoPay (protocol is rail-agnostic).
+- ZK layer: gnark / Groth16 over BN254, Poseidon2 hashing, curve-free keys (pubKey = H(privKey)), 50,481-constraint circuit.
+- ~350k gas per shielded payment (~5x cheaper) via off-chain Merkle insertion proven in-circuit.
+- Self-custodial: on-device proving; the witness never leaves the device.
+- Compliance: KYC-gated entry + association-set ("good-set") membership proofs + viewing-key disclosure.
+- Any EVM L2 (reference: Base, Polygon, Arbitrum). Open HTTP API + SDK; additive, no lock-in.
+
+## Links
+
+- Website: https://cloister-protocol.com
+- App: https://app.cloister-protocol.com
+- Source: https://github.com/joshuakrueger-dfx/cloister-protocol
+`;
+writeFileSync(resolve(OUT, "llms.txt"), llms);
+
+console.log(`built ${count} docs pages + sitemap/robots/llms → ${OUT}`);
