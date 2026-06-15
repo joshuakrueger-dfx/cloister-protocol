@@ -164,6 +164,7 @@ type depositDirectParams struct {
 	DeployerKey string `json:"deployerKey"`
 	Amount      string `json:"amount"`
 	OwnerPriv   string `json:"ownerPriv"`
+	FromBlock   uint64 `json:"fromBlock"`
 }
 
 // DepositDirect builds + proves a deposit on-device AND broadcasts it straight to the
@@ -183,6 +184,7 @@ func DepositDirect(paramsJSON string) (string, error) {
 	res, err := onchain.DepositAndSubmit(p, onchain.Config{
 		RPC: dp.RPC, PoolAddr: dp.Pool, TokenAddr: dp.Token,
 		DeployerKey: dp.DeployerKey, Amount: dp.Amount, OwnerPriv: dp.OwnerPriv,
+		FromBlock: dp.FromBlock,
 	})
 	if err != nil {
 		return "", err

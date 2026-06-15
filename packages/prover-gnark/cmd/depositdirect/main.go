@@ -10,6 +10,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/consensys/gnark/logger"
 
@@ -19,13 +20,17 @@ import (
 
 func main() {
 	if len(os.Args) < 8 {
-		fmt.Fprintln(os.Stderr, "usage: depositdirect <keysDir> <rpc> <deployerKey> <pool> <token> <amount> <ownerPriv>")
+		fmt.Fprintln(os.Stderr, "usage: depositdirect <keysDir> <rpc> <deployerKey> <pool> <token> <amount> <ownerPriv> [fromBlock]")
 		os.Exit(1)
 	}
 	logger.Disable()
 	p, err := prover.Load(os.Args[1])
 	if err != nil {
 		panic(err)
+	}
+	var fromBlock uint64
+	if len(os.Args) >= 9 {
+		fromBlock, _ = strconv.ParseUint(os.Args[8], 10, 64)
 	}
 	res, err := onchain.DepositAndSubmit(p, onchain.Config{
 		RPC:         os.Args[2],
@@ -34,6 +39,7 @@ func main() {
 		TokenAddr:   os.Args[5],
 		Amount:      os.Args[6],
 		OwnerPriv:   os.Args[7],
+		FromBlock:   fromBlock,
 	})
 	if err != nil {
 		fmt.Println("ERROR:", err)
