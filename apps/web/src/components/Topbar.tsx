@@ -27,6 +27,7 @@ export function Topbar({
 
   return (
     <div className="topbar">
+      <div className="topbar-inner">
       <button className="menu-btn" onClick={onMenu} aria-label="Open navigation">
         ☰
       </button>
@@ -43,6 +44,7 @@ export function Topbar({
       <span className="chip hide-sm">Supports Base · Polygon · Arbitrum</span>
       <span className={`status-pill status-${kycLevel}`}>{kycLabel}</span>
       <BackendSwitcher />
+      </div>
     </div>
   );
 }

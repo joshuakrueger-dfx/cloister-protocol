@@ -220,6 +220,7 @@ function BatchMode() {
           <button className="reveal-btn" onClick={() => fileRef.current?.click()}>import CSV</button>
         </div>
         <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={onImport} style={{ display: "none" }} />
+        <div className="table-scroll">
         <table style={{ marginTop: 10 }}>
           <thead>
             <tr>
@@ -250,6 +251,7 @@ function BatchMode() {
             )}
           </tbody>
         </table>
+        </div>
         <div className="grid g4" style={{ marginTop: 20 }}>
           <div>
             <div className="clab">RECIPIENTS</div>
