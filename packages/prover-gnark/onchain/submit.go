@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 
@@ -55,6 +56,10 @@ type ExtData struct {
 
 type Config struct {
 	RPC, PoolAddr, TokenAddr, DeployerKey, Amount, OwnerPriv string
+	// FromBlock is the pool's deployment block — eth_getLogs is scanned from
+	// here (chunked) so the tree is rebuilt from ALL commitments, not just a
+	// recent window. 0 falls back to a best-effort recent window.
+	FromBlock uint64
 }
 type Result struct {
 	TxHash  string
@@ -70,27 +75,47 @@ func hexToBig(s string) *big.Int {
 	return n
 }
 
-// syncTree rebuilds the pool's Merkle tree from NewCommitment events so a deposit into a
-// non-empty pool gets the correct insertion context. Bounded block range keeps eth_getLogs
-// within public-RPC limits.
-func syncTree(ctx context.Context, client *ethclient.Client, poolAddr common.Address, poolABI abi.ABI, tree *zk.Tree) error {
+// getLogsChunk keeps each eth_getLogs within public-RPC range limits (publicnode
+// rejects very wide ranges with "could not coalesce error").
+const getLogsChunk = 40000
+
+// syncTree rebuilds the pool's Merkle tree from ALL NewCommitment events so a deposit into
+// a non-empty pool gets the correct insertion context. It scans from the pool's deploy
+// block in chunks — a recent-only window would miss older commitments and produce a wrong
+// Merkle path (the proof would then fail with an unsatisfied constraint).
+func syncTree(ctx context.Context, client *ethclient.Client, poolAddr common.Address, poolABI abi.ABI, tree *zk.Tree, fromBlock uint64) error {
 	ev := poolABI.Events["NewCommitment"]
 	latest, err := client.BlockNumber(ctx)
 	if err != nil {
 		return err
 	}
-	var from uint64
-	if latest > 4000 {
-		from = latest - 4000
+	from := fromBlock
+	if from == 0 || from > latest {
+		// No deploy block supplied — best-effort recent window.
+		if latest > getLogsChunk {
+			from = latest - getLogsChunk
+		}
 	}
-	logs, err := client.FilterLogs(ctx, ethereum.FilterQuery{
-		FromBlock: new(big.Int).SetUint64(from),
-		ToBlock:   new(big.Int).SetUint64(latest),
-		Addresses: []common.Address{poolAddr},
-		Topics:    [][]common.Hash{{ev.ID}},
-	})
-	if err != nil {
-		return err
+	var logs []types.Log
+	for start := from; start <= latest; {
+		end := start + getLogsChunk
+		if end > latest {
+			end = latest
+		}
+		chunk, err := client.FilterLogs(ctx, ethereum.FilterQuery{
+			FromBlock: new(big.Int).SetUint64(start),
+			ToBlock:   new(big.Int).SetUint64(end),
+			Addresses: []common.Address{poolAddr},
+			Topics:    [][]common.Hash{{ev.ID}},
+		})
+		if err != nil {
+			return err
+		}
+		logs = append(logs, chunk...)
+		if end == latest {
+			break
+		}
+		start = end + 1
 	}
 	type leaf struct {
 		idx uint32
@@ -154,8 +179,17 @@ func DepositAndSubmit(p *prover.Prover, cfg Config) (Result, error) {
 	// current insertion context (sync the tree from events if the pool is non-empty)
 	tree := zk.NewTree()
 	if nextIdx > 0 {
-		if err := syncTree(ctx, client, poolAddr, poolABI, tree); err != nil {
+		if err := syncTree(ctx, client, poolAddr, poolABI, tree, cfg.FromBlock); err != nil {
 			return Result{}, fmt.Errorf("tree sync: %w", err)
+		}
+		// Fast-fail with a clear message if the reconstructed tree doesn't match
+		// the chain (e.g. missed commitments) — otherwise the proof would fail
+		// later with an opaque unsatisfied-constraint error.
+		root := tree.Root()
+		var rootBI big.Int
+		root.BigInt(&rootBI)
+		if rootBI.Cmp(onchainRoot) != 0 {
+			return Result{}, fmt.Errorf("tree sync mismatch: rebuilt %d commitments but root != on-chain laneRoot — check FromBlock", tree.Len())
 		}
 	}
 	pairIndex := int(nextIdx) / 2
