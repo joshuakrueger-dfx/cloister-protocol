@@ -1,0 +1,68 @@
+# Cloister CI — runs on every PR + push to main/feat. Sets the bar the org lacks for a
+# ZK shielded-pool: race-checked Go prover/circuit (incl. soundness negative tests + KAT),
+# Hardhat contract tests, and Slither static analysis on the Solidity.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, feat/gnark-zk]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prover:
+    name: Go prover + circuit (race)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/prover-gnark
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: packages/prover-gnark/go.mod
+          cache-dependency-path: packages/prover-gnark/go.sum
+      - run: go vet ./...
+      - run: go build ./...
+      # -race catches data races; the zk suite includes soundness negative tests
+      # (tampered witness MUST fail) + a Poseidon2 known-answer vector.
+      - run: go test -race -timeout 600s ./...
+
+  contracts:
+    name: Solidity contracts (Hardhat)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @cloister/contracts compile
+      - run: pnpm --filter @cloister/contracts test
+
+  slither:
+    name: Slither static analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @cloister/contracts compile
+      - uses: crytic/slither-action@v0.4.0
+        with:
+          target: packages/contracts
+          slither-args: --exclude-dependencies --filter-paths "node_modules"
+        continue-on-error: true # report findings without hard-failing the pilot; tighten for prod
