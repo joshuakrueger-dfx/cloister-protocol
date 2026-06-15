@@ -29,3 +29,10 @@ deployment.*.json
 
 # Deploy build output (coming-soon is source; deploy/ is generated)
 /deploy/
+
+# Go CLI build artifacts (cmd binaries; built ad hoc)
+packages/prover-gnark/proverd
+packages/prover-gnark/depositdirect
+packages/prover-gnark/provefromleaves
+packages/prover-gnark/setup
+packages/prover-gnark/emitproof
