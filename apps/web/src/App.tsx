@@ -37,7 +37,11 @@ const router = createBrowserRouter([
     ],
   },
   { path: "*", element: <Navigate to="/overview" replace /> },
-]);
+], {
+  // Served at "/" in dev, at "/app/" on the dev deploy — Vite sets BASE_URL,
+  // react-router wants it without the trailing slash (root stays "/").
+  basename: import.meta.env.BASE_URL.replace(/\/$/, "") || "/",
+});
 
 export function App() {
   return (
