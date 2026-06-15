@@ -18,12 +18,12 @@ export function Fund() {
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function onShield() {
+  async function shieldAmount(amt: string) {
     setBusy(true);
     setError(null);
     setResult(null);
     try {
-      const r = await api.shield({ amount, asset, chain, source });
+      const r = await api.shield({ amount: amt, asset, chain, source });
       setResult(r.commitment);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Shield failed.");
@@ -31,6 +31,7 @@ export function Fund() {
       setBusy(false);
     }
   }
+  const onShield = () => shieldAmount(amount);
 
   return (
     <section className="view">
@@ -83,7 +84,7 @@ export function Fund() {
           {source.startsWith("DFX Onramp") ? (
             <div style={{ marginTop: 18 }}>
               <div className="clab" style={{ marginBottom: 4 }}>DFX ONRAMP — BANK → USDC</div>
-              <DfxOnramp chain={chain} />
+              <DfxOnramp chain={chain} onShield={shieldAmount} />
             </div>
           ) : null}
 

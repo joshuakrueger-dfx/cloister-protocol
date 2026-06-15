@@ -49,7 +49,7 @@ function persist(jwt: string, address: string, method: DfxAuthMethod) {
 // ---------- connect (wallet-signature methods) ----------
 /** Sign in with the in-app derived EVM key (needs the unlocked mnemonic). */
 export async function connectDerived(mnemonic: string): Promise<string> {
-  const signer = deriveEvmSigner(mnemonic);
+  const signer = await deriveEvmSigner(mnemonic);
   const jwt = await dfxAuthService.login(signer.address, signer.signFn, { blockchain: "Ethereum" });
   persist(jwt, signer.address, "derived");
   return signer.address;
@@ -152,4 +152,14 @@ export async function dfxBuyQuote(p: {
   amount: number; currency: string; asset: string; blockchain: string;
 }): Promise<BuyPaymentInfoDto> {
   return dfxPaymentService.buyQuote(p);
+}
+
+// ---------- onramp → shield handoff ----------
+/** On-chain USDC balance of the connected DFX address on `chain`. After a buy
+ *  settles, DFX delivers USDC here — poll it to offer "shield it" on arrival. */
+export async function dfxReceivedUsdc(chain: import("../types").ChainId): Promise<number> {
+  const addr = dfxAddress();
+  if (!addr) return 0;
+  const { usdcBalance } = await import("./onchain");
+  return usdcBalance(addr, chain);
 }

@@ -10,7 +10,6 @@
 //   - "mail":    DFX email-OTP login — no address/signature at all.
 // =====================================================================
 
-import { HDNodeWallet } from "ethers";
 import type { SignFn } from "./services";
 
 export type DfxAuthMethod = "derived" | "wallet" | "mail";
@@ -21,8 +20,10 @@ export interface EvmSigner {
 }
 
 /** Derive the in-app EVM auth key from the BIP39 mnemonic (standard Ethereum
- *  derivation path). Distinct from the BabyJubJub shield keys, so no overlap. */
-export function deriveEvmSigner(mnemonic: string): EvmSigner {
+ *  derivation path). Distinct from the BabyJubJub shield keys, so no overlap.
+ *  ethers is imported dynamically to keep it out of the main bundle. */
+export async function deriveEvmSigner(mnemonic: string): Promise<EvmSigner> {
+  const { HDNodeWallet } = await import("ethers");
   const wallet = HDNodeWallet.fromPhrase(mnemonic.trim());
   return {
     address: wallet.address,
