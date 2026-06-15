@@ -1,5 +1,6 @@
 import { BackendSwitcher } from "./BackendSwitcher";
 import { useSession } from "../lib/SessionProvider";
+import { getActiveBackendId } from "../lib/backends";
 
 // crumb + Titel kommen pro Route; chain-chip / jurisdiction- / KYC-pill
 // spiegeln die Topbar des Prototyps.
@@ -34,7 +35,12 @@ export function Topbar({
         <h1>{title}</h1>
       </div>
       <div className="spacer" />
-      <span className="chip hide-sm">Base · Polygon · Arbitrum</span>
+      {getActiveBackendId() === "demo" ? (
+        <span className="status-pill status-warn" title="Demo backend — all figures are illustrative sample data, not real.">
+          SAMPLE DATA
+        </span>
+      ) : null}
+      <span className="chip hide-sm">Supports Base · Polygon · Arbitrum</span>
       <span className={`status-pill status-${kycLevel}`}>{kycLabel}</span>
       <BackendSwitcher />
     </div>

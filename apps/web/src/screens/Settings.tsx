@@ -1,6 +1,12 @@
 import { Card, ComplianceList, ScreenHead } from "../components/primitives";
+import { useSession } from "../lib/SessionProvider";
+import { getActiveBackendId, getBackendConfig } from "../lib/backends";
 
 export function Settings() {
+  const { session } = useSession();
+  const backend = getBackendConfig(getActiveBackendId());
+  const dfxLinked = session?.dfxLinked ?? false;
+
   return (
     <section className="view">
       <ScreenHead
@@ -13,9 +19,10 @@ export function Settings() {
           <div className="clab">KEYS & RECOVERY</div>
           <ComplianceList
             items={[
-              { label: "Seed backup", value: "confirmed", level: "ok" },
+              { label: "Seed phrase", value: "self-custody · BIP39", level: "ok" },
               { label: "Viewing key", value: "read-only · shareable" },
               { label: "Note cache", value: "encrypted · local" },
+              { label: "Vault", value: "password-encrypted on this device", level: "ok" },
             ]}
           />
         </Card>
@@ -23,10 +30,10 @@ export function Settings() {
           <div className="clab">INFRASTRUCTURE</div>
           <ComplianceList
             items={[
-              { label: "Relayer", value: "DFX managed", level: "ok" },
-              { label: "Indexer", value: "view-tags", level: "ok" },
-              { label: "Registry", value: "3 chains" },
-              { label: "Mode", value: "White-label ready" },
+              { label: "Backend", value: `${backend.label} · ${backend.meta}`, level: "ok" },
+              { label: "Relayer", value: "broadcast-only (gas sponsored)", level: "ok" },
+              { label: "Indexer", value: "view-tags" },
+              { label: "DFX account", value: dfxLinked ? "linked" : "not linked", level: dfxLinked ? "ok" : "pending" },
             ]}
           />
         </Card>

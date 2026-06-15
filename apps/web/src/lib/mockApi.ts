@@ -164,13 +164,13 @@ export class MockApi implements CloisterApi {
       onProgress?.({ progress: 100, html: "<span style='color:var(--bad)'>✗ rejected</span> — resolve the flagged checks above" });
       throw new Error("KYC rejected: " + checks.filter((c) => !c.pass).map((c) => `${c.name} (${c.detail})`).join("; "));
     }
-    onProgress?.({ progress: 100, html: "<span class='ok'>✓ verified</span> — added to ASP good-set" });
+    onProgress?.({ progress: 100, html: "<span class='ok'>✓ screened</span> — fields, jurisdiction + sanctions name screen passed (PoC)" });
     this.session.kyc = {
       status: "verified",
       subjectType: payload.subjectType,
       jurisdiction: payload.jurisdiction,
       verifiedAt: new Date().toISOString(),
-      level: "L3",
+      level: "L1",
     };
     this.session.org = {
       name: payload.legalName,
@@ -253,11 +253,11 @@ export class MockApi implements CloisterApi {
     onProgress?: ProgressCallback,
   ): Promise<DisburseResult> {
     const steps: Array<[number, string]> = [
-      [18, `screening ${params.rows.length} recipients — OFAC + EU`],
+      [18, `screening ${params.rows.length} recipients — PoC sanctions list`],
       [40, "building per-recipient witnesses (independent lanes)"],
-      [66, "<span class='hl'>aggregating</span> into a single unshield"],
-      [88, "groth16 fullProve · 6 lanes → same block"],
-      [100, "<span class='ok'>✓ settled</span> · one opaque on-chain movement"],
+      [66, `proving ${params.rows.length} shielded payments`],
+      [88, "groth16 fullProve · one relayer tx per recipient"],
+      [100, "<span class='ok'>✓ settled</span> · each payment unlinkable on-chain"],
     ];
     for (const [p, t] of steps) {
       await wait(560);

@@ -230,13 +230,15 @@ export class RealApi implements CloisterApi {
       throw new Error("KYC rejected: " + failed.map((c) => `${c.name} (${c.detail})`).join("; "));
     }
 
-    onProgress?.({ progress: 100, html: "<span class='ok'>✓ verified</span> — added to ASP good-set" });
+    onProgress?.({ progress: 100, html: "<span class='ok'>✓ screened</span> — fields, jurisdiction + sanctions name screen passed (PoC)" });
     const kyc: KycStatus = {
       status: "verified",
       subjectType: payload.subjectType,
       jurisdiction: payload.jurisdiction,
       verifiedAt: new Date().toISOString(),
-      level: "L3",
+      // PoC screen (fields + embargo + sanctions name list). Document/liveness
+      // verification is the licensed provider's job → honest basic level.
+      level: "L1",
     };
     lsSet("cloister.kyc", kyc);
     lsSet("cloister.org", {
@@ -427,7 +429,10 @@ export class RealApi implements CloisterApi {
       associationRoot: cfg.aspRoot,
       chainId: cfg.chainId,
       pool: cfg.pool,
-      statement: "Selected funds are members of the ASP good-set and originate from a KYC-verified source. No transaction history is revealed.",
+      mode: cfg.aspEnforced ? "asp-enforced" : "dev (ASP not enforced)",
+      statement: cfg.aspEnforced
+        ? "Selected funds are members of the ASP good-set and originate from a KYC-verified source. No transaction history is revealed."
+        : "PoC attestation (dev): ASP enforcement is OFF on this pool, so good-set membership is NOT cryptographically asserted. Origin screening was a PoC field/sanctions check. For demonstration only.",
       issuedAt: new Date().toISOString(),
       signature: sig.toString(),
     };
