@@ -9,9 +9,11 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"sort"
 	"strings"
 	"time"
 
+	ethereum "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -27,17 +29,13 @@ import (
 const poolABIJSON = `[
  {"inputs":[{"name":"","type":"uint256"}],"name":"laneRoot","outputs":[{"name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
  {"inputs":[{"name":"","type":"uint256"}],"name":"laneNextIndex","outputs":[{"name":"","type":"uint32"}],"stateMutability":"view","type":"function"},
+ {"anonymous":false,"inputs":[{"indexed":true,"name":"commitment","type":"uint256"},{"indexed":false,"name":"leafIndex","type":"uint32"},{"indexed":false,"name":"encryptedOutput","type":"bytes"}],"name":"NewCommitment","type":"event"},
  {"inputs":[
    {"components":[{"name":"a","type":"uint256[2]"},{"name":"b","type":"uint256[2][2]"},{"name":"c","type":"uint256[2]"}],"name":"proof","type":"tuple"},
    {"name":"oldRoot","type":"uint256"},{"name":"newRoot","type":"uint256"},{"name":"associationRoot","type":"uint256"},
    {"name":"inputNullifiers","type":"uint256[2]"},{"name":"outputCommitments","type":"uint256[2]"},
    {"components":[{"name":"recipient","type":"address"},{"name":"extAmount","type":"int256"},{"name":"relayer","type":"address"},{"name":"fee","type":"uint256"},{"name":"encryptedOutput1","type":"bytes"},{"name":"encryptedOutput2","type":"bytes"}],"name":"extData","type":"tuple"}
  ],"name":"transact","outputs":[],"stateMutability":"nonpayable","type":"function"}
-]`
-
-const erc20ABIJSON = `[
- {"inputs":[{"name":"to","type":"address"},{"name":"amount","type":"uint256"}],"name":"mint","outputs":[],"stateMutability":"nonpayable","type":"function"},
- {"inputs":[{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}
 ]`
 
 // Proof / ExtData mirror the Solidity tuples (field names = capitalized ABI component names).
@@ -72,9 +70,55 @@ func hexToBig(s string) *big.Int {
 	return n
 }
 
+// syncTree rebuilds the pool's Merkle tree from NewCommitment events so a deposit into a
+// non-empty pool gets the correct insertion context. Bounded block range keeps eth_getLogs
+// within public-RPC limits.
+func syncTree(ctx context.Context, client *ethclient.Client, poolAddr common.Address, poolABI abi.ABI, tree *zk.Tree) error {
+	ev := poolABI.Events["NewCommitment"]
+	latest, err := client.BlockNumber(ctx)
+	if err != nil {
+		return err
+	}
+	var from uint64
+	if latest > 4000 {
+		from = latest - 4000
+	}
+	logs, err := client.FilterLogs(ctx, ethereum.FilterQuery{
+		FromBlock: new(big.Int).SetUint64(from),
+		ToBlock:   new(big.Int).SetUint64(latest),
+		Addresses: []common.Address{poolAddr},
+		Topics:    [][]common.Hash{{ev.ID}},
+	})
+	if err != nil {
+		return err
+	}
+	type leaf struct {
+		idx uint32
+		c   *big.Int
+	}
+	var leaves []leaf
+	for _, lg := range logs {
+		if len(lg.Topics) < 2 {
+			continue
+		}
+		vals, err := ev.Inputs.NonIndexed().Unpack(lg.Data)
+		if err != nil {
+			return err
+		}
+		leaves = append(leaves, leaf{idx: vals[0].(uint32), c: new(big.Int).SetBytes(lg.Topics[1].Bytes())})
+	}
+	sort.Slice(leaves, func(i, j int) bool { return leaves[i].idx < leaves[j].idx })
+	for _, l := range leaves {
+		var fe fr.Element
+		fe.SetBigInt(l.c)
+		tree.Insert(fe)
+	}
+	return nil
+}
+
 // DepositAndSubmit builds + proves a deposit on-device and broadcasts it straight to the
-// public RPC (mint test token → approve → transact). Requires an EMPTY pool (the device
-// uses the constant empty-tree insertion context — no event sync needed).
+// public RPC. mint/approve are NOT done here — the sender is expected to already hold the
+// token and a standing allowance (set up once), so a deposit is a SINGLE transaction.
 func DepositAndSubmit(p *prover.Prover, cfg Config) (Result, error) {
 	ctx := context.Background()
 	client, err := ethclient.DialContext(ctx, cfg.RPC)
@@ -94,38 +138,38 @@ func DepositAndSubmit(p *prover.Prover, cfg Config) (Result, error) {
 	from := crypto.PubkeyToAddress(key.PublicKey)
 
 	poolABI, _ := abi.JSON(strings.NewReader(poolABIJSON))
-	erc20ABI, _ := abi.JSON(strings.NewReader(erc20ABIJSON))
 	poolAddr := common.HexToAddress(cfg.PoolAddr)
-	tokenAddr := common.HexToAddress(cfg.TokenAddr)
 	poolC := bind.NewBoundContract(poolAddr, poolABI, client, client, client)
-	tokenC := bind.NewBoundContract(tokenAddr, erc20ABI, client, client, client)
 
-	// 1) read the (empty) pool context
-	var rootOut []interface{}
+	var rootOut, nextOut []interface{}
 	if err := poolC.Call(&bind.CallOpts{Context: ctx}, &rootOut, "laneRoot", big.NewInt(0)); err != nil {
 		return Result{}, fmt.Errorf("laneRoot: %w", err)
 	}
-	var nextOut []interface{}
 	if err := poolC.Call(&bind.CallOpts{Context: ctx}, &nextOut, "laneNextIndex", big.NewInt(0)); err != nil {
 		return Result{}, fmt.Errorf("laneNextIndex: %w", err)
 	}
-	if nextOut[0].(uint32) != 0 {
-		return Result{}, fmt.Errorf("pool not empty (laneNextIndex=%d); native direct deposit supports a fresh pool", nextOut[0].(uint32))
-	}
+	nextIdx := nextOut[0].(uint32)
 	onchainRoot := rootOut[0].(*big.Int)
 
-	// 2) empty-tree insertion context (constants), extDataHash = keccak(extData) % FIELD
+	// current insertion context (sync the tree from events if the pool is non-empty)
+	tree := zk.NewTree()
+	if nextIdx > 0 {
+		if err := syncTree(ctx, client, poolAddr, poolABI, tree); err != nil {
+			return Result{}, fmt.Errorf("tree sync: %w", err)
+		}
+	}
+	pairIndex := int(nextIdx) / 2
+	pairEls, _ := tree.PairPath(pairIndex)
+
 	amount, _ := new(big.Int).SetString(cfg.Amount, 10)
 	ext := ExtData{Recipient: common.Address{}, ExtAmount: amount, Relayer: common.Address{}, Fee: big.NewInt(0), EncryptedOutput1: []byte{}, EncryptedOutput2: []byte{}}
-	extABI := poolABI.Methods["transact"].Inputs[6] // the extData tuple arg
-	encoded, err := abi.Arguments{{Type: extABI.Type}}.Pack(ext)
+	extArg := poolABI.Methods["transact"].Inputs[6]
+	encoded, err := abi.Arguments{{Type: extArg.Type}}.Pack(ext)
 	if err != nil {
 		return Result{}, fmt.Errorf("pack extData: %w", err)
 	}
 	extHash := new(big.Int).Mod(new(big.Int).SetBytes(crypto.Keccak256(encoded)), fr.Modulus())
 
-	tree := zk.NewTree()
-	pairEls, _ := tree.PairPath(0)
 	ownerPriv, _ := zk.ParseFE(cfg.OwnerPriv)
 	amtFe, _ := zk.ParseFE(cfg.Amount)
 	rootFe, _ := zk.ParseFE(onchainRoot.String())
@@ -134,52 +178,25 @@ func DepositAndSubmit(p *prover.Prover, cfg Config) (Result, error) {
 	t0 := time.Now()
 	res, err := p.ProveWitness(ptrWI(zk.ToWitnessInput(zk.BuildDepositAssignment(zk.DepositParams{
 		Amount: amtFe, OwnerPub: zk.PubKey(ownerPriv), Root: rootFe,
-		PairIndex: 0, PairPathEls: pairEls, ExtDataHash: extFe,
+		PairIndex: pairIndex, PairPathEls: pairEls, ExtDataHash: extFe,
 	}))))
 	if err != nil {
 		return Result{}, fmt.Errorf("prove: %w", err)
 	}
 	proveMs := time.Since(t0).Milliseconds()
 
-	// 3) mint test token → approve → transact (sequential, each mined before the next)
+	// single tx: transact (sender already holds token + standing allowance)
 	opts, err := bind.NewKeyedTransactorWithChainID(key, chainID)
 	if err != nil {
 		return Result{}, err
 	}
 	opts.Context = ctx
-	// Fixed gas limit → skip the eth_estimateGas pre-flight, which on a lagging public RPC
-	// can simulate against pre-approve state and falsely revert ("allowance"). The tx itself
-	// executes against the mined chain where the allowance is set.
 	opts.GasLimit = 900000
-	// Manage the nonce explicitly: fetch once, then increment locally. Relying on the RPC's
-	// pending-nonce per tx collides on load-balanced endpoints (nonce too low) when an
-	// earlier tx hasn't propagated to the node answering the next query.
 	nonce, err := client.PendingNonceAt(ctx, from)
 	if err != nil {
 		return Result{}, fmt.Errorf("nonce: %w", err)
 	}
-	nextNonce := func() { opts.Nonce = new(big.Int).SetUint64(nonce); nonce++ }
-	send := func(c *bind.BoundContract, method string, args ...interface{}) error {
-		nextNonce()
-		tx, err := c.Transact(opts, method, args...)
-		if err != nil {
-			return fmt.Errorf("%s: %w", method, err)
-		}
-		rc, err := bind.WaitMined(ctx, client, tx)
-		if err != nil {
-			return fmt.Errorf("%s wait: %w", method, err)
-		}
-		if rc.Status != 1 {
-			return fmt.Errorf("%s reverted (tx %s)", method, tx.Hash().Hex())
-		}
-		return nil
-	}
-	if err := send(tokenC, "mint", from, amount); err != nil {
-		return Result{}, err
-	}
-	if err := send(tokenC, "approve", poolAddr, amount); err != nil {
-		return Result{}, err
-	}
+	opts.Nonce = new(big.Int).SetUint64(nonce)
 
 	ps := res.Public
 	proof := Proof{
@@ -187,7 +204,6 @@ func DepositAndSubmit(p *prover.Prover, cfg Config) (Result, error) {
 		B: [2][2]*big.Int{{hexToBig(res.B[0][0]), hexToBig(res.B[0][1])}, {hexToBig(res.B[1][0]), hexToBig(res.B[1][1])}},
 		C: [2]*big.Int{hexToBig(res.C[0]), hexToBig(res.C[1])},
 	}
-	nextNonce()
 	tx, err := poolC.Transact(opts, "transact",
 		proof, hexToBig(ps[0]), hexToBig(ps[7]), hexToBig(ps[9]),
 		[2]*big.Int{hexToBig(ps[3]), hexToBig(ps[4])},
