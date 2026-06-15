@@ -4,16 +4,22 @@ import { useSession } from "../lib/SessionProvider";
 import { Button, Card, Dots, Field, KeyValue, ScreenHead, Seg } from "../components/primitives";
 import { Icon } from "../components/icons";
 import { DfxOnramp } from "../components/DfxOnramp";
+import { getActiveBackendId } from "../lib/backends";
 import { CHAINS } from "../lib/types";
 import type { Asset, ChainId } from "../lib/types";
+
+const DFX_SOURCE = "DFX Onramp (bank / card → USDC)";
+const FAUCET_SOURCE = "Devnet faucet (test USDC)";
 
 export function Fund() {
   const api = useApi();
   const { session } = useSession();
+  const backendId = getActiveBackendId();
+  const isDemo = backendId === "demo";
   const [chain, setChain] = useState<ChainId>("base");
-  const [amount, setAmount] = useState("50,000");
-  const [asset, setAsset] = useState<Asset>("USDC");
-  const [source, setSource] = useState("DFX Onramp (bank / card → USDC)");
+  const [amount, setAmount] = useState("1,000");
+  const [asset] = useState<Asset>("USDC");
+  const [source, setSource] = useState(DFX_SOURCE);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +41,7 @@ export function Fund() {
     }
   }
   const onShield = () => shieldAmount(amount);
-  const isDfxOnramp = source.startsWith("DFX Onramp");
+  const isDfxOnramp = source === DFX_SOURCE;
 
   return (
     <section className="view">
@@ -56,9 +62,8 @@ export function Fund() {
           <div className="clab">FUND</div>
           <Field label="SOURCE">
             <select className="input" value={source} onChange={(e) => setSource(e.target.value)}>
-              <option>DFX Onramp (bank / card → USDC)</option>
-              <option>Connected wallet (public address)</option>
-              <option>Existing treasury address</option>
+              <option>{DFX_SOURCE}</option>
+              <option>{FAUCET_SOURCE}</option>
             </select>
           </Field>
           <Field label="CHAIN">
@@ -78,66 +83,51 @@ export function Fund() {
             </div>
           ) : (
             <>
-              <div className="grid g2" style={{ marginTop: 18 }}>
-                <Field label="AMOUNT" style={{ marginTop: 0 }}>
-                  <input className="input" value={amount} onChange={(e) => setAmount(e.target.value)} />
-                </Field>
-                <Field label="ASSET" style={{ marginTop: 0 }}>
-                  <select className="input" value={asset} onChange={(e) => setAsset(e.target.value as Asset)}>
-                    <option>USDC</option>
-                    <option>EURC</option>
-                    <option>USDT</option>
-                  </select>
-                </Field>
+              <div className="gatebox warn" style={{ marginTop: 18 }}>
+                <div className="clab" style={{ marginBottom: 6 }}>DEVNET FAUCET — TEST USDC ONLY</div>
+                <div className="gate-row">
+                  <Icon name="shield" size={15} />
+                  <span>
+                    No real funds. The relayer <b>mints test USDC</b> on the {isDemo ? "demo" : "devnet"} pool
+                    and shields it — so you can exercise the private-payout flow end to end.
+                  </span>
+                </div>
               </div>
-
+              <Field label="AMOUNT (test USDC)">
+                <input className="input" value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
+              </Field>
               {(() => {
-                const kyc = session?.kyc;
-                const verified = kyc?.status === "verified";
-                const who = session?.org.name || "this account";
-                const subj = kyc?.subjectType === "entity" ? "entity" : "individual";
-                const jx = kyc?.jurisdiction;
-                const rows: Array<[string, string]> = verified
-                  ? [
-                      ["Identity", `${who} (${subj}) KYC-verified at level ${kyc?.level ?? "L3"}`],
-                      ["Sanctions", "screened against OFAC SDN + EU consolidated list"],
-                      ["Jurisdiction", `${jx ?? "—"} profile · permitted`],
-                      ["Association set", "deposit will be added to the ASP good-set"],
-                    ]
-                  : [["KYC required", "complete identity verification before funding"]];
+                const verified = session?.kyc?.status === "verified";
                 return (
-                  <div className={`gatebox${verified ? "" : " warn"}`}>
+                  <div className={`gatebox${verified ? "" : " warn"}`} style={{ marginTop: 14 }}>
                     <div className="clab" style={{ marginBottom: 8 }}>
-                      {verified ? "COMPLIANCE GATE — CLEARED" : "COMPLIANCE GATE — ACTION REQUIRED"}
+                      {verified ? "COMPLIANCE SCREEN — PASSED (PoC)" : "COMPLIANCE — KYC REQUIRED"}
                     </div>
-                    {rows.map(([b, rest]) => (
-                      <div className="gate-row" key={b}>
-                        <Icon name={verified ? "check" : "shield"} size={15} />
-                        <span>
-                          <b>{b}</b> · {rest}
-                        </span>
-                      </div>
-                    ))}
+                    {verified ? (
+                      <>
+                        <div className="gate-row"><Icon name="check" size={15} /><span><b>Fields + jurisdiction</b> · embargo-checked at onboarding</span></div>
+                        <div className="gate-row"><Icon name="check" size={15} /><span><b>Sanctions name screen</b> · PoC list (not the full OFAC/EU feed)</span></div>
+                        <div className="gate-row"><Icon name="check" size={15} /><span><b>Association set</b> · deposit added to the ASP good-set when ASP enforcement is on</span></div>
+                      </>
+                    ) : (
+                      <div className="gate-row"><Icon name="shield" size={15} /><span><b>KYC required</b> · complete identity screening before funding</span></div>
+                    )}
                   </div>
                 );
               })()}
               <div className="actions">
                 <Button variant="solid" arrow onClick={onShield} disabled={busy}>
-                  {busy ? "Shielding" : `Shield ${amount} ${asset}`}
+                  {busy ? "Minting & shielding" : `Mint & shield ${amount} test USDC`}
                   {busy ? <Dots /> : null}
                 </Button>
-              </div>
-              <div className="note">
-                Shields USDC you already hold at this address. The deposit commitment enters the pool
-                and the ASP good-set — no payout can be traced back to it.
               </div>
             </>
           )}
 
           {result ? (
             <div className="note" style={{ color: "var(--ok)" }}>
-              ✓ Shielded {shieldedAmt ?? ""} — your shielded balance updated (see Overview). Deposit
-              commitment {result} entered the canonical pool + ASP association root.
+              ✓ Shielded {shieldedAmt ?? ""} — commitment {result} is in the pool. Open <b>Overview</b> to
+              see the updated shielded balance.
             </div>
           ) : error ? (
             <div className="note" style={{ color: "var(--bad)" }}>
@@ -150,13 +140,13 @@ export function Fund() {
           <div className="clab">WHAT BECOMES PUBLIC</div>
           <div style={{ marginTop: 14 }}>
             <KeyValue k="Deposit tx (from)" tone="pub">
-              {source.startsWith("DFX") ? "DFX onramp" : "your public address"}
+              {isDfxOnramp ? "DFX onramp" : "provider / relayer (gas sponsored)"}
             </KeyValue>
-            <KeyValue k="Amount shielded" tone="pub">
-              {amount} {asset}
+            <KeyValue k="Amount deposited" tone="pub">
+              {isDfxOnramp ? "the onramp amount" : `${amount} test USDC`}
             </KeyValue>
             <KeyValue k="Commitment" tone="mono">
-              {result ?? "0x9f…c41a"}
+              {result ?? "—"}
             </KeyValue>
           </div>
           <div className="clab" style={{ marginTop: 22 }}>

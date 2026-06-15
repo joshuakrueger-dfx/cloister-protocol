@@ -417,7 +417,7 @@ export function Onboarding() {
           <>
             <h2>You're set</h2>
             <p className="hint">
-              Your vault is created, secured and KYC-verified at level L3. Enter the console — or
+              Your vault is created, secured and your identity screening passed. Enter the console — or
               link a DFX account for fiat onramp (bank → USDC) straight into the shielded pool.
             </p>
             {showDfx ? (

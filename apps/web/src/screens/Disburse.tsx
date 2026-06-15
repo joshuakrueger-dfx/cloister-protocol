@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useApi } from "../lib/ApiProvider";
 import { useAsync } from "../lib/useAsync";
-import { Button, Card, Field, KeyValue, ScreenHead, Seg, SanctionsTag } from "../components/primitives";
+import { Button, Card, Dots, Field, KeyValue, ScreenHead, Seg, SanctionsTag } from "../components/primitives";
 import { ProofConsole } from "../components/ProofConsole";
 import type { Asset, BatchRow, PayrollSession, ProofStep } from "../lib/types";
 
@@ -11,13 +11,6 @@ const MODES: { value: Mode; label: string }[] = [
   { value: "single", label: "Single payment" },
   { value: "batch", label: "Batch payout" },
   { value: "recurring", label: "Payroll · recurring" },
-];
-
-const BATCH_ROWS: BatchRow[] = [
-  { address: "0x7a3f…9c2d", role: "Core dev", amount: "8,000 USDC", chain: "Base", sanctions: "ok" },
-  { address: "0x1b88…4e10", role: "Designer", amount: "4,200 USDC", chain: "Base", sanctions: "ok" },
-  { address: "0xc4d2…77a1", role: "Ops", amount: "3,500 USDC", chain: "Polygon", sanctions: "ok" },
-  { address: "0x90fa…12bc", role: "Auditor", amount: "6,000 USDC", chain: "Base", sanctions: "ok" },
 ];
 
 export function Disburse() {
@@ -42,12 +35,13 @@ const PASTE_RECIPIENT = "Paste address / OCP quote";
 
 function SingleMode() {
   const api = useApi();
-  const [amount, setAmount] = useState("12,500");
+  const { data: recipients } = useAsync(() => api.getRecipients(), []);
+  const [amount, setAmount] = useState("");
   const [asset, setAsset] = useState<Asset>("USDC");
-  const [recipientSel, setRecipientSel] = useState("Acme GmbH (B2B settlement)");
+  const [recipientSel, setRecipientSel] = useState(PASTE_RECIPIENT);
   const [customRecipient, setCustomRecipient] = useState("");
   const recipient = recipientSel === PASTE_RECIPIENT ? customRecipient.trim() : recipientSel;
-  const [memo, setMemo] = useState("Invoice #INV-2291 — Q2 services");
+  const [memo, setMemo] = useState("");
   const [lines, setLines] = useState<ProofStep[]>([]);
   const [progress, setProgress] = useState<number | undefined>(undefined);
   const [busy, setBusy] = useState(false);
@@ -83,9 +77,10 @@ function SingleMode() {
         <div className="clab">SINGLE PAYMENT</div>
         <Field label="RECIPIENT">
           <select className="input" value={recipientSel} onChange={(e) => setRecipientSel(e.target.value)}>
-            <option>Acme GmbH (B2B settlement)</option>
             <option>{PASTE_RECIPIENT}</option>
-            <option>Contributor — 0x7a…</option>
+            {(recipients ?? []).map((r) => (
+              <option key={r.id}>{r.label} · {r.address}</option>
+            ))}
           </select>
         </Field>
         {recipientSel === PASTE_RECIPIENT ? (
@@ -113,8 +108,8 @@ function SingleMode() {
           <input className="input" value={memo} onChange={(e) => setMemo(e.target.value)} />
         </Field>
         <div className="actions">
-          <Button variant="solid" arrow onClick={pay} disabled={busy || !recipient}>
-            {busy ? "Proving…" : "Confirm & pay"}
+          <Button variant="solid" arrow onClick={pay} disabled={busy || !recipient || !amount.trim()}>
+            {busy ? <>Proving<Dots /></> : "Confirm & pay"}
           </Button>
         </div>
         <ProofConsole
@@ -174,7 +169,7 @@ function amountNumber(a: string): number {
 
 function BatchMode() {
   const api = useApi();
-  const [rows, setRows] = useState<BatchRow[]>(BATCH_ROWS);
+  const [rows, setRows] = useState<BatchRow[]>([]);
   const [lines, setLines] = useState<ProofStep[]>([]);
   const [progress, setProgress] = useState<number | undefined>(undefined);
   const [busy, setBusy] = useState(false);
@@ -200,7 +195,7 @@ function BatchMode() {
   function screenAll() {
     const clear = rows.filter((r) => r.sanctions === "ok").length;
     const flagged = rows.length - clear;
-    setScreened(`${rows.length} recipients screened · OFAC + EU · ${clear} clear${flagged ? ` · ${flagged} flagged` : ""}`);
+    setScreened(`${rows.length} recipients screened (PoC sanctions list) · ${clear} clear${flagged ? ` · ${flagged} flagged` : ""}`);
   }
 
   async function run() {
@@ -221,7 +216,7 @@ function BatchMode() {
     <div className="split" style={{ marginTop: 22 }}>
       <Card style={{ gridColumn: "1 / -1" }}>
         <div className="clab" style={{ display: "flex", justifyContent: "space-between" }}>
-          BATCH PAYOUT — DAO CONTRIBUTORS
+          BATCH PAYOUT
           <button className="reveal-btn" onClick={() => fileRef.current?.click()}>import CSV</button>
         </div>
         <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={onImport} style={{ display: "none" }} />
@@ -236,17 +231,23 @@ function BatchMode() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
-              <tr key={`${r.address}-${i}`}>
-                <td className="addr mono">{r.address}</td>
-                <td>{r.role}</td>
-                <td className="addr">{r.amount}</td>
-                <td>{r.chain}</td>
-                <td>
-                  <SanctionsTag level={r.sanctions} />
-                </td>
+            {rows.length === 0 ? (
+              <tr className="loading-row">
+                <td colSpan={5}>No recipients yet — import a CSV (address,role,amount,chain) to build the batch.</td>
               </tr>
-            ))}
+            ) : (
+              rows.map((r, i) => (
+                <tr key={`${r.address}-${i}`}>
+                  <td className="addr mono">{r.address}</td>
+                  <td>{r.role}</td>
+                  <td className="addr">{r.amount}</td>
+                  <td>{r.chain}</td>
+                  <td>
+                    <SanctionsTag level={r.sanctions} />
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
         <div className="grid g4" style={{ marginTop: 20 }}>
@@ -260,12 +261,12 @@ function BatchMode() {
           </div>
           <div>
             <div className="clab">SETTLEMENT</div>
-            <div className="big" style={{ fontSize: 24 }}>1 tx</div>
-            <div className="cfoot">aggregated</div>
+            <div className="big" style={{ fontSize: 24 }}>{rows.length || "—"}{rows.length ? " tx" : ""}</div>
+            <div className="cfoot">independent lanes</div>
           </div>
           <div>
-            <div className="clab">EST. PROOF</div>
-            <div className="big" style={{ fontSize: 24 }}>~9 s</div>
+            <div className="clab">PROOF</div>
+            <div className="big" style={{ fontSize: 24 }}>per-tx</div>
             <div className="cfoot">background</div>
           </div>
         </div>
@@ -280,9 +281,9 @@ function BatchMode() {
           <ProofConsole lines={lines} progress={progress} idle="" />
         ) : (
           <div className="note">
-            Each recipient gets an independent shielded payment (different lanes → same block). One
-            aggregated unshield settles them — on-chain it looks like a single opaque movement.
-            Import a CSV (<span className="mono">address,role,amount,chain</span>) to replace the list.
+            Each recipient gets an <b>independent</b> shielded payment in its own lane — one relayer tx
+            per recipient, each unlinkable on-chain. Import a CSV
+            (<span className="mono">address,role,amount,chain</span>) to build the batch.
           </div>
         )}
       </Card>
