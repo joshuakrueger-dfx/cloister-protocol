@@ -1,4 +1,4 @@
-// Copyright (c) 2026 DFX AG. All rights reserved. Proprietary and confidential.
+// Copyright (c) 2026 DFX AG. Licensed under the MIT License (see LICENSE).
 
 // Package onchain submits a shielded deposit directly to a public EVM RPC — no relayer.
 // Used by the native mobile deposit path (the app reaches the public chain even when no

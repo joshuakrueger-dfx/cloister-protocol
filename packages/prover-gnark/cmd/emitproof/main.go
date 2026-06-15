@@ -1,4 +1,4 @@
-// Copyright (c) 2026 DFX AG. All rights reserved. Proprietary and confidential.
+// Copyright (c) 2026 DFX AG. Licensed under the MIT License (see LICENSE).
 
 // Command emitproof generates a real Groth16 proof for a sample internal-payment
 // transaction and writes it (decomposed into the on-chain (a,b,c) layout plus the

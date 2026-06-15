@@ -1,4 +1,4 @@
-// Copyright (c) 2026 DFX AG. All rights reserved. Proprietary and confidential.
+// Copyright (c) 2026 DFX AG. Licensed under the MIT License (see LICENSE).
 
 // Command depositclient mimics exactly what the wallet's native ProveDeposit does:
 // given the relayer's /v1/deposit/prepare JSON + an amount + owner key, it builds the

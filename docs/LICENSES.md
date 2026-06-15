@@ -1,20 +1,20 @@
 # Cloister — License & IP statement
 
 **Status: clean (2026-06-14).** The shipped product contains no GPL/copyleft code and
-no third-party code under a license incompatible with a proprietary commercial product.
+no GPL/copyleft code; the project itself is MIT-licensed (see LICENSE).
 The historical analysis that led here is preserved in `LICENSE_AUDIT.md` (German).
 
 ## What ships
 
 | Component | License | Notes |
 |-----------|---------|-------|
-| `packages/prover-gnark` (ZK layer, prover, mobile binding) | Proprietary — © DFX AG | Self-built on gnark |
-| `packages/contracts` (ShieldedPool, registry) | Proprietary — © DFX AG | own Solidity |
+| `packages/prover-gnark` (ZK layer, prover, mobile binding) | MIT — © DFX AG | Self-built on gnark |
+| `packages/contracts` (ShieldedPool, registry) | MIT — © DFX AG | own Solidity |
 | `Groth16Verifier.sol` (exported verifier) | **MIT** | gnark/Remco Bloemen template |
 | `TransactionVerifier.sol` (adapter) | **MIT** | own |
-| `packages/sdk` | Proprietary — © DFX AG | own |
-| `packages/api`, `packages/indexer` | Proprietary — © DFX AG | own |
-| `dfx-wallet/modules/cloister-prover` | Proprietary — © DFX AG | own |
+| `packages/sdk` | MIT — © DFX AG | own |
+| `packages/api`, `packages/indexer` | MIT — © DFX AG | own |
+| `dfx-wallet/modules/cloister-prover` | MIT — © DFX AG | own |
 
 ## Third-party dependencies (all permissive)
 

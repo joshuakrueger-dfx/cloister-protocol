@@ -1,4 +1,4 @@
-// Copyright (c) 2026 DFX AG. All rights reserved. Proprietary and confidential.
+// Copyright (c) 2026 DFX AG. Licensed under the MIT License (see LICENSE).
 
 // Command proverd is a small HTTP prover backend used for development, CI and the
 // SDK's Node end-to-end tests. It exposes Poseidon2 hashing and Groth16 proving.

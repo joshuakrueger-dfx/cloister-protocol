@@ -1,4 +1,4 @@
-// Copyright (c) 2026 DFX AG. All rights reserved. Proprietary and confidential.
+// Copyright (c) 2026 DFX AG. Licensed under the MIT License (see LICENSE).
 
 // Command provefromleaves verifies the relayer-less fallback path end-to-end: it fetches
 // the pool's commitments (leaves) from chain, proves a deposit via mobile.ProveDepositFromLeaves

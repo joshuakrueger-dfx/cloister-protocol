@@ -1,4 +1,4 @@
-// Copyright (c) 2026 DFX AG. All rights reserved. Proprietary and confidential.
+// Copyright (c) 2026 DFX AG. Licensed under the MIT License (see LICENSE).
 
 // Package zk implements the Cloister shielded-pool zero-knowledge layer in gnark
 // (Groth16 over BN254). All cryptographic primitives are implemented here so the

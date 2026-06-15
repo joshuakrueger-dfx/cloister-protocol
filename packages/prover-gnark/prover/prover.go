@@ -1,4 +1,4 @@
-// Copyright (c) 2026 DFX AG. All rights reserved. Proprietary and confidential.
+// Copyright (c) 2026 DFX AG. Licensed under the MIT License (see LICENSE).
 
 // Package prover is the reusable Cloister proving library: load the circuit + keys
 // once, then produce a Groth16 proof for any shielded transaction. It is the single

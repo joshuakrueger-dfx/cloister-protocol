@@ -16,7 +16,7 @@
   OutputCommitment[2], NewRoot, PairIndex, AssociationRoot.
 - Proving runs on-device (native gomobile module); the witness never leaves the device.
 - Relayer is broadcast-only (sees the proof, never the witness).
-- Licensing: product code proprietary (DFX AG); deps Apache-2/MIT/BSD/Unlicense only.
+- Licensing: product code MIT (DFX AG, see LICENSE); deps Apache-2/MIT/BSD/Unlicense only.
 
 ## Components
 

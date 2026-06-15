@@ -1,4 +1,4 @@
-// Copyright (c) 2026 DFX AG. All rights reserved. Proprietary and confidential.
+// Copyright (c) 2026 DFX AG. Licensed under the MIT License (see LICENSE).
 //
 // Key-less Cloister deposit "prepare" service. It serves the Merkle-tree insertion
 // context the on-device prover needs (root, pairIndex, pairPathEls, extData,
