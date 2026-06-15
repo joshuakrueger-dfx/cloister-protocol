@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useApi } from "../../lib/ApiProvider";
 import { useSession } from "../../lib/SessionProvider";
 import { Logo } from "../../components/icons";
+import { Dots } from "../../components/primitives";
 import { DfxConnect } from "../../components/DfxConnect";
 import { vaultExists, clearVault } from "../../lib/vault";
 import type { Jurisdiction, KycSubjectType, ProofStep, Wallet } from "../../lib/types";
@@ -182,7 +183,11 @@ export function Onboarding() {
             ) : null}
             <div className="stack">
               <button className="btn btn-solid full" onClick={doUnlock} disabled={unlockBusy}>
-                {unlockBusy ? "Unlocking…" : "Unlock"} <span className="arr">→</span>
+                {unlockBusy ? (
+                  <>Unlocking<Dots /></>
+                ) : (
+                  <>Unlock <span className="arr">→</span></>
+                )}
               </button>
               <button
                 className="btn full"
@@ -235,7 +240,7 @@ export function Onboarding() {
                 ) : (
                   <div className="stack">
                     <button className="btn btn-solid full" onClick={createSeed} disabled={creatingSeed}>
-                      {creatingSeed ? "Generating…" : "Generate seed phrase"}
+                      {creatingSeed ? <>Generating<Dots /></> : "Generate seed phrase"}
                     </button>
                   </div>
                 )}
@@ -258,7 +263,7 @@ export function Onboarding() {
                 </div>
                 <div className="stack">
                   <button className="btn btn-solid full" onClick={importSeed} disabled={creatingSeed}>
-                    {creatingSeed ? "Importing…" : "Import & continue"}
+                    {creatingSeed ? <>Importing<Dots /></> : "Import & continue"}
                   </button>
                   <button className="btn full" onClick={() => setImportMode(false)}>
                     Back
@@ -301,7 +306,11 @@ export function Onboarding() {
             ) : null}
             <div className="stack">
               <button className="btn btn-solid full" onClick={setPassword} disabled={pwBusy}>
-                {pwBusy ? "Securing…" : "Set password & continue"} <span className="arr">→</span>
+                {pwBusy ? (
+                  <>Securing<Dots /></>
+                ) : (
+                  <>Set password & continue <span className="arr">→</span></>
+                )}
               </button>
             </div>
           </>
@@ -396,7 +405,7 @@ export function Onboarding() {
                 </button>
               ) : (
                 <button className="btn btn-solid full" onClick={submitKyc} disabled={kycBusy}>
-                  {kycBusy ? "Verifying…" : "Submit for verification"}
+                  {kycBusy ? <>Verifying<Dots /></> : "Submit for verification"}
                 </button>
               )}
             </div>

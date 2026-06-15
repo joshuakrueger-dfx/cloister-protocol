@@ -62,14 +62,37 @@ export async function connectWallet(): Promise<string> {
   return signer.address;
 }
 
-// ---------- connect (email OTP) ----------
-export async function requestDfxMail(mail: string): Promise<void> {
+// ---------- connect (email) ----------
+// DFX email login is a magic-link bound to a wallet account (its /v1/auth/mail
+// is authenticated; confirmation happens by clicking the emailed link, not by
+// pasting a code). In the console the vault is unlocked, so we authenticate the
+// derived key silently first, bind the email, then the user clicks the link and
+// we re-auth to verify it attached. UX is email-only; the key work is invisible.
+const SESSION_MNEMONIC = "cloister.session.mnemonic";
+function sessionMnemonic(): string | null {
+  return sessionStorage.getItem(SESSION_MNEMONIC);
+}
+
+/** Step 1: authenticate (derived key) if needed, then email DFX a confirmation link. */
+export async function requestDfxMail(mail: string, mnemonic?: string): Promise<void> {
+  if (!isDfxConnected()) {
+    const m = mnemonic ?? sessionMnemonic();
+    if (!m) throw new Error("Unlock your vault first — email sign-in binds to your account key.");
+    await connectDerived(m);
+  }
   await dfxAuthService.requestMailLogin(mail);
 }
-export async function confirmDfxMail(otp: string): Promise<void> {
-  const jwt = await dfxAuthService.confirmMailLogin(otp);
-  // email login has no EVM address; store an empty marker
-  persist(jwt, "", "mail");
+
+/** Step 2: after the user clicks the emailed link, re-auth and verify the email
+ *  is now attached. Throws if not confirmed yet. */
+export async function confirmDfxMail(mnemonic?: string): Promise<void> {
+  const m = mnemonic ?? sessionMnemonic();
+  if (m) await connectDerived(m); // pull the post-confirmation (possibly merged) session
+  const user = await dfxUserService.getUser();
+  if (!user.mail) {
+    throw new Error("Not confirmed yet — open the email from DFX and click the confirmation link, then try again.");
+  }
+  localStorage.setItem(METHOD_KEY, "mail");
 }
 
 // ---------- KYC ----------
