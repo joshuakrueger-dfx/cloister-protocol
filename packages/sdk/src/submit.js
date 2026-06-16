@@ -21,6 +21,7 @@ import { Contract, JsonRpcProvider, Wallet } from "ethers";
 
 const POOL_ABI = [
   "function nullifierSpent(uint256) view returns (bool)",
+  "function laneRoot(uint256) view returns (uint256)",
   "function transact((uint256[2] a,uint256[2][2] b,uint256[2] c) proof,uint256 oldRoot,uint256 newRoot,uint256 associationRoot,uint256[2] inputNullifiers,uint256[2] outputCommitments,(address recipient,int256 extAmount,address relayer,uint256 fee,bytes encryptedOutput1,bytes encryptedOutput2) extData)",
 ];
 
@@ -112,8 +113,33 @@ export async function submitShielded(tx, opts = {}) {
     }
   }
 
+  // helper: was this proof built against a STALE on-chain root? (fail-fast)
+  // The contract requires oldRoot == laneRoot[lane]; a mismatch means our local tree
+  // drifted from chain (sync gap / lost race), so the tx is doomed and would burn a
+  // relay attempt + an opaque on-chain revert. Detect it up front. Only checked when we
+  // can read chain (rpcUrls + poolAddress); otherwise the on-chain require stays the backstop.
+  async function staleRoot() {
+    if (!poolAddress || !rpcUrls.length || tx.root == null) return false;
+    const provider = await firstLiveProvider(rpcUrls, perCallMs);
+    if (!provider) return false;
+    const pool = new Contract(poolAddress, POOL_ABI, provider);
+    try {
+      const onchain = await withTimeout(pool.laneRoot(tx.lane ?? 0), perCallMs, "laneRoot");
+      return BigInt(onchain) !== BigInt(tx.root);
+    } catch {
+      return false; // can't read → don't block; the contract require is the backstop
+    }
+  }
+
   // 0. idempotency precheck
   if (await alreadyLanded()) return { status: "already-onchain", via: "idempotency" };
+
+  // 0b. fail-fast root check — refuse to broadcast a proof bound to a stale root (#1).
+  // (Idempotency is checked first: if the tx already landed, laneRoot has moved past
+  // tx.root, which is success, not a stale-root error.)
+  if (await staleRoot()) {
+    throw new Error("stale root: proof oldRoot != on-chain laneRoot — resync the tree and rebuild before submitting");
+  }
 
   // 1. relayer rounds with exponential backoff
   let lastErr;
