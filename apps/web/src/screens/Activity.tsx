@@ -4,6 +4,7 @@ import { useApi } from "../lib/ApiProvider";
 import { useAsync } from "../lib/useAsync";
 import { Button, Card, ScreenHead } from "../components/primitives";
 import { DisbursementTable } from "../components/DisbursementTable";
+import { toast } from "../lib/overlays";
 import type { ExportFormat } from "../lib/types";
 
 export function Activity() {
@@ -30,6 +31,7 @@ export function Activity() {
     setExporting(true);
     try {
       await api.exportAuditLog("csv");
+      toast("Audit log exported · CSV", "success");
     } finally {
       setExporting(false);
     }
@@ -39,6 +41,7 @@ export function Activity() {
     setStmtBusy(true);
     try {
       await api.exportStatement(stmtPeriod, stmtFmt);
+      toast(`Statement downloaded · ${stmtFmt.toUpperCase()}`, "success");
     } finally {
       setStmtBusy(false);
     }

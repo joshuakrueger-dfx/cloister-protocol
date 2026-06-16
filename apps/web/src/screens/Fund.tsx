@@ -5,6 +5,7 @@ import { Button, Card, Dots, Field, KeyValue, ScreenHead, Seg } from "../compone
 import { DfxOnramp } from "../components/DfxOnramp";
 import { KycVerify } from "../components/KycVerify";
 import { getActiveBackendId } from "../lib/backends";
+import { toast } from "../lib/overlays";
 import { CHAINS } from "../lib/types";
 import type { Asset, ChainId } from "../lib/types";
 
@@ -39,8 +40,10 @@ export function Fund() {
       const r = await api.shield({ amount: amt, asset, chain, source });
       setResult(r.commitment);
       setShieldedAmt(`${amt} ${asset}`);
+      toast(`Shielded ${amt} ${asset}`, "success");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Shield failed.");
+      toast(e instanceof Error ? e.message : "Shield failed", "error");
     } finally {
       setBusy(false);
     }
