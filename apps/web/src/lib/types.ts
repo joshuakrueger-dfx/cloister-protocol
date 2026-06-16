@@ -148,6 +148,7 @@ export interface Recipient {
   address: string;
   lastPaid: string;
   sanctions: StatusLevel;
+  favorite?: boolean;
 }
 
 export interface AddRecipientInput {

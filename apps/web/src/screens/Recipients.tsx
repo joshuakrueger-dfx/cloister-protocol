@@ -12,6 +12,20 @@ export function Recipients() {
   const [type, setType] = useState("B2B vendor");
   const [address, setAddress] = useState("");
   const [busy, setBusy] = useState(false);
+  const [favBusy, setFavBusy] = useState<string | null>(null);
+
+  // favourites float to the top, otherwise keep insertion order
+  const rows = [...(data ?? [])].sort((a, b) => Number(!!b.favorite) - Number(!!a.favorite));
+
+  async function toggleFav(id: string) {
+    setFavBusy(id);
+    try {
+      await api.toggleRecipientFavorite(id);
+      reload();
+    } finally {
+      setFavBusy(null);
+    }
+  }
 
   async function add() {
     if (!label.trim() || !address.trim()) return;
@@ -65,11 +79,12 @@ export function Recipients() {
         </Card>
       ) : null}
 
-      <Card style={{ marginTop: 16, padding: 0 }}>
+      <Card style={{ marginTop: 16, padding: "18px 0 0" }}>
         <div className="table-scroll">
         <table>
           <thead>
             <tr>
+              <th style={{ width: 34 }}></th>
               <th>Label (encrypted)</th>
               <th>Type</th>
               <th>Address</th>
@@ -80,19 +95,30 @@ export function Recipients() {
           <tbody>
             {loading ? (
               <tr className="loading-row">
-                <td colSpan={5}>Loading…</td>
+                <td colSpan={6}>Loading…</td>
               </tr>
             ) : error ? (
               <tr className="error-row">
-                <td colSpan={5}>{error}</td>
+                <td colSpan={6}>{error}</td>
               </tr>
-            ) : (data?.length ?? 0) === 0 ? (
+            ) : rows.length === 0 ? (
               <tr className="loading-row">
-                <td colSpan={5}>No recipients yet.</td>
+                <td colSpan={6}>No recipients yet.</td>
               </tr>
             ) : (
-              data!.map((r) => (
+              rows.map((r) => (
                 <tr key={r.id}>
+                  <td style={{ paddingRight: 0 }}>
+                    <button
+                      className={`star-btn${r.favorite ? " on" : ""}`}
+                      onClick={() => toggleFav(r.id)}
+                      disabled={favBusy === r.id}
+                      title={r.favorite ? "Remove from favourites" : "Add to favourites"}
+                      aria-label={r.favorite ? "Remove from favourites" : "Add to favourites"}
+                    >
+                      {r.favorite ? "★" : "☆"}
+                    </button>
+                  </td>
                   <td className="addr">{r.label}</td>
                   <td>{r.type}</td>
                   <td className="mono">{r.address}</td>

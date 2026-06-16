@@ -19,7 +19,9 @@ export function Overview() {
   const api = useApi();
   const nav = useNavigate();
   const { session } = useSession();
-  const [revealed, setRevealed] = useState(false);
+  const [revealed, setRevealed] = useState(() => {
+    try { return localStorage.getItem("cloister.showBalances") === "1"; } catch { return false; }
+  });
   const [verifyOpen, setVerifyOpen] = useState(false);
   const orgName = session?.org.name && session.org.name !== "Your Treasury" ? session.org.name.split(" ")[0] : "there";
 

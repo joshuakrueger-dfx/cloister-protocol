@@ -46,6 +46,8 @@ export interface CloisterApi {
   submitKyc(payload: KycSubmitPayload, onProgress?: ProgressCallback): Promise<KycStatus>;
   /** Onboarding: record the email the user verified with a one-time code. */
   confirmEmail(email: string): Promise<Session>;
+  /** Settings: update the editable account profile (display name, contact email). */
+  updateProfile(p: { name?: string; email?: string }): Promise<Session>;
   /** Mark KYC verified after the account-based (DFX) verification completes in the dashboard. */
   markVerifiedExternally(): Promise<Session>;
 
@@ -76,6 +78,7 @@ export interface CloisterApi {
   // ---------- Directory / Ledger ----------
   getRecipients(): Promise<Recipient[]>;
   addRecipient(input: AddRecipientInput): Promise<Recipient[]>;
+  toggleRecipientFavorite(id: string): Promise<Recipient[]>;
   getActivity(): Promise<Disbursement[]>;
   getRecentDisbursements(): Promise<Disbursement[]>;
 
