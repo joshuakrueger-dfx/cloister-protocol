@@ -36,6 +36,10 @@ svg { display: block; }
 .tlink:hover { color: var(--white); }
 .tlink.solid { color: #08090b; background: var(--white); font-weight: 600; }
 .tlink.solid:hover { background: #e6e7ea; }
+.langsw { display: inline-flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 9px; }
+.langsw .lang { text-decoration: none; color: var(--faint); font-size: 12px; font-weight: 600; letter-spacing: .05em; padding: 4px 9px; border-radius: 6px; transition: color .25s, background .25s; }
+.langsw .lang:hover { color: var(--white); }
+.langsw .lang.on { color: #08090b; background: var(--white); cursor: default; }
 .menu { display: none; background: none; border: 1px solid var(--line); border-radius: 9px; color: var(--dim); width: 38px; height: 36px; cursor: pointer; font-size: 15px; }
 
 /* ---------- sidebar ---------- */
