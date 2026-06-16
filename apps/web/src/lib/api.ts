@@ -36,6 +36,8 @@ import type {
   AddRecipientInput,
   Session,
   SingleDisburseParams,
+  TeamMember,
+  InviteMemberInput,
   Wallet,
 } from "./types";
 
@@ -77,6 +79,12 @@ export interface CloisterApi {
   ): Promise<DisburseResult>;
   authorizePayrollSession(params: PayrollSessionParams): Promise<PayrollSession>;
   getPayrollSession(): Promise<PayrollSession>;
+
+  // ---------- Team / roles ----------
+  getTeam(): Promise<TeamMember[]>;
+  inviteMember(input: InviteMemberInput): Promise<TeamMember[]>;
+  updateMemberRole(id: string, role: import("./types").TeamRole): Promise<TeamMember[]>;
+  removeMember(id: string): Promise<TeamMember[]>;
 
   // ---------- Maker-checker (dual approval) ----------
   requestApproval(req: ApprovalRequest): Promise<Approval[]>;

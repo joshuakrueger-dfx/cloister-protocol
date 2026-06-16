@@ -6,7 +6,7 @@ import { useSession } from "../lib/SessionProvider";
 import { getActiveBackendId, getBackendConfig } from "../lib/backends";
 import { clearVault } from "../lib/vault";
 import { toast, confirmDialog } from "../lib/overlays";
-import { getApprovalThreshold, setApprovalThreshold } from "../lib/prefs";
+import { getApprovalThreshold, setApprovalThreshold, getRequireApproval, setRequireApproval } from "../lib/prefs";
 import { useT } from "../lib/i18n";
 
 const SHOW_BAL_KEY = "cloister.showBalances";
@@ -26,11 +26,17 @@ export function Settings() {
     try { return localStorage.getItem(SHOW_BAL_KEY) === "1"; } catch { return false; }
   });
   const [threshold, setThreshold] = useState(() => getApprovalThreshold());
+  const [requireApproval, setRequire] = useState(() => getRequireApproval());
 
   function changeThreshold(v: string) {
     const n = Number(v) || 0;
     setThreshold(n);
     setApprovalThreshold(n);
+  }
+  function toggleRequire() {
+    const v = !requireApproval;
+    setRequire(v);
+    setRequireApproval(v);
   }
 
   async function save() {
@@ -114,20 +120,38 @@ export function Settings() {
           </div>
           <div className="set-row">
             <div>
-              <div className="set-t">{tr("Approval threshold (USDC)", "Freigabe-Schwelle (USDC)")}</div>
-              <div className="set-s">{tr("Payments at or above this amount need a second approver (four-eyes).", "Zahlungen ab diesem Betrag brauchen einen Zweit-Freigeber (Vier-Augen-Prinzip).")}</div>
+              <div className="set-t">{tr("Require a second approver", "Zweit-Freigeber erforderlich")}</div>
+              <div className="set-s">{tr("Four-eyes control: larger payments wait for a team member to approve before they're sent.", "Vier-Augen-Prinzip: Größere Zahlungen warten auf die Freigabe eines Team-Mitglieds, bevor sie gesendet werden.")}</div>
             </div>
-            <input
-              className="input"
-              style={{ width: 130, flex: "0 0 auto" }}
-              type="number"
-              min={0}
-              step={1000}
-              value={threshold}
-              onChange={(e) => changeThreshold(e.target.value)}
-              aria-label="Approval threshold in USDC"
-            />
+            <button
+              type="button"
+              className={`toggle${requireApproval ? " on" : ""}`}
+              onClick={toggleRequire}
+              role="switch"
+              aria-checked={requireApproval}
+              aria-label="Require a second approver"
+            >
+              <span />
+            </button>
           </div>
+          {requireApproval ? (
+            <div className="set-row">
+              <div>
+                <div className="set-t">{tr("Approval threshold (USDC)", "Freigabe-Schwelle (USDC)")}</div>
+                <div className="set-s">{tr("Payments at or above this amount need the second approver. Smaller ones go straight through.", "Zahlungen ab diesem Betrag brauchen den Zweit-Freigeber. Kleinere gehen direkt durch.")}</div>
+              </div>
+              <input
+                className="input"
+                style={{ width: 130, flex: "0 0 auto" }}
+                type="number"
+                min={0}
+                step={1000}
+                value={threshold}
+                onChange={(e) => changeThreshold(e.target.value)}
+                aria-label="Approval threshold in USDC"
+              />
+            </div>
+          ) : null}
         </Card>
 
         {/* ---- keys (info) ---- */}

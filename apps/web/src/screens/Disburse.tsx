@@ -4,7 +4,7 @@ import { useAsync } from "../lib/useAsync";
 import { Button, Card, Dots, Field, KeyValue, ScreenHead, Seg, SanctionsTag } from "../components/primitives";
 import { ProofConsole } from "../components/ProofConsole";
 import { toast } from "../lib/overlays";
-import { getApprovalThreshold } from "../lib/prefs";
+import { getApprovalThreshold, getRequireApproval } from "../lib/prefs";
 import { useT } from "../lib/i18n";
 import type { Asset, BatchRow, PayrollSession, ProofStep } from "../lib/types";
 
@@ -100,8 +100,8 @@ function SingleMode() {
   }
 
   async function pay() {
-    // maker-checker: amounts at/above the threshold need a second approver
-    if (amountNumber(amount) >= getApprovalThreshold()) {
+    // maker-checker: amounts at/above the threshold need a second approver (when enabled)
+    if (getRequireApproval() && amountNumber(amount) >= getApprovalThreshold()) {
       setBusy(true);
       try {
         await api.requestApproval({ kind: "single", summary: recipient, amount: `${amount} ${asset}`, single: { recipient, amount, asset, memo } });
@@ -319,8 +319,8 @@ function BatchMode() {
   }
 
   async function run() {
-    // maker-checker: batches at/above the threshold need a second approver
-    if (totalNum >= getApprovalThreshold()) {
+    // maker-checker: batches at/above the threshold need a second approver (when enabled)
+    if (getRequireApproval() && totalNum >= getApprovalThreshold()) {
       setBusy(true);
       try {
         await api.requestApproval({ kind: "batch", summary: tr(`${rows.length} recipients`, `${rows.length} Empfänger`), amount: total, chain: rows[0]?.chain, batch: { rows } });
