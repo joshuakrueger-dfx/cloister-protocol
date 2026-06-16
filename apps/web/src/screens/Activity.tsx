@@ -86,7 +86,7 @@ export function Activity() {
           autoFocus
         />
       ) : null}
-      <Card style={{ marginTop: 20, padding: 0 }}>
+      <Card style={{ marginTop: 20, padding: "18px 0 0" }}>
         <DisbursementTable rows={rows} withDate loading={loading} error={error} />
       </Card>
     </section>

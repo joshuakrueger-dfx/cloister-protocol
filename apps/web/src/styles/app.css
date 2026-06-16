@@ -1053,3 +1053,53 @@ textarea.input {
 /* the whole card is a drop target; highlight while a file is dragged over it */
 .card.drag { border-color: var(--ok); box-shadow: 0 0 0 1px var(--ok) inset; }
 .card.drag .dropzone { border-color: var(--ok); background: rgba(126, 224, 168, 0.08); }
+
+/* ---------- favourite star (recipients) ---------- */
+.star-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px 6px;
+  color: var(--faint);
+  transition: color 0.2s var(--ease), transform 0.15s var(--ease);
+}
+.star-btn:hover { color: var(--dim); transform: scale(1.15); }
+.star-btn.on { color: #f3c969; }
+.star-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ---------- settings: toggle switch + rows ---------- */
+.set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+}
+.set-t { font-size: 14px; color: var(--white); }
+.set-s { font-size: 12.5px; color: var(--dim); margin-top: 3px; max-width: 300px; line-height: 1.45; }
+.toggle {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: rgba(255, 255, 255, 0.06);
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.25s var(--ease), border-color 0.25s var(--ease);
+}
+.toggle span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--dim);
+  transition: transform 0.25s var(--ease), background 0.25s var(--ease);
+}
+.toggle.on { background: var(--ok); border-color: var(--ok); }
+.toggle.on span { transform: translateX(18px); background: #08110c; }

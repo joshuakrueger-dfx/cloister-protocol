@@ -254,6 +254,15 @@ export class RealApi implements CloisterApi {
     return this.getSession();
   }
 
+  async updateProfile(p: { name?: string; email?: string }): Promise<Session> {
+    if (p.name != null && p.name.trim()) {
+      const org = lsGet("cloister.org", { name: "Your Treasury", kind: "Treasury · self-custody" });
+      lsSet("cloister.org", { ...org, name: p.name.trim() });
+    }
+    if (p.email != null) lsSet("cloister.email", p.email.trim() || null);
+    return this.getSession();
+  }
+
   async markVerifiedExternally(): Promise<Session> {
     lsSet("cloister.kyc", {
       status: "verified",
@@ -422,6 +431,13 @@ export class RealApi implements CloisterApi {
       { id: `r_${Date.now()}`, label: input.label, type: input.type, address: input.address, lastPaid: "—", sanctions: "ok" },
       ...list,
     ];
+    lsSet(`${this.ns}.recipients`, next);
+    return next;
+  }
+
+  async toggleRecipientFavorite(id: string): Promise<Recipient[]> {
+    const list = await this.getRecipients();
+    const next = list.map((r) => (r.id === id ? { ...r, favorite: !r.favorite } : r));
     lsSet(`${this.ns}.recipients`, next);
     return next;
   }

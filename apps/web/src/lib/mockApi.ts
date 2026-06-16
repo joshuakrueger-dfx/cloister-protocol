@@ -187,6 +187,13 @@ export class MockApi implements CloisterApi {
     return structuredClone(this.session);
   }
 
+  async updateProfile(p: { name?: string; email?: string }): Promise<Session> {
+    await wait(180);
+    if (p.name != null && p.name.trim()) this.session.org = { ...this.session.org, name: p.name.trim() };
+    if (p.email != null) this.session.email = p.email.trim() || null;
+    return structuredClone(this.session);
+  }
+
   async markVerifiedExternally(): Promise<Session> {
     await wait(220);
     this.session.kyc = {
@@ -317,6 +324,11 @@ export class MockApi implements CloisterApi {
       { id: uid("r"), label: input.label, type: input.type, address: input.address, lastPaid: "—", sanctions: "ok" },
       ...this.recipients,
     ];
+    return structuredClone(this.recipients);
+  }
+
+  async toggleRecipientFavorite(id: string): Promise<Recipient[]> {
+    this.recipients = this.recipients.map((r) => (r.id === id ? { ...r, favorite: !r.favorite } : r));
     return structuredClone(this.recipients);
   }
 
