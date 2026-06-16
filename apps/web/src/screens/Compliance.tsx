@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { useApi } from "../lib/ApiProvider";
+import { useSession } from "../lib/SessionProvider";
 import { useAsync } from "../lib/useAsync";
 import { Button, Card, ComplianceList, Field, ScreenHead } from "../components/primitives";
 import { ProofConsole } from "../components/ProofConsole";
+import { KycVerify } from "../components/KycVerify";
 import type { Disclosure, ExportFormat, ProofStep, ReceiptScope } from "../lib/types";
 
 export function Compliance() {
+  const { session } = useSession();
   return (
     <section className="view">
       <ScreenHead
@@ -13,6 +16,17 @@ export function Compliance() {
         title="Compliance Center"
         sub="Privacy you can prove. Generate clean-origin attestations and grant scoped, time-limited disclosure to banks, auditors and tax authorities — without ever exposing your full history."
       />
+      {session && session.kyc.status !== "verified" ? (
+        <Card style={{ marginTop: 26 }}>
+          <div className="clab">VERIFY IDENTITY — UNLOCK PAYOUTS</div>
+          <p className="sub" style={{ marginTop: 10 }}>
+            Complete identity verification with a regulated account to enable funding and private
+            payouts. Connect an existing account or create one — your full history stays private; only
+            your clean-origin status is recorded.
+          </p>
+          <KycVerify />
+        </Card>
+      ) : null}
       <div className="split" style={{ marginTop: 26 }}>
         <div>
           <ReceiptCard />

@@ -44,6 +44,10 @@ export interface CloisterApi {
   unlock(password: string): Promise<Session>;
   getKycStatus(): Promise<KycStatus>;
   submitKyc(payload: KycSubmitPayload, onProgress?: ProgressCallback): Promise<KycStatus>;
+  /** Onboarding: record the email the user verified with a one-time code. */
+  confirmEmail(email: string): Promise<Session>;
+  /** Mark KYC verified after the account-based (DFX) verification completes in the dashboard. */
+  markVerifiedExternally(): Promise<Session>;
 
   // ---------- Treasury / Notes ----------
   getBalance(chain?: ChainId | "all"): Promise<Balance>;

@@ -49,6 +49,7 @@ export interface KycScreenResult {
 export interface Session {
   authenticated: boolean;
   unlocked: boolean;
+  email: string | null;
   org: { name: string; kind: string };
   kyc: KycStatus;
   dfxLinked: boolean;
