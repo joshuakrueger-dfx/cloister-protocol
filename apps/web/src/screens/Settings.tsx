@@ -5,6 +5,7 @@ import { useApi } from "../lib/ApiProvider";
 import { useSession } from "../lib/SessionProvider";
 import { getActiveBackendId, getBackendConfig } from "../lib/backends";
 import { clearVault } from "../lib/vault";
+import { toast, confirmDialog } from "../lib/overlays";
 
 const SHOW_BAL_KEY = "cloister.showBalances";
 
@@ -18,18 +19,17 @@ export function Settings() {
   const [name, setName] = useState(session?.org.name ?? "");
   const [email, setEmail] = useState(session?.email ?? "");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [showBalances, setShowBalances] = useState(() => {
     try { return localStorage.getItem(SHOW_BAL_KEY) === "1"; } catch { return false; }
   });
 
   async function save() {
     setSaving(true);
-    setSaved(false);
     try {
       setSession(await api.updateProfile({ name, email }));
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
+      toast("Profile saved", "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Could not save", "error");
     } finally {
       setSaving(false);
     }
@@ -41,8 +41,14 @@ export function Settings() {
     try { localStorage.setItem(SHOW_BAL_KEY, v ? "1" : "0"); } catch { /* ignore */ }
   }
 
-  function signOut() {
-    if (confirm("Sign out and remove the vault on this device? You'll need your seed phrase to restore it.")) {
+  async function signOut() {
+    const ok = await confirmDialog({
+      title: "Sign out of this device?",
+      body: "This removes the encrypted vault stored here. You can restore on any device with your seed phrase.",
+      confirmLabel: "Sign out",
+      danger: true,
+    });
+    if (ok) {
       clearVault();
       nav("/welcome");
       location.reload();
@@ -66,9 +72,8 @@ export function Settings() {
           <Field label="CONTACT EMAIL">
             <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
           </Field>
-          <div className="actions" style={{ alignItems: "center", gap: 12 }}>
+          <div className="actions">
             <Button variant="solid" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save changes"}</Button>
-            {saved ? <span style={{ color: "var(--ok)", fontSize: 13 }}>✓ Saved</span> : null}
           </div>
         </Card>
 

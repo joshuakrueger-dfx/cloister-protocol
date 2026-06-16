@@ -10,6 +10,7 @@ import { useSession } from "../../lib/SessionProvider";
 import { Logo } from "../../components/icons";
 import { Dots } from "../../components/primitives";
 import { vaultExists, clearVault } from "../../lib/vault";
+import { confirmDialog } from "../../lib/overlays";
 import type { Wallet } from "../../lib/types";
 
 type Step = 0 | 1 | 2;
@@ -171,8 +172,14 @@ export function Onboarding() {
               </button>
               <button
                 className="btn full"
-                onClick={() => {
-                  if (confirm("Discard the vault on this device and start over? This cannot be undone without your seed phrase.")) {
+                onClick={async () => {
+                  const ok = await confirmDialog({
+                    title: "Start over with a different seed?",
+                    body: "This discards the vault on this device. It can't be undone without your seed phrase.",
+                    confirmLabel: "Discard vault",
+                    danger: true,
+                  });
+                  if (ok) {
                     clearVault();
                     setUnlockMode(false);
                   }
