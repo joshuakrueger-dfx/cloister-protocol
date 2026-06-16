@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useApi } from "../lib/ApiProvider";
 import { useAsync } from "../lib/useAsync";
 import { Button, Card, Field, ScreenHead, SanctionsTag } from "../components/primitives";
+import { toast } from "../lib/overlays";
 
 export function Recipients() {
   const api = useApi();
@@ -36,6 +37,7 @@ export function Recipients() {
       setAddress("");
       setShowForm(false);
       reload();
+      toast("Recipient added", "success");
     } finally {
       setBusy(false);
     }
