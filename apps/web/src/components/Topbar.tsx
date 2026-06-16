@@ -2,6 +2,7 @@ import { BackendSwitcher } from "./BackendSwitcher";
 import { useSession } from "../lib/SessionProvider";
 import { getActiveBackendId } from "../lib/backends";
 import { useLang, setLang, useT } from "../lib/i18n";
+import { useTheme, toggleTheme } from "../lib/theme";
 
 // crumb + Titel kommen pro Route; chain-chip / jurisdiction- / KYC-pill
 // spiegeln die Topbar des Prototyps.
@@ -16,6 +17,7 @@ export function Topbar({
 }) {
   const { session } = useSession();
   const lang = useLang();
+  const theme = useTheme();
   const tr = useT();
   const kyc = session?.kyc.status ?? "unverified";
   const jurisdiction = session?.kyc.jurisdiction ?? null;
@@ -50,6 +52,15 @@ export function Topbar({
         <button className={lang === "de" ? "on" : ""} onClick={() => setLang("de")}>DE</button>
         <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>EN</button>
       </div>
+      <button
+        type="button"
+        className="theme-btn"
+        onClick={toggleTheme}
+        aria-label={theme === "dark" ? tr("Switch to light theme", "Zu hellem Design wechseln") : tr("Switch to dark theme", "Zu dunklem Design wechseln")}
+        title={theme === "dark" ? tr("Light theme", "Helles Design") : tr("Dark theme", "Dunkles Design")}
+      >
+        {theme === "dark" ? "☀" : "☾"}
+      </button>
       <BackendSwitcher />
       </div>
     </div>
