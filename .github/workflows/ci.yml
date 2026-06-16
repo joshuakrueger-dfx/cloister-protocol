@@ -5,9 +5,9 @@
 name: ci
 
 on:
-  pull_request:
-  push:
-    branches: [main, feat/gnark-zk]
+  pull_request: # every PR, any target branch
+  push: # every push to ANY branch — code is gated on every push, not just main/feat
+    branches: ['**']
 
 concurrency:
   group: ci-${{ github.ref }}
