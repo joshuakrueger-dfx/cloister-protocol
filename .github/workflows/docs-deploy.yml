@@ -41,11 +41,10 @@ jobs:
 
       - name: Deploy to Cloudflare Pages
         if: steps.gate.outputs.have == 'yes'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: 28f3481e24d9d667c1fec4a81a7be789
-          command: pages deploy docs-site/dist --project-name cloister-docs --branch=main
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: "28f3481e24d9d667c1fec4a81a7be789"
+        run: npx --yes wrangler@4 pages deploy docs-site/dist --project-name cloister-docs --branch=main
 
       - name: Note skipped deploy
         if: steps.gate.outputs.have != 'yes'
