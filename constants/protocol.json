@@ -1,0 +1,5 @@
+{
+  "_comment": "Canonical protocol constants — the single source of truth. scripts/check-constants.mjs fails CI if any language's hand-written copy drifts from these. A mismatch in FIELD_SIZE or MERKLE_LEVELS is a silent soundness bug (verifier/circuit/SDK disagree), so it must be gated, not trusted.",
+  "FIELD_SIZE": "21888242871839275222246405745257275088548364400416034343698204186575808495617",
+  "MERKLE_LEVELS": 20
+}
