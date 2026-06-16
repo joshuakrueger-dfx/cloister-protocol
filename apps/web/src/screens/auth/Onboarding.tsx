@@ -11,7 +11,7 @@ import { Logo } from "../../components/icons";
 import { Dots } from "../../components/primitives";
 import { vaultExists, clearVault } from "../../lib/vault";
 import { confirmDialog } from "../../lib/overlays";
-import { useT } from "../../lib/i18n";
+import { useT, useLang, setLang } from "../../lib/i18n";
 import type { Wallet } from "../../lib/types";
 
 type Step = 0 | 1 | 2;
@@ -20,6 +20,7 @@ export function Onboarding() {
   const api = useApi();
   const nav = useNavigate();
   const tr = useT();
+  const lang = useLang();
   const { setSession } = useSession();
   const [step, setStep] = useState<Step>(0);
 
@@ -135,11 +136,15 @@ export function Onboarding() {
   return (
     <div className="auth-wrap">
       <div className="auth-card">
-        <div className="brand">
+        <div className="brand" style={{ display: "flex", alignItems: "center" }}>
           <Logo />
           <span>
             CLOISTER <span className="sub">CONSOLE</span>
           </span>
+          <div className="lang-seg" style={{ marginLeft: "auto" }} role="group" aria-label="Language">
+            <button className={lang === "de" ? "on" : ""} onClick={() => setLang("de")}>DE</button>
+            <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>EN</button>
+          </div>
         </div>
         {unlockMode ? (
           <>
