@@ -121,11 +121,24 @@ export async function getDfxKyc(): Promise<DfxKycView> {
   };
 }
 
-/** Advance KYC; returns a provider URL to open in a new tab, or null if no
- *  interactive step is pending (already complete or server-side). */
+// DFX-hosted KYC page. Production: https://app.dfx.swiss/kyc · Sandbox:
+// https://dev.app.dfx.swiss/kyc. Override with VITE_DFX_KYC_URL.
+const DFX_KYC_PAGE =
+  (import.meta.env.VITE_DFX_KYC_URL as string | undefined)?.replace(/\/$/, "") || "https://app.dfx.swiss/kyc";
+
+/** Advance KYC; returns a URL to open in a new tab. Prefers the interactive
+ *  step URL from /v2/kyc; falls back to the DFX-hosted KYC page with the current
+ *  session token (the path DFX recommends): app.dfx.swiss/kyc?session=<jwt>. */
 export async function startDfxKyc(): Promise<string | null> {
-  const session = await dfxKycService.continueKyc();
-  return session.currentStep?.session?.url ?? null;
+  try {
+    const session = await dfxKycService.continueKyc();
+    const url = session.currentStep?.session?.url;
+    if (url) return url;
+  } catch {
+    /* fall through to the hosted KYC page */
+  }
+  const jwt = dfxApi.getAuthToken() ?? sessionStorage.getItem("cloister.dfx.jwt");
+  return jwt ? `${DFX_KYC_PAGE}?session=${encodeURIComponent(jwt)}` : null;
 }
 
 export async function setDfxMail(mail: string): Promise<void> {

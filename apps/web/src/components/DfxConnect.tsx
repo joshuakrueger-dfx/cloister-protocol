@@ -10,6 +10,8 @@ import { Button, Dots } from "./primitives";
 import { useT } from "../lib/i18n";
 
 const SHORT = (a: string | null) => (a && a.length > 12 ? `${a.slice(0, 6)}…${a.slice(-4)}` : a || "");
+// DFX numeric KYC level → the app's L1/L2/L3 tier.
+const kycTier = (level?: number): "L1" | "L2" | "L3" => (level == null ? "L1" : level >= 40 ? "L3" : level >= 30 ? "L2" : "L1");
 
 export function DfxConnect({
   mnemonic,
@@ -18,7 +20,8 @@ export function DfxConnect({
   methods,
 }: {
   mnemonic?: string;
-  onVerified?: () => void;
+  /** Fires when the user continues after DFX KYC is verified; passes the mapped level. */
+  onVerified?: (level?: "L1" | "L2" | "L3") => void;
   compact?: boolean;
   /** Restrict the available sign-in methods (e.g. ["mail"] for email-only). */
   methods?: DfxAuthMethod[];
@@ -52,7 +55,7 @@ export function DfxConnect({
         <div className="actions" style={{ marginTop: 14 }}>
           {verified ? (
             onVerified ? (
-              <Button variant="solid" arrow onClick={onVerified}>{tr("Continue", "Weiter")}</Button>
+              <Button variant="solid" arrow onClick={() => onVerified(kycTier(kyc?.level))}>{tr("Continue", "Weiter")}</Button>
             ) : (
               <span className="tag-ok" style={{ alignSelf: "center" }}>{tr("KYC verified", "KYC verifiziert")}</span>
             )
