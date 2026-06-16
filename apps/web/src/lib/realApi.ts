@@ -25,7 +25,7 @@ import {
 } from "@cloister/sdk";
 import type { CloisterApi } from "./api";
 import type {
-  AnonymitySet, Approval, ApprovalRequest, AspStatus, Asset, Backend, Balance, BatchDisburseParams, ChainId,
+  AnonymitySet, Approval, ApprovalRequest, ApprovalResult, AspStatus, Asset, Backend, Balance, BatchDisburseParams, ChainId,
   ComplianceStatus, Disbursement, Disclosure, DisclosureParams, DisburseResult,
   JurisdictionProfile, KycStatus, KycSubmitPayload, Note, PayrollSession,
   PayrollSessionParams, ProgressCallback, Receipt, ReceiptParams, Recipient,
@@ -36,6 +36,8 @@ import { backendsView, setActiveBackendId } from "./backends";
 import { initGnarkBackend, type ProverStatus } from "./gnarkWasm";
 import { vaultExists, saveVault, openVault } from "./vault";
 import { JURISDICTION_PROFILES } from "./jurisdictions";
+import { approvalsNeededFor } from "./prefs";
+import { parseAmount as parseDisplayAmount } from "./accountingExport";
 import type { ExportFormat } from "./types";
 
 // ---------- Persistenz-Helfer (namespaced pro Backend) ----------
@@ -446,7 +448,11 @@ export class RealApi implements CloisterApi {
   // ---------- maker-checker ----------
   async requestApproval(req: ApprovalRequest): Promise<Approval[]> {
     const list = lsGet<Approval[]>(`${this.ns}.approvals`, []);
-    const next = [{ ...req, id: `ap_${Date.now()}`, createdAt: new Date().toISOString() }, ...list];
+    const needed = Math.max(1, approvalsNeededFor(parseDisplayAmount(req.amount).value));
+    const next = [
+      { ...req, id: `ap_${Date.now()}`, createdAt: new Date().toISOString(), approvalsNeeded: req.approvalsNeeded ?? needed, approvals: 0, approvedBy: [] },
+      ...list,
+    ];
     lsSet(`${this.ns}.approvals`, next);
     return next;
   }
@@ -455,16 +461,24 @@ export class RealApi implements CloisterApi {
     return lsGet<Approval[]>(`${this.ns}.approvals`, []);
   }
 
-  async approveDisbursement(id: string, onProgress?: ProgressCallback): Promise<void> {
+  async approveDisbursement(id: string, onProgress?: ProgressCallback): Promise<ApprovalResult> {
     const list = lsGet<Approval[]>(`${this.ns}.approvals`, []);
     const a = list.find((x) => x.id === id);
     if (!a) throw new Error("approval not found");
+    const needed = a.approvalsNeeded ?? 1;
+    const collected = (a.approvals ?? 0) + 1;
+    const who = lsGet<string>(`${this.ns}.email`, "you");
+    if (collected < needed) {
+      lsSet(`${this.ns}.approvals`, list.map((x) => (x.id === id ? { ...x, approvals: collected, approvedBy: [...(x.approvedBy ?? []), who] } : x)));
+      return { executed: false, approvals: collected, approvalsNeeded: needed };
+    }
     if (a.kind === "single" && a.single) {
       await this.disburseSingle({ recipient: a.single.recipient, amount: a.single.amount, asset: a.single.asset, memo: a.single.memo, accounting: a.single.accounting }, onProgress);
     } else if (a.kind === "batch" && a.batch) {
       await this.disburseBatch({ rows: a.batch.rows }, onProgress);
     }
     lsSet(`${this.ns}.approvals`, list.filter((x) => x.id !== id));
+    return { executed: true, approvals: collected, approvalsNeeded: needed };
   }
 
   async rejectDisbursement(id: string): Promise<Approval[]> {

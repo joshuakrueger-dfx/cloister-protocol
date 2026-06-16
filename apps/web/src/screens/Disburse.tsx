@@ -4,7 +4,7 @@ import { useAsync } from "../lib/useAsync";
 import { Button, Card, Dots, Field, KeyValue, ScreenHead, Seg, SanctionsTag } from "../components/primitives";
 import { ProofConsole } from "../components/ProofConsole";
 import { toast } from "../lib/overlays";
-import { getApprovalThreshold, getRequireApproval } from "../lib/prefs";
+import { approvalsNeededFor } from "../lib/prefs";
 import { useT } from "../lib/i18n";
 import { getMd, mdLabel, codingLabel } from "../lib/masterdata";
 import type { Accounting, Asset, BatchRow, PayrollSession, ProofStep } from "../lib/types";
@@ -158,13 +158,14 @@ function SingleMode() {
 
   async function pay() {
     const accounting = cleanAccounting(acct);
-    // maker-checker: amounts at/above the threshold need a second approver (when enabled)
-    if (getRequireApproval() && amountNumber(amount) >= getApprovalThreshold()) {
+    // maker-checker: amounts at/above the threshold need one or two approvers
+    const needed = approvalsNeededFor(amountNumber(amount));
+    if (needed >= 1) {
       setBusy(true);
       try {
         await api.requestApproval({ kind: "single", summary: recipient, amount: `${amount} ${asset}`, single: { recipient, amount, asset, memo, accounting } });
         setLines([{ progress: 100, html: `<span class='ok'>${tr("submitted for dual approval — see <b>Approvals</b>.", "zur Zweit-Freigabe eingereicht — siehe <b>Freigaben</b>.")}</span>` }]);
-        toast(tr("Submitted for approval — needs a second approver", "Zur Freigabe eingereicht — braucht einen Zweit-Freigeber"), "info");
+        toast(needed >= 2 ? tr("Submitted — needs two approvers", "Eingereicht — braucht zwei Freigeber") : tr("Submitted for approval — needs a second approver", "Zur Freigabe eingereicht — braucht einen Zweit-Freigeber"), "info");
       } catch (e) {
         toast(e instanceof Error ? e.message : "Could not submit", "error");
       } finally {
@@ -401,13 +402,14 @@ function BatchMode() {
   }
 
   async function run() {
-    // maker-checker: batches at/above the threshold need a second approver (when enabled)
-    if (getRequireApproval() && totalNum >= getApprovalThreshold()) {
+    // maker-checker: batches at/above the threshold need one or two approvers
+    const needed = approvalsNeededFor(totalNum);
+    if (needed >= 1) {
       setBusy(true);
       try {
         await api.requestApproval({ kind: "batch", summary: tr(`${rows.length} recipients`, `${rows.length} Empfänger`), amount: total, chain: rows[0]?.chain, batch: { rows } });
         setLines([{ progress: 100, html: `<span class='ok'>${tr("submitted for dual approval — see <b>Approvals</b>.", "zur Zweit-Freigabe eingereicht — siehe <b>Freigaben</b>.")}</span>` }]);
-        toast(tr("Batch submitted for approval — needs a second approver", "Sammelauszahlung zur Freigabe eingereicht — braucht einen Zweit-Freigeber"), "info");
+        toast(needed >= 2 ? tr("Batch submitted — needs two approvers", "Sammelauszahlung eingereicht — braucht zwei Freigeber") : tr("Batch submitted for approval — needs a second approver", "Sammelauszahlung zur Freigabe eingereicht — braucht einen Zweit-Freigeber"), "info");
       } catch (e) {
         toast(e instanceof Error ? e.message : tr("Could not submit", "Konnte nicht einreichen"), "error");
       } finally {

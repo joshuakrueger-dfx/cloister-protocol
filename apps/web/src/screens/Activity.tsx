@@ -140,7 +140,7 @@ export function Activity() {
         />
       ) : null}
       <Card style={{ marginTop: 20, padding: "18px 0 0" }}>
-        <DisbursementTable rows={rows} withDate withCoding loading={loading} error={error} />
+        <DisbursementTable rows={rows} withDate withCoding powerTable loading={loading} error={error} />
       </Card>
     </section>
   );

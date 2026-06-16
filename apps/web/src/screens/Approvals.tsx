@@ -22,11 +22,20 @@ export function Approvals() {
     setLines([]);
     setProgress(0);
     try {
-      await api.approveDisbursement(a.id, (s) => {
+      const res = await api.approveDisbursement(a.id, (s) => {
         setProgress(s.progress);
         setLines((p) => [...p, s]);
       });
-      toast(tr("Approved & sent privately", "Freigegeben & privat gesendet"), "success");
+      if (res.executed) {
+        toast(tr("Approved & sent privately", "Freigegeben & privat gesendet"), "success");
+      } else {
+        const remaining = res.approvalsNeeded - res.approvals;
+        toast(
+          tr(`Approval recorded · ${res.approvals} of ${res.approvalsNeeded} · ${remaining} more needed`,
+             `Freigabe erfasst · ${res.approvals} von ${res.approvalsNeeded} · ${remaining} weitere nötig`),
+          "info",
+        );
+      }
       reload();
     } catch (e) {
       toast(e instanceof Error ? e.message : tr("Approval failed", "Freigabe fehlgeschlagen"), "error");
@@ -81,10 +90,24 @@ export function Approvals() {
                     {a.kind === "batch" ? tr("Batch payout", "Sammelauszahlung") : tr("Single payment", "Einzelzahlung")} · {a.summary}
                     {a.chain ? ` · ${a.chain}` : ""}
                   </div>
+                  {(a.approvalsNeeded ?? 1) > 1 ? (
+                    <div className="approval-progress">
+                      {tr(`${a.approvals ?? 0} of ${a.approvalsNeeded} approvals`, `${a.approvals ?? 0} von ${a.approvalsNeeded} Freigaben`)}
+                      <span className="approval-pips">
+                        {Array.from({ length: a.approvalsNeeded ?? 1 }).map((_, i) => (
+                          <span key={i} className={`pip${i < (a.approvals ?? 0) ? " on" : ""}`} />
+                        ))}
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
                 <div className="approval-actions">
                   <Button sm variant="solid" arrow onClick={() => approve(a)} disabled={busyId === a.id}>
-                    {busyId === a.id ? tr("Sending…", "Sende…") : tr("Approve & send", "Freigeben & senden")}
+                    {busyId === a.id
+                      ? tr("Sending…", "Sende…")
+                      : (a.approvals ?? 0) + 1 < (a.approvalsNeeded ?? 1)
+                        ? tr("Approve", "Freigeben")
+                        : tr("Approve & send", "Freigeben & senden")}
                   </Button>
                   <Button sm onClick={() => reject(a)} disabled={busyId === a.id}>{tr("Reject", "Ablehnen")}</Button>
                 </div>

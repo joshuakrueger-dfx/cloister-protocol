@@ -11,6 +11,7 @@ import type {
   AnonymitySet,
   Approval,
   ApprovalRequest,
+  ApprovalResult,
   AspStatus,
   Asset,
   Backend,
@@ -89,7 +90,9 @@ export interface CloisterApi {
   // ---------- Maker-checker (dual approval) ----------
   requestApproval(req: ApprovalRequest): Promise<Approval[]>;
   getApprovals(): Promise<Approval[]>;
-  approveDisbursement(id: string, onProgress?: ProgressCallback): Promise<void>;
+  // Records one approval. Executes + clears the payment only once the required
+  // number of approvers (1 or 2) is reached; otherwise it stays pending.
+  approveDisbursement(id: string, onProgress?: ProgressCallback): Promise<ApprovalResult>;
   rejectDisbursement(id: string): Promise<Approval[]>;
 
   // ---------- Directory / Ledger ----------

@@ -6,7 +6,7 @@ import { useSession } from "../lib/SessionProvider";
 import { getActiveBackendId, getBackendConfig } from "../lib/backends";
 import { clearVault } from "../lib/vault";
 import { toast, confirmDialog } from "../lib/overlays";
-import { getApprovalThreshold, setApprovalThreshold, getRequireApproval, setRequireApproval } from "../lib/prefs";
+import { getApprovalThreshold, setApprovalThreshold, getApprovalThreshold2, setApprovalThreshold2, getRequireApproval, setRequireApproval } from "../lib/prefs";
 import { useT } from "../lib/i18n";
 import { useTheme, setTheme } from "../lib/theme";
 
@@ -28,12 +28,18 @@ export function Settings() {
     try { return localStorage.getItem(SHOW_BAL_KEY) === "1"; } catch { return false; }
   });
   const [threshold, setThreshold] = useState(() => getApprovalThreshold());
+  const [threshold2, setThreshold2] = useState(() => getApprovalThreshold2());
   const [requireApproval, setRequire] = useState(() => getRequireApproval());
 
   function changeThreshold(v: string) {
     const n = Number(v) || 0;
     setThreshold(n);
     setApprovalThreshold(n);
+  }
+  function changeThreshold2(v: string) {
+    const n = Number(v) || 0;
+    setThreshold2(n);
+    setApprovalThreshold2(n);
   }
   function toggleRequire() {
     const v = !requireApproval;
@@ -161,6 +167,24 @@ export function Settings() {
                 value={threshold}
                 onChange={(e) => changeThreshold(e.target.value)}
                 aria-label="Approval threshold in USDC"
+              />
+            </div>
+          ) : null}
+          {requireApproval ? (
+            <div className="set-row">
+              <div>
+                <div className="set-t">{tr("Two-approver threshold (USDC)", "Zwei-Freigeber-Schwelle (USDC)")}</div>
+                <div className="set-s">{tr("Payments at or above this amount need two different approvers. Set to 0 to always require just one.", "Zahlungen ab diesem Betrag brauchen zwei verschiedene Freigeber. 0 = immer nur einer.")}</div>
+              </div>
+              <input
+                className="input"
+                style={{ width: 130, flex: "0 0 auto" }}
+                type="number"
+                min={0}
+                step={5000}
+                value={threshold2}
+                onChange={(e) => changeThreshold2(e.target.value)}
+                aria-label="Two-approver threshold in USDC"
               />
             </div>
           ) : null}

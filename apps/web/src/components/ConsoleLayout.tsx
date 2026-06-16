@@ -13,7 +13,8 @@ interface RouteHandle {
 const CRUMB_DE: Record<string, string> = { CONSOLE: "KONSOLE", OPERATE: "BETRIEB", COMPLIANCE: "COMPLIANCE", ACCOUNT: "KONTO" };
 const TITLE_DE: Record<string, string> = {
   Overview: "Übersicht", Fund: "Einzahlen", Disburse: "Auszahlen", Approvals: "Freigaben",
-  Recipients: "Empfänger", Activity: "Aktivität", "Compliance Center": "Compliance-Center", Settings: "Einstellungen",
+  Recipients: "Empfänger", Activity: "Aktivität", "Compliance Center": "Compliance-Center",
+  "Master data": "Stammdaten", Settings: "Einstellungen",
 };
 
 export function ConsoleLayout() {

@@ -12,6 +12,7 @@ import { Recipients } from "./screens/Recipients";
 import { Activity } from "./screens/Activity";
 import { Compliance } from "./screens/Compliance";
 import { Team } from "./screens/Team";
+import { Stammdaten } from "./screens/Stammdaten";
 import { Settings } from "./screens/Settings";
 
 const router = createBrowserRouter([
@@ -37,6 +38,7 @@ const router = createBrowserRouter([
         handle: { crumb: "COMPLIANCE", title: "Compliance Center" },
       },
       { path: "team", element: <Team />, handle: { crumb: "ACCOUNT", title: "Team" } },
+      { path: "masterdata", element: <Stammdaten />, handle: { crumb: "ACCOUNT", title: "Master data" } },
       { path: "settings", element: <Settings />, handle: { crumb: "ACCOUNT", title: "Settings" } },
     ],
   },
