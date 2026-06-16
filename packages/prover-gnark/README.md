@@ -1,8 +1,10 @@
 # Cloister Prover (gnark)
 
 Self-built zero-knowledge layer for the Cloister shielded pool, written from scratch
-on the **gnark** stack (Go, Apache-2.0). No GPL-licensed code (no circom / snarkjs /
-rapidsnark), no copied third-party circuits — clean, proprietary IP owned by DFX AG.
+on the **gnark** stack (Go, Apache-2.0). No circom / snarkjs / rapidsnark and no copied
+third-party circuits. The shipped gomobile bind is GPL/LGPL-free (`go list -deps ./mobile`
+has zero ethereum packages); LGPL go-ethereum is used only by the non-distributed dev CLIs.
+Clean-room IP owned by DFX AG, MIT-licensed (see LICENSE).
 
 ## Why this exists
 

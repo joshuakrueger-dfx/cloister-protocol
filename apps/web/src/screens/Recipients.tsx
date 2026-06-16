@@ -3,9 +3,11 @@ import { useApi } from "../lib/ApiProvider";
 import { useAsync } from "../lib/useAsync";
 import { Button, Card, Field, ScreenHead, SanctionsTag } from "../components/primitives";
 import { toast } from "../lib/overlays";
+import { useT } from "../lib/i18n";
 
 export function Recipients() {
   const api = useApi();
+  const tr = useT();
   const { data, loading, error, reload } = useAsync(() => api.getRecipients(), []);
 
   const [showForm, setShowForm] = useState(false);
@@ -37,7 +39,7 @@ export function Recipients() {
       setAddress("");
       setShowForm(false);
       reload();
-      toast("Recipient added", "success");
+      toast(tr("Recipient added", "Empfänger hinzugefügt"), "success");
     } finally {
       setBusy(false);
     }
@@ -46,36 +48,39 @@ export function Recipients() {
   return (
     <section className="view">
       <ScreenHead
-        eyebrow="COUNTERPARTIES"
-        title="Recipients"
-        sub="Labels are encrypted with your viewing key and live only in your account. On-chain, the counterparty never appears."
+        eyebrow={tr("COUNTERPARTIES", "GEGENPARTEIEN")}
+        title={tr("Recipients", "Empfänger")}
+        sub={tr(
+          "Labels are encrypted with your viewing key and live only in your account. On-chain, the counterparty never appears.",
+          "Labels werden mit deinem Viewing-Key verschlüsselt und existieren nur in deinem Konto. On-chain erscheint die Gegenpartei nie.",
+        )}
       />
 
       <div className="actions" style={{ marginTop: 18 }}>
-        <Button sm onClick={() => setShowForm((s) => !s)}>{showForm ? "Close" : "+ Add recipient"}</Button>
+        <Button sm onClick={() => setShowForm((s) => !s)}>{showForm ? tr("Close", "Schließen") : tr("+ Add recipient", "+ Empfänger hinzufügen")}</Button>
       </div>
 
       {showForm ? (
         <Card style={{ marginTop: 14 }}>
           <div className="grid g3">
-            <Field label="LABEL (encrypted)" style={{ marginTop: 0 }}>
-              <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Acme GmbH" />
+            <Field label={tr("LABEL (encrypted)", "LABEL (verschlüsselt)")} style={{ marginTop: 0 }}>
+              <input className="input" value={label} onChange={(e) => setLabel(e.target.value)} placeholder={tr("e.g. Acme GmbH", "z. B. Acme GmbH")} />
             </Field>
-            <Field label="TYPE" style={{ marginTop: 0 }}>
+            <Field label={tr("TYPE", "TYP")} style={{ marginTop: 0 }}>
               <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
-                <option>B2B vendor</option>
-                <option>Contributor</option>
-                <option>PSP / broker</option>
-                <option>Programmatic</option>
+                <option value="B2B vendor">{tr("B2B vendor", "B2B-Lieferant")}</option>
+                <option value="Contributor">{tr("Contributor", "Mitwirkender")}</option>
+                <option value="PSP / broker">{tr("PSP / broker", "PSP / Broker")}</option>
+                <option value="Programmatic">{tr("Programmatic", "Programmatisch")}</option>
               </select>
             </Field>
-            <Field label="ADDRESS" style={{ marginTop: 0 }}>
+            <Field label={tr("ADDRESS", "ADRESSE")} style={{ marginTop: 0 }}>
               <input className="input" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="0x…" />
             </Field>
           </div>
           <div className="actions">
             <Button variant="solid" arrow onClick={add} disabled={busy || !label.trim() || !address.trim()}>
-              {busy ? "Adding…" : "Add recipient"}
+              {busy ? tr("Adding…", "Füge hinzu…") : tr("Add recipient", "Empfänger hinzufügen")}
             </Button>
           </div>
         </Card>
@@ -87,17 +92,17 @@ export function Recipients() {
           <thead>
             <tr>
               <th style={{ width: 34 }}></th>
-              <th>Label (encrypted)</th>
-              <th>Type</th>
-              <th>Address</th>
-              <th>Last paid</th>
-              <th>Sanctions</th>
+              <th>{tr("Label (encrypted)", "Label (verschlüsselt)")}</th>
+              <th>{tr("Type", "Typ")}</th>
+              <th>{tr("Address", "Adresse")}</th>
+              <th>{tr("Last paid", "Zuletzt gezahlt")}</th>
+              <th>{tr("Sanctions", "Sanktionen")}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr className="loading-row">
-                <td colSpan={6}>Loading…</td>
+                <td colSpan={6}>{tr("Loading…", "Lädt…")}</td>
               </tr>
             ) : error ? (
               <tr className="error-row">
@@ -105,7 +110,7 @@ export function Recipients() {
               </tr>
             ) : rows.length === 0 ? (
               <tr className="loading-row">
-                <td colSpan={6}>No recipients yet.</td>
+                <td colSpan={6}>{tr("No recipients yet.", "Noch keine Empfänger.")}</td>
               </tr>
             ) : (
               rows.map((r) => (
@@ -115,8 +120,8 @@ export function Recipients() {
                       className={`star-btn${r.favorite ? " on" : ""}`}
                       onClick={() => toggleFav(r.id)}
                       disabled={favBusy === r.id}
-                      title={r.favorite ? "Remove from favourites" : "Add to favourites"}
-                      aria-label={r.favorite ? "Remove from favourites" : "Add to favourites"}
+                      title={r.favorite ? tr("Remove from favourites", "Aus Favoriten entfernen") : tr("Add to favourites", "Zu Favoriten")}
+                      aria-label={r.favorite ? tr("Remove from favourites", "Aus Favoriten entfernen") : tr("Add to favourites", "Zu Favoriten")}
                     >
                       {r.favorite ? "★" : "☆"}
                     </button>

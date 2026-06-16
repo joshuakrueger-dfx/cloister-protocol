@@ -5,11 +5,13 @@ import { useAsync } from "../lib/useAsync";
 import { Button, Card, ScreenHead } from "../components/primitives";
 import { DisbursementTable } from "../components/DisbursementTable";
 import { toast } from "../lib/overlays";
+import { useT } from "../lib/i18n";
 import type { ExportFormat } from "../lib/types";
 
 export function Activity() {
   const api = useApi();
   const nav = useNavigate();
+  const tr = useT();
   const { data, loading, error } = useAsync(() => api.getActivity(), []);
   const [showFilter, setShowFilter] = useState(false);
   const [query, setQuery] = useState("");
@@ -31,7 +33,7 @@ export function Activity() {
     setExporting(true);
     try {
       await api.exportAuditLog("csv");
-      toast("Audit log exported · CSV", "success");
+      toast(tr("Audit log exported · CSV", "Audit-Log exportiert · CSV"), "success");
     } finally {
       setExporting(false);
     }
@@ -41,7 +43,7 @@ export function Activity() {
     setStmtBusy(true);
     try {
       await api.exportStatement(stmtPeriod, stmtFmt);
-      toast(`Statement downloaded · ${stmtFmt.toUpperCase()}`, "success");
+      toast(tr(`Statement downloaded · ${stmtFmt.toUpperCase()}`, `Auszug heruntergeladen · ${stmtFmt.toUpperCase()}`), "success");
     } finally {
       setStmtBusy(false);
     }
@@ -50,21 +52,24 @@ export function Activity() {
   return (
     <section className="view">
       <ScreenHead
-        eyebrow="YOUR LEDGER"
-        title="Activity"
-        sub="Decrypted with your viewing key — visible only to you. Read-only. Export for accounting or selective disclosure."
+        eyebrow={tr("YOUR LEDGER", "DEIN HAUPTBUCH")}
+        title={tr("Activity", "Aktivität")}
+        sub={tr(
+          "Decrypted with your viewing key — visible only to you. Read-only. Export for accounting or selective disclosure.",
+          "Mit deinem Viewing-Key entschlüsselt — nur für dich sichtbar. Schreibgeschützt. Export für Buchhaltung oder selektive Offenlegung.",
+        )}
       />
       <div className="actions" style={{ marginTop: 18 }}>
-        <Button sm onClick={() => setShowFilter((f) => !f)}>{showFilter ? "Hide filter" : "Filter"}</Button>
+        <Button sm onClick={() => setShowFilter((f) => !f)}>{showFilter ? tr("Hide filter", "Filter ausblenden") : tr("Filter", "Filter")}</Button>
         <Button sm onClick={exportCsv} disabled={exporting || (data?.length ?? 0) === 0}>
-          {exporting ? "Exporting…" : "Export CSV"}
+          {exporting ? tr("Exporting…", "Exportiere…") : tr("Export CSV", "CSV exportieren")}
         </Button>
         <Button sm onClick={() => nav("/compliance")}>
-          Generate receipt
+          {tr("Generate receipt", "Beleg erzeugen")}
         </Button>
       </div>
       <div className="actions" style={{ marginTop: 10, alignItems: "center", gap: 10 }}>
-        <span className="clab" style={{ marginRight: 2 }}>ACCOUNT STATEMENT</span>
+        <span className="clab" style={{ marginRight: 2 }}>{tr("ACCOUNT STATEMENT", "KONTOAUSZUG")}</span>
         <select className="input" style={{ width: "auto" }} value={stmtPeriod} onChange={(e) => setStmtPeriod(e.target.value)}>
           <option>Q2 2026</option>
           <option>Jun 2026</option>
@@ -76,7 +81,7 @@ export function Activity() {
           <option value="json">JSON</option>
         </select>
         <Button sm variant="solid" arrow onClick={exportStatement} disabled={stmtBusy}>
-          {stmtBusy ? "Generating…" : "Download statement"}
+          {stmtBusy ? tr("Generating…", "Erstelle…") : tr("Download statement", "Auszug herunterladen")}
         </Button>
       </div>
       {showFilter ? (
@@ -85,7 +90,7 @@ export function Activity() {
           style={{ marginTop: 14, maxWidth: 360 }}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Filter by recipient, purpose, chain, status…"
+          placeholder={tr("Filter by recipient, purpose, chain, status…", "Nach Empfänger, Zweck, Chain, Status filtern…")}
           autoFocus
         />
       ) : null}

@@ -19,7 +19,7 @@
   that hide the amount and the payer↔recipient link.
 - Proving runs on the user's own device (native, sub-second); a broadcast-only relayer pays the
   gas and never sees the private witness, so the payer's address never appears on-chain.
-- Self-built zero-knowledge stack on gnark (Groth16 over BN254, Poseidon2) — no GPL code.
+- Self-built zero-knowledge stack on gnark (Groth16 over BN254, Poseidon2) — shipped stack is GPL/LGPL-free.
 - Off-chain insertion: the contract computes zero hashes on-chain → about 350k gas per payment
   vs ~1.74M before (~5× less).
 

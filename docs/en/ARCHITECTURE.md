@@ -38,7 +38,7 @@ OpenCryptoPay is its first integration, but the protocol is payment-rail agnosti
 
 ## Components
 
-### `packages/prover-gnark` (Go; Apache-2 deps; proprietary code)
+### `packages/prover-gnark` (Go; Apache-2 deps; MIT code)
 The entire zero-knowledge layer, self-built on **gnark / gnark-crypto**:
 - `zk/` — Poseidon2 hash (native == in-circuit, proven by `hash_test`), the curve-free
   note scheme (`pubKey = H(privKey)`), the fixed-depth (2²⁰) Merkle tree, and the
