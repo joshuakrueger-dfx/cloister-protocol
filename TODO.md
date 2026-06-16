@@ -9,7 +9,7 @@ Erledigtes ist unten unter „Bereits live" gelistet.
 > Macht aus dem PoC-Demo einen produktionsnahen Stack. Höchste Priorität für „echt".
 
 - [ ] **Echte E-Mail-Codes** im Onboarding (Mail-Service + Endpoint) statt des on-device PoC-Codes.
-- [ ] **Echte KYC-Bindung** ans DFX-Konto — aktuell setzt `markVerifiedExternally` nur ein lokales Flag.
+- [x] **Echte KYC-Bindung** ans DFX-Konto — `getDfxKyc` liest echten Level, `KycVerify` schreibt den gemappten Tier (L1/L2/L3) per `markVerifiedExternally({level})`; `startDfxKyc` mit Fallback auf `app.dfx.swiss/kyc?session=<jwt>`. (Go-Live: nur Env setzen, siehe `GO_LIVE.md`.)
 - [ ] **Fehlerbehandlung + Retry** beim Submit (Relayer-/Netzwerkfehler, idempotent erneut senden).
 - [ ] **Relayer-/Indexer-Status (Health)** in der UI sichtbar machen.
 - [ ] **Echtes Funding vom verbundenen Wallet** (gehaltenes USDC einzahlen) — Demo mintet aktuell Test-USDC.
@@ -56,6 +56,13 @@ Erledigtes ist unten unter „Bereits live" gelistet.
 - [ ] Docs für neue Features ergänzen (Approvals, Kontoauszüge).
 
 ---
+
+## Go-Live (vorbereitet)
+Live gehen ist jetzt **Konfiguration, kein Code** — siehe `GO_LIVE.md` + `apps/web/.env.example`:
+- `VITE_API_URL` setzen → fügt „Production"-Backend hinzu + macht es zum Default (sonst Demo).
+- `VITE_DFX_API_URL` / `VITE_DFX_KYC_URL` → Prod (`api.dfx.swiss`) oder Sandbox (`dev.api.dfx.swiss`).
+- DFX-KYC-Flow vollständig verdrahtet (Connect → `/v2/kyc` Status → Continue/Hosted-Page → Session-Bindung).
+- Offene Blocker für echtes Geld: externe Audits, Trusted-Setup-Zeremonie, Backend-Deploy (Contracts/Relayer/Indexer), Mail-Backend.
 
 ## Bereits live (Referenz)
 - DFX-AG-Branding entfernt (neutral) · Verify-Identity = E-Mail+Code, KYC im Dashboard · Website-Klartext/Fakten-Fixes · Coming-Soon + Website mobil optimiert
