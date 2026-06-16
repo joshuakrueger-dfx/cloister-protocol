@@ -8,8 +8,11 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: "autoUpdate",
-      injectRegister: "auto",
+      // 'prompt' so a new deploy surfaces an in-app "update available" toast
+      // instead of silently swapping under the user. Registration is handled by
+      // the useRegisterSW() hook in <PwaPrompts>.
+      registerType: "prompt",
+      injectRegister: false,
       includeAssets: ["favicon.svg", "apple-touch-icon.png", "robots.txt"],
       manifest: {
         name: "Cloister Console",
