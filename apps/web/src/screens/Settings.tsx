@@ -8,6 +8,7 @@ import { clearVault } from "../lib/vault";
 import { toast, confirmDialog } from "../lib/overlays";
 import { getApprovalThreshold, setApprovalThreshold, getRequireApproval, setRequireApproval } from "../lib/prefs";
 import { useT } from "../lib/i18n";
+import { useTheme, setTheme } from "../lib/theme";
 
 const SHOW_BAL_KEY = "cloister.showBalances";
 
@@ -16,6 +17,7 @@ export function Settings() {
   const nav = useNavigate();
   const tr = useT();
   const { session, setSession } = useSession();
+  const theme = useTheme();
   const backend = getBackendConfig(getActiveBackendId());
   const dfxLinked = session?.dfxLinked ?? false;
 
@@ -102,6 +104,16 @@ export function Settings() {
         {/* ---- preferences ---- */}
         <Card>
           <div className="clab">{tr("PREFERENCES", "PRÄFERENZEN")}</div>
+          <div className="set-row">
+            <div>
+              <div className="set-t">{tr("Appearance", "Erscheinungsbild")}</div>
+              <div className="set-s">{tr("Light mode matches a familiar finance back-office look.", "Der helle Modus entspricht dem gewohnten Finanz-Backoffice-Look.")}</div>
+            </div>
+            <div className="seg" role="group" aria-label={tr("Appearance", "Erscheinungsbild")}>
+              <button type="button" className={theme === "light" ? "on" : ""} onClick={() => setTheme("light")}>{tr("Light", "Hell")}</button>
+              <button type="button" className={theme === "dark" ? "on" : ""} onClick={() => setTheme("dark")}>{tr("Dark", "Dunkel")}</button>
+            </div>
+          </div>
           <div className="set-row">
             <div>
               <div className="set-t">{tr("Show balances by default", "Salden standardmäßig anzeigen")}</div>
