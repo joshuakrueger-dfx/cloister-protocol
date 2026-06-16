@@ -38,9 +38,18 @@ contract ShieldedPool is ReentrancyGuard {
     uint32 public immutable levels;
     uint32 public immutable numLanes;
 
-    /// Guardian darf NUR Einzahlungen pausieren. Auszahlungen sind nie blockierbar.
+    /// Guardian darf Einzahlungen pausieren + einen zeitlich begrenzten Notfall-Stopp setzen.
     address public guardian;
     bool public depositsPaused;
+
+    /// Notfall-Kill-Switch: stoppt ALLE Transaktionen (Incident Response), läuft aber
+    /// automatisch nach MAX_EMERGENCY_PAUSE aus → der Pool kann NIE dauerhaft eingefroren
+    /// werden (Auszahlungen bleiben dauerhaft-blockier-frei). Mainnet: Guardian = Multisig.
+    uint256 public constant MAX_EMERGENCY_PAUSE = 72 hours;
+    uint256 public emergencyPausedUntil;
+
+    /// Defense-in-depth: optionaler Auszahlungs-Cap pro Transaktion (0 = aus).
+    uint256 public maxWithdrawal;
 
     /// ASP (Association-Set-Provider, z.B. DFX): veröffentlicht die Roots des Good-Sets.
     /// Compliance-Schicht: jede Zahlung bindet im Proof eine `associationRoot`; der Pool
@@ -74,6 +83,8 @@ contract ShieldedPool is ReentrancyGuard {
     event NewCommitment(uint256 indexed commitment, uint32 leafIndex, bytes encryptedOutput);
     event NewNullifier(uint256 indexed nullifier);
     event DepositsPaused(bool paused);
+    event EmergencyPaused(uint256 until);
+    event MaxWithdrawalSet(uint256 cap);
     event GuardianTransferred(address indexed previousGuardian, address indexed newGuardian);
     event AspRootPublished(uint256 indexed root);
     event AspTransferred(address indexed previousAsp, address indexed newAsp);
@@ -99,7 +110,9 @@ contract ShieldedPool is ReentrancyGuard {
         uint256 _initialAspRoot
     ) {
         require(_numLanes > 0, "numLanes");
-        require(_levels > 0 && _levels <= 32, "levels");
+        // The Groth16 circuit/verifier is fixed to a depth-20 tree; any other depth would
+        // produce roots the verifier can never match (silent functional DoS). Pin it.
+        require(_levels == 20, "levels must be 20 (circuit-fixed)");
         // Garantiert, dass der globale uint32-Leaf-Index nie überläuft/truncated:
         // max globaler Index = numLanes·2^levels - 1 muss in uint32 passen.
         require(uint256(_numLanes) << _levels <= uint256(type(uint32).max) + 1, "index space");
@@ -189,7 +202,11 @@ contract ShieldedPool is ReentrancyGuard {
         require(!nullifierSpent[inputNullifiers[0]], "input 0 spent");
         require(!nullifierSpent[inputNullifiers[1]], "input 1 spent");
 
+        require(block.timestamp >= emergencyPausedUntil, "emergency paused");
         if (extData.extAmount > 0) require(!depositsPaused, "deposits paused");
+        if (extData.extAmount < 0 && maxWithdrawal != 0) {
+            require(uint256(-extData.extAmount) <= maxWithdrawal, "withdrawal over cap");
+        }
 
         uint256 extDataHash = uint256(keccak256(abi.encode(extData))) % FIELD_SIZE;
         uint256 publicAmount = _publicAmount(extData.extAmount, extData.fee);
@@ -257,6 +274,24 @@ contract ShieldedPool is ReentrancyGuard {
     function setDepositsPaused(bool paused) external onlyGuardian {
         depositsPaused = paused;
         emit DepositsPaused(paused);
+    }
+
+    /// Time-boxed emergency stop of ALL transactions. Auto-expires after MAX_EMERGENCY_PAUSE
+    /// so the pool can never be permanently frozen.
+    function emergencyPause() external onlyGuardian {
+        emergencyPausedUntil = block.timestamp + MAX_EMERGENCY_PAUSE;
+        emit EmergencyPaused(emergencyPausedUntil);
+    }
+
+    function liftEmergencyPause() external onlyGuardian {
+        emergencyPausedUntil = 0;
+        emit EmergencyPaused(0);
+    }
+
+    /// 0 = no cap. Defense-in-depth against a verifier/circuit soundness surprise.
+    function setMaxWithdrawal(uint256 cap) external onlyGuardian {
+        maxWithdrawal = cap;
+        emit MaxWithdrawalSet(cap);
     }
 
     function transferGuardian(address newGuardian) external onlyGuardian {
