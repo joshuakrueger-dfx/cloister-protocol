@@ -32,6 +32,9 @@ import type {
   AnonymitySet,
   Approval,
   ApprovalRequest,
+  TeamMember,
+  TeamRole,
+  InviteMemberInput,
   AspStatus,
   Asset,
   Backend,
@@ -363,6 +366,44 @@ export class MockApi implements CloisterApi {
     await wait(150);
     this.approvals = this.approvals.filter((x) => x.id !== id);
     return structuredClone(this.approvals);
+  }
+
+  // ---------- team ----------
+  private team: TeamMember[] | null = null;
+  private ensureTeam(): TeamMember[] {
+    if (!this.team) {
+      this.team = [{ id: "owner", email: this.session.email ?? "you@example.com", name: "You", role: "admin", status: "active", owner: true }];
+    }
+    const owner = this.team.find((m) => m.owner);
+    if (owner && this.session.email) owner.email = this.session.email;
+    return this.team;
+  }
+
+  async getTeam(): Promise<TeamMember[]> {
+    await wait(150);
+    return structuredClone(this.ensureTeam());
+  }
+
+  async inviteMember(input: InviteMemberInput): Promise<TeamMember[]> {
+    await wait(220);
+    const t = this.ensureTeam();
+    const email = input.email.trim();
+    if (email && !t.some((m) => m.email.toLowerCase() === email.toLowerCase())) {
+      t.push({ id: uid("tm"), email, role: input.role, status: "invited" });
+    }
+    return structuredClone(t);
+  }
+
+  async updateMemberRole(id: string, role: TeamRole): Promise<TeamMember[]> {
+    await wait(150);
+    this.team = this.ensureTeam().map((m) => (m.id === id && !m.owner ? { ...m, role } : m));
+    return structuredClone(this.team);
+  }
+
+  async removeMember(id: string): Promise<TeamMember[]> {
+    await wait(150);
+    this.team = this.ensureTeam().filter((m) => m.owner || m.id !== id);
+    return structuredClone(this.team);
   }
 
   async getActivity(): Promise<Disbursement[]> {

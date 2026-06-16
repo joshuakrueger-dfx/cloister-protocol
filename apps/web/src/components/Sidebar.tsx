@@ -29,6 +29,7 @@ const OPERATE: NavDef[] = [
 ];
 const COMPLIANCE: NavDef[] = [
   { to: "/compliance", label: "Compliance Center", icon: "doc" },
+  { to: "/team", label: "Team", icon: "users" },
   { to: "/settings", label: "Settings", icon: "cog" },
 ];
 

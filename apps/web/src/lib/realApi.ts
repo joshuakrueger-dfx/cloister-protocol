@@ -29,7 +29,7 @@ import type {
   ComplianceStatus, Disbursement, Disclosure, DisclosureParams, DisburseResult,
   JurisdictionProfile, KycStatus, KycSubmitPayload, Note, PayrollSession,
   PayrollSessionParams, ProgressCallback, Receipt, ReceiptParams, Recipient,
-  Session, SingleDisburseParams, Wallet,
+  Session, SingleDisburseParams, TeamMember, TeamRole, InviteMemberInput, Wallet,
 } from "./types";
 import type { BackendConfig } from "./backends";
 import { backendsView, setActiveBackendId } from "./backends";
@@ -471,6 +471,46 @@ export class RealApi implements CloisterApi {
     const list = lsGet<Approval[]>(`${this.ns}.approvals`, []);
     const next = list.filter((x) => x.id !== id);
     lsSet(`${this.ns}.approvals`, next);
+    return next;
+  }
+
+  // ---------- team ----------
+  private teamWithOwner(): TeamMember[] {
+    const ownerEmail = lsGet<string | null>("cloister.email", null) ?? "you@example.com";
+    const stored = lsGet<TeamMember[] | null>(`${this.ns}.team`, null);
+    if (stored && stored.length) {
+      const owner = stored.find((m) => m.owner);
+      if (owner) owner.email = ownerEmail;
+      return stored;
+    }
+    const seed: TeamMember[] = [{ id: "owner", email: ownerEmail, name: "You", role: "admin", status: "active", owner: true }];
+    lsSet(`${this.ns}.team`, seed);
+    return seed;
+  }
+
+  async getTeam(): Promise<TeamMember[]> {
+    return this.teamWithOwner();
+  }
+
+  async inviteMember(input: InviteMemberInput): Promise<TeamMember[]> {
+    const t = this.teamWithOwner();
+    const email = input.email.trim();
+    if (email && !t.some((m) => m.email.toLowerCase() === email.toLowerCase())) {
+      t.push({ id: `tm_${Date.now()}`, email, role: input.role, status: "invited" });
+    }
+    lsSet(`${this.ns}.team`, t);
+    return t;
+  }
+
+  async updateMemberRole(id: string, role: TeamRole): Promise<TeamMember[]> {
+    const next = this.teamWithOwner().map((m) => (m.id === id && !m.owner ? { ...m, role } : m));
+    lsSet(`${this.ns}.team`, next);
+    return next;
+  }
+
+  async removeMember(id: string): Promise<TeamMember[]> {
+    const next = this.teamWithOwner().filter((m) => m.owner || m.id !== id);
+    lsSet(`${this.ns}.team`, next);
     return next;
   }
 

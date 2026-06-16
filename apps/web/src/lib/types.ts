@@ -180,6 +180,23 @@ export interface Approval {
 
 export type ApprovalRequest = Omit<Approval, "id" | "createdAt">;
 
+// ---------- Team / roles ----------
+// admin: manage team + initiate + approve · approver: initiate + approve
+// initiator: create payments (can't approve own) · viewer: read-only
+export type TeamRole = "admin" | "approver" | "initiator" | "viewer";
+export interface TeamMember {
+  id: string;
+  email: string;
+  name?: string;
+  role: TeamRole;
+  status: "active" | "invited";
+  owner?: boolean; // the account owner (you) — cannot be removed
+}
+export interface InviteMemberInput {
+  email: string;
+  role: TeamRole;
+}
+
 // ---------- Disbursement-Params ----------
 export interface SingleDisburseParams {
   recipient: string;

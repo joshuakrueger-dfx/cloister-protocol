@@ -20,3 +20,23 @@ export function setApprovalThreshold(n: number) {
     /* ignore */
   }
 }
+
+// Whether dual approval (four-eyes) is enforced at all. When off, payments go
+// straight through regardless of the threshold.
+const REQUIRE_KEY = "cloister.requireApproval";
+
+export function getRequireApproval(): boolean {
+  try {
+    return localStorage.getItem(REQUIRE_KEY) !== "0"; // default ON
+  } catch {
+    return true;
+  }
+}
+
+export function setRequireApproval(on: boolean) {
+  try {
+    localStorage.setItem(REQUIRE_KEY, on ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
