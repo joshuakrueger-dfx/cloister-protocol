@@ -147,6 +147,8 @@
       h2{font-size:clamp(28px,3.6vw,44px);letter-spacing:-.02em;font-weight:600;line-height:1.06}
       .sec-sub{color:var(--dim);font-size:16px;max-width:560px;margin-top:20px;line-height:1.6}
       .two{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start}
+      /* let columns shrink so the pre-formatted code block scrolls internally instead of widening the page */
+      .two>*{min-width:0}
 
       /* how it works steps */
       .steps{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:40px}
@@ -206,6 +208,30 @@
       .foot a{color:var(--dim);text-decoration:none;font-size:13px}.foot a:hover{color:var(--white)}
       .dfx{display:inline-flex;align-items:center;gap:9px;font-size:12px;color:var(--faint);margin-top:14px}
 
+      /* use-case rows are links into the docs */
+      .uclist a.uc{text-decoration:none;color:var(--white)}
+
+      /* mixer / public-chain / Cloister comparison */
+      .cmp{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:36px}
+      .cmp .col{border:1px solid var(--line);border-radius:16px;padding:24px 22px;background:rgba(255,255,255,.012)}
+      .cmp .col.on{border-color:var(--line-2);background:rgba(255,255,255,.045)}
+      .cmp .ct{font-size:15px;font-weight:600;margin-bottom:6px}
+      .cmp .cs{font-size:12px;color:var(--faint);margin-bottom:16px;min-height:2.4em;line-height:1.4}
+      .cmp .r{font-size:13.5px;color:var(--dim);line-height:1.5;padding:13px 0;border-top:1px solid var(--line);display:flex;gap:11px;align-items:flex-start}
+      .cmp .r .ico{flex:0 0 auto;margin-top:1px}
+      .cmp .r b{color:var(--white);font-weight:600}
+
+      /* FAQ */
+      .faq{margin-top:36px;border-top:1px solid var(--line)}
+      .faq details{border-bottom:1px solid var(--line)}
+      .faq summary{list-style:none;cursor:pointer;padding:20px 2px;font-size:16px;color:var(--white);display:flex;justify-content:space-between;gap:16px;align-items:center;transition:color .3s var(--ease)}
+      .faq summary:hover{color:var(--dim)}
+      .faq summary::-webkit-details-marker{display:none}
+      .faq summary .pl{color:var(--faint);transition:transform .35s var(--ease);flex:0 0 auto;font-weight:300;font-size:20px}
+      .faq details[open] summary .pl{transform:rotate(45deg)}
+      .faq .a{padding:0 2px 22px;color:var(--dim);font-size:14px;line-height:1.65;max-width:680px}
+      .faq .a a{color:var(--white);border-bottom:1px solid var(--line-2);text-decoration:none}
+
       svg{display:block}
       /* Respect users who prefer less motion: no reveal, no looping animations. */
       @media (prefers-reduced-motion:reduce){
@@ -227,7 +253,7 @@
       }
       /* Large phone */
       @media (max-width:700px){
-        .steps,.seccols{grid-template-columns:1fr}
+        .steps,.seccols,.cmp{grid-template-columns:1fr}
         .metrics{grid-template-columns:repeat(2,1fr)}
         .metric{border-left:1px solid var(--line);border-top:1px solid var(--line)}
         .metric:nth-child(2n+1){border-left:none}
@@ -260,10 +286,12 @@
         footer{margin-top:48px}
         .foot{gap:18px}
       }
-      /* Small phone */
-      @media (max-width:380px){
-        .nav-right{gap:10px}
-        .btn{padding:11px 15px;font-size:13px}
+      /* Small phone — keep the nav from overflowing on ~360–430px devices */
+      @media (max-width:440px){
+        nav{padding:14px 16px;gap:10px}
+        .nav-right{gap:9px}
+        .btn{padding:10px 13px;font-size:13px}
+        .lang button{padding:7px 9px}
         .logo span{font-size:11px}
       }
     </style>
@@ -279,6 +307,7 @@
       <div class="navlinks">
         <a href="#how" data-i18n="nav.how"></a><a href="#usecases" data-i18n="nav.uc"></a>
         <a href="#developers" data-i18n="nav.dev"></a><a href="#security" data-i18n="nav.sec"></a>
+        <a href="#faq" data-i18n="faq.label"></a>
         <a href="https://docs.cloister-protocol.com" data-i18n="nav.docs"></a>
       </div>
       <div class="nav-right">
@@ -318,11 +347,11 @@
 
       <!-- METRICS -->
       <section class="metrics reveal">
-        <div class="metric"><div class="n">~350k</div><div class="l" data-i18n="m.gas"></div></div>
+        <div class="metric"><div class="n">0</div><div class="l" data-i18n="m.leak"></div></div>
         <div class="metric"><div class="n">~5×</div><div class="l" data-i18n="m.less"></div></div>
-        <div class="metric"><div class="n">0</div><div class="l" data-i18n="m.poseidon"></div></div>
-        <div class="metric"><div class="n">6 / 6</div><div class="l" data-i18n="m.lanes"></div></div>
-        <div class="metric"><div class="n">~56.7k</div><div class="l" data-i18n="m.constraints"></div></div>
+        <div class="metric"><div class="n">~350k</div><div class="l" data-i18n="m.gas"></div></div>
+        <div class="metric"><div class="n">&lt;&#8201;1&#8201;s</div><div class="l" data-i18n="m.proof"></div></div>
+        <div class="metric"><div class="n">3+</div><div class="l" data-i18n="m.chains"></div></div>
       </section>
 
       <!-- POSITIONING -->
@@ -330,6 +359,26 @@
         <div class="sec-label"><span class="sq"></span><span data-i18n="pos.label"></span></div>
         <h2 data-i18n="pos.title"></h2>
         <p class="sec-sub" data-i18n="pos.text"></p>
+        <div class="cmp reveal">
+          <div class="col">
+            <div class="ct" data-i18n="cmp.c1t"></div>
+            <div class="cs" data-i18n="cmp.c1s"></div>
+            <div class="r">__XMARK__ <span data-i18n="cmp.c1p"></span></div>
+            <div class="r">__CHECK__ <span data-i18n="cmp.c1c"></span></div>
+          </div>
+          <div class="col">
+            <div class="ct" data-i18n="cmp.c2t"></div>
+            <div class="cs" data-i18n="cmp.c2s"></div>
+            <div class="r">__CHECK__ <span data-i18n="cmp.c2p"></span></div>
+            <div class="r">__XMARK__ <span data-i18n="cmp.c2c"></span></div>
+          </div>
+          <div class="col on">
+            <div class="ct" data-i18n="cmp.c3t"></div>
+            <div class="cs" data-i18n="cmp.c3s"></div>
+            <div class="r">__CHECK__ <span data-i18n="cmp.c3p"></span></div>
+            <div class="r">__CHECK__ <span data-i18n="cmp.c3c"></span></div>
+          </div>
+        </div>
       </section>
 
       <!-- FEATURES -->
@@ -362,11 +411,11 @@
             <div class="sec-label"><span class="sq"></span><span data-i18n="uc.label"></span></div>
             <h2 data-i18n="uc.title"></h2>
             <div class="uclist">
-              <div class="uc"><span data-i18n="uc.1"></span><span class="arr">→</span></div>
-              <div class="uc"><span data-i18n="uc.2"></span><span class="arr">→</span></div>
-              <div class="uc"><span data-i18n="uc.3"></span><span class="arr">→</span></div>
-              <div class="uc"><span data-i18n="uc.4"></span><span class="arr">→</span></div>
-              <div class="uc"><span data-i18n="uc.5"></span><span class="arr">→</span></div>
+              <a class="uc" href="https://docs.cloister-protocol.com/concept-pay.html"><span data-i18n="uc.1"></span><span class="arr">→</span></a>
+              <a class="uc" href="https://docs.cloister-protocol.com/why-cloister.html"><span data-i18n="uc.2"></span><span class="arr">→</span></a>
+              <a class="uc" href="https://docs.cloister-protocol.com/why-cloister.html"><span data-i18n="uc.3"></span><span class="arr">→</span></a>
+              <a class="uc" href="https://docs.cloister-protocol.com/why-cloister.html"><span data-i18n="uc.4"></span><span class="arr">→</span></a>
+              <a class="uc" href="https://docs.cloister-protocol.com/how-it-works.html"><span data-i18n="uc.5"></span><span class="arr">→</span></a>
             </div>
           </div>
           <div class="reveal" id="developers">
@@ -383,6 +432,13 @@
   recipient: <span class="s">"0x8a2…ff3c"</span>,
   amount: <span class="s">"250"</span>,
 });</div></div>
+            <div class="prims">
+              <span class="prim" data-i18n-html="p.1"></span>
+              <span class="prim" data-i18n-html="p.2"></span>
+              <span class="prim" data-i18n-html="p.3"></span>
+              <span class="prim" data-i18n-html="p.4"></span>
+              <span class="prim" data-i18n-html="p.5"></span>
+            </div>
           </div>
         </div>
       </section>
@@ -426,6 +482,21 @@
         </div>
       </section>
 
+      <!-- FAQ -->
+      <section class="section" id="faq">
+        <div class="reveal">
+          <div class="sec-label"><span class="sq"></span><span data-i18n="faq.label"></span></div>
+          <h2 data-i18n="faq.title"></h2>
+        </div>
+        <div class="faq reveal">
+          <details><summary><span data-i18n="faq.q1"></span><span class="pl">+</span></summary><div class="a" data-i18n="faq.a1"></div></details>
+          <details><summary><span data-i18n="faq.q2"></span><span class="pl">+</span></summary><div class="a" data-i18n="faq.a2"></div></details>
+          <details><summary><span data-i18n="faq.q3"></span><span class="pl">+</span></summary><div class="a" data-i18n="faq.a3"></div></details>
+          <details><summary><span data-i18n="faq.q4"></span><span class="pl">+</span></summary><div class="a" data-i18n="faq.a4"></div></details>
+        </div>
+        <a class="link" href="https://docs.cloister-protocol.com/faq.html" style="margin-top:26px"><span data-i18n="faq.more"></span><span class="arr">→</span></a>
+      </section>
+
       <!-- FINAL CTA -->
       <section class="section" style="border:none">
         <div class="glass cta-final reveal">
@@ -453,6 +524,7 @@
         <div class="flinks">
           <a href="#how" data-i18n="nav.how"></a><a href="#usecases" data-i18n="nav.uc"></a>
           <a href="#developers" data-i18n="nav.dev"></a><a href="#security" data-i18n="nav.sec"></a>
+          <a href="#faq" data-i18n="faq.label"></a>
           <a href="https://docs.cloister-protocol.com" data-i18n="nav.docs"></a>
         </div>
       </div>
@@ -469,12 +541,14 @@
           "btn.launch":"App ansehen","btn.docs":"Doku lesen",
           "hero.eyebrow":"EIN PRODUKT DER DFX AG · PRIVACY-PROTOKOLL",
           "hero.title":"Privatsphäre für Zahlungen<br>auf jeder EVM-Chain.",
-          "hero.sub":"Cloister ist ein abgeschirmter Zahlungspool, der die Verknüpfung zwischen Wallet und Zahlung bricht. Niemand — weder Händler, On-chain-Beobachter noch der Settlement-Broker — erfährt die Zahler-Adresse oder kann daraus ein Vermögen ableiten.",
+          "hero.sub":"Heute legt jede Stablecoin-Zahlung deine Adresse, den Betrag und dein ganzes Guthaben offen — für alle sichtbar. Mit Cloister zahlst du stattdessen privat — und weist trotzdem nach, dass deine Mittel sauber sind. Privatsphäre mit Rechenschaft, kein anonymer Mixer.",
           "pos.label":"WARUM CLOISTER",
           "pos.title":"Privatsphäre, die im Gesetz bleibt.",
-          "pos.text":"Cloister existiert aus einem einzigen Grund: damit niemand mitliest, was du zahlst, an wen oder wie viel du hältst. Nicht, um Regeln zu umgehen — sondern von Grund auf gebaut, um EU- und US-Regulierung zu erfüllen: geprüfte Einzahlungen und Viewing-Keys allein für berechtigte Auditoren. Überwachungsfrei und compliant zugleich.",
+          "pos.text":"Cloister existiert aus einem einzigen Grund: damit niemand mitliest, was du zahlst, an wen oder wie viel du hältst. Nicht, um Regeln zu umgehen — sondern von Grund auf auf EU- und US-Regulierung ausgelegt: geprüfte Einzahlungen und Viewing-Keys allein für berechtigte Auditoren. Überwachungsfrei und compliant zugleich.",
           "flow.sender":"Sender","flow.recipient":"Empfänger","flow.cap":"Zahlungen bleiben privat — auf jeder EVM-Chain.","flow.more":"… und mehr",
-          "m.gas":"Gas pro Zahlung","m.less":"weniger Gas als zuvor","m.poseidon":"Poseidon-Hashes on-chain","m.lanes":"Zahlungen parallel in einem Block","m.constraints":"Circuit-Constraints",
+          "m.leak":"deiner Adresse oder Beträge werden öffentlich","m.less":"günstiger pro Zahlung","m.gas":"Gas pro Zahlung","m.proof":"Beweis direkt auf deinem Gerät","m.chains":"EVM-Chains zum Start: Base, Polygon, Arbitrum",
+          "cmp.label":"DER UNTERSCHIED","cmp.title":"Warum kein Mixer?","cmp.c1t":"Öffentliche Chain","cmp.c1s":"Der Status quo","cmp.c1p":"Adresse, Betrag & Guthaben für alle sichtbar","cmp.c1c":"Compliance trivial — aber keinerlei Privatsphäre","cmp.c2t":"Anonymer Mixer","cmp.c2s":"Privatsphäre um jeden Preis","cmp.c2p":"Volle Privatsphäre der Zahlung","cmp.c2c":"Herkunft unbekannt → sanktioniert, für Regulierte unbrauchbar","cmp.c3t":"Cloister","cmp.c3s":"Privatsphäre mit Rechenschaft","cmp.c3p":"Volle Privatsphäre der Zahlung","cmp.c3c":"Saubere Herkunft beweisbar + prüfbare Offenlegung für Auditoren",
+          "faq.label":"FAQ","faq.title":"Häufige Fragen","faq.q1":"Ist Cloister ein anonymer Mixer?","faq.a1":"Nein. Mittel gelangen nur über eine KYC-geprüfte Quelle in den Pool, und jede Auszahlung beweist in Zero-Knowledge die Zugehörigkeit zu einem geprüften Compliance-Set. Privatsphäre mit nachweisbar sauberer Herkunft — kein anonymer Mixer.","faq.q2":"Wie kann es privat sein, wenn die Blockchain öffentlich ist?","faq.a2":"Im Pool liegt Guthaben als verschlüsseltes Commitment (Hash), nicht als Saldo. Ein zk-SNARK autorisiert die Zahlung, ein Relayer sendet sie und zahlt das Gas — deine Adresse erscheint nie als Absender oder in den Transaktionsdaten.","faq.q3":"Können Bank oder Behörde meine Mittel trotzdem prüfen?","faq.a3":"Ja. Viewing-Keys geben berechtigten Auditoren selektive, nachprüfbare Einsicht in genau die Transaktionen, die offengelegt werden sollen — ohne alles andere preiszugeben und ohne jegliches Ausgabe-Recht.","faq.q4":"Welche Chains werden unterstützt und ist es produktionsreif?","faq.a4":"Jede EVM-Chain (zum Start Base, Polygon, Arbitrum). Cloister ist ein Proof of Concept — externe Audits und eine Multi-Party-Setup-Zeremonie stehen vor dem Mainnet noch aus.","faq.more":"Alle Antworten in der Doku-FAQ",
           "v1.t":"Privatsphäre als Standard","v1.d":"Eine Zahlung verrät nicht, wer zahlt: Die Zahler-Adresse taucht weder als Absender noch in den Transaktionsdaten auf.",
           "v2.t":"Jede EVM-Chain","v2.d":"Identische Contracts, einmal kompilierte Circuits — deploybar auf jede EVM-L2; im Fokus Polygon, Base und Arbitrum.",
           "v3.t":"Gebaut für Entwickler","v3.d":"Offene, additive Erweiterung mit HTTP-API und SDK: Jedes Wallet und jeder Anbieter kann integrieren — ohne Lock-in.",
@@ -486,11 +560,11 @@
           "s4.t":"Parallele Lanes","s4.d":"Mehrere unabhängige Lanes lassen Zahlungen parallel in denselben Block fließen (im PoC 6 von 6). View-Tags lassen Wallets ihre eigenen Notizen schnell finden — ohne fremde zu entschlüsseln.",
           "uc.label":"ANWENDUNGSFÄLLE","uc.title":"Privatsphäre für echte Zahlungen.","uc.1":"Private Händlerzahlungen an der Kasse","uc.2":"Auszahlungen an DAO-Mitwirkende","uc.3":"B2B-Abwicklungen ohne offengelegte Gegenpartei","uc.4":"Gehaltsähnliche Überweisungen","uc.5":"Privater Cross-Chain-Checkout",
           "dev.label":"FÜR ENTWICKLER","dev.title":"Privatzahlungen in Minuten integrieren.","dev.sub":"Cloister ist als offener Standard konzipiert: Jedes Wallet und jeder Zahlungsanbieter kann es implementieren — ohne Erlaubnis oder Abhängigkeit, rückwärtskompatibel.","dev.cmt":"// jede EVM-Chain","dev.cta":"Dokumentation ansehen",
-          "p.1":"zk-SNARKs · <b>Groth16</b> / BN254","p.2":"<b>Poseidon</b>-Hashing","p.3":"<b>BabyJubJub</b>-Schlüssel","p.4":"Encrypted-UTXO-Modell","p.5":"On-chain-Verifikation · Nullifier gegen Double-Spend",
-          "tx.label":"ABGESCHIRMT BY DESIGN","tx.title":"Sensible Details lösen sich in Rauch auf.","tx.sub":"Fahre über ein Feld, um zu sehen, was ein Beobachter erfährt — und was nicht. Adressen und Beträge werden zu „Privat“; die Zahlung wird trotzdem on-chain abgerechnet.",
+          "p.1":"zk-SNARKs · <b>Groth16</b> / BN254","p.2":"<b>Poseidon2</b>-Hashing","p.3":"<b>Curve-free</b> Keys · H(privKey)","p.4":"Encrypted-UTXO-Modell","p.5":"<b>50.481</b> Circuit-Constraints · Nullifier gegen Double-Spend",
+          "tx.label":"ABGESCHIRMT BY DESIGN","tx.title":"Sensible Details lösen sich in Rauch auf.","tx.sub":"Fahre über ein Feld — am Handy: tippe — um zu sehen, was ein Beobachter erfährt und was nicht. Adressen und Beträge werden zu „Privat“; die Zahlung wird trotzdem on-chain abgerechnet.",
           "tx.head":"LETZTE PRIVATE TX","tx.live":"live","tx.from":"Von","tx.to":"An","tx.amount":"Betrag","tx.chain":"Chain","tx.status":"Status","tx.statusv":"Abgeschirmt","tx.ph.private":"Privat","tx.ph.shielded":"Abgeschirmt",
           "sec.label":"COMPLIANCE & SICHERHEIT","sec.title":"Compliant by design.","sec.sub":"Cloister ist kein anonymer Mixer, sondern abgeschirmte Privatsphäre mit Rechenschaft — gebaut für regulierte Anbieter in Europa. Association-Sets und Viewing-Keys ermöglichen selektive, prüfbare Offenlegung, während die Privatsphäre des Zahlers gewahrt bleibt.",
-          "sec.hard":"Gehärtet & auditiert","sec.h1":"Reentrancy geschlossen: strikte Checks-Effects-Interactions, ReentrancyGuard und SafeERC20 für alle Transfers.","sec.h2":"Circuit gehärtet: der Spending-Skalar ist an die Untergruppenordnung gebunden (kein Self-Double-Spend); Werterhaltung mit 248-Bit-Range-Checks.","sec.h3":"Registry abgesichert: Ownable2Step, Zero-Checks und append-only Registrierung mit sichtbarer Migration.","sec.h4":"On-chain-Groth16-Verifikation und ein globaler Nullifier-Set verhindern Double-Spends.",
+          "sec.hard":"Gehärtet & auditiert","sec.h1":"Reentrancy geschlossen: strikte Checks-Effects-Interactions, ReentrancyGuard und SafeERC20 für alle Transfers.","sec.h2":"Circuit gehärtet: curve-free Keys (pubKey = H(privKey)) eliminieren die BabyJubJub-Self-Double-Spend-Klasse strukturell; Werterhaltung mit 248-Bit-Range-Checks.","sec.h3":"Registry abgesichert: Ownable2Step, Zero-Checks und append-only Registrierung mit sichtbarer Migration.","sec.h4":"On-chain-Groth16-Verifikation und ein globaler Nullifier-Set verhindern Double-Spends.",
           "sec.req":"Compliance & Governance","sec.r1":"Association-Set-Inclusion: nur Mittel aus geprüften Quellen werden zugelassen.","sec.r2":"Viewing-Key-Offenlegung: selektive, prüfbare Einsicht für berechtigte Auditoren — kein „Alles-oder-Nichts“.","sec.r3":"Neutrale Governance: offene Rollen für Wallet, PSP, Relayer und Pool — keine zwingende zentrale Instanz.","sec.poc":"Auf europäische Regulierung (MiCA) ausgelegt",
           "cta.title":"Bau Privatsphäre in deine Zahlungen ein.","cta.sub":"Lies die Architektur, das Compliance-Modell und die API. Private, compliant-fähige Zahlungen auf jeder EVM-Chain.",
           "about.dfx":"Cloister ist ein Produkt der DFX AG — eigenständige, geteilte Privacy-Infrastruktur für Zahlungen auf jeder EVM-Chain.",
@@ -501,12 +575,14 @@
           "btn.launch":"View App","btn.docs":"Read Docs",
           "hero.eyebrow":"A PRODUCT OF DFX AG · PRIVACY PROTOCOL",
           "hero.title":"Privacy for payments<br>on any EVM chain.",
-          "hero.sub":"Cloister is a shielded payment pool that breaks the link between wallet and payment. Nobody — not the merchant, not an on-chain observer, not even the settlement broker — learns the payer's address or can derive their wealth from it.",
+          "hero.sub":"Today every stablecoin payment publishes your address, the amount, and your whole balance for the world to see. Cloister lets you pay privately instead — while still proving your funds are clean. Privacy with accountability, not an anonymous mixer.",
           "pos.label":"WHY CLOISTER",
           "pos.title":"Privacy that stays inside the law.",
-          "pos.text":"Cloister exists for one reason: so that no one can watch what you pay, to whom, or how much you hold. Not to slip past the rules — it's built from the ground up to meet EU and US regulation: screened deposits and viewing keys reserved for authorized auditors. Surveillance-free and compliant at once.",
+          "pos.text":"Cloister exists for one reason: so that no one can watch what you pay, to whom, or how much you hold. Not to slip past the rules — it's designed from the ground up for EU and US regulatory expectations: screened deposits and viewing keys reserved for authorized auditors. Surveillance-free and compliant at once.",
           "flow.sender":"Sender","flow.recipient":"Recipient","flow.cap":"Payments stay private — on any EVM chain.","flow.more":"… and more",
-          "m.gas":"Gas per payment","m.less":"less gas than before","m.poseidon":"Poseidon hashes on-chain","m.lanes":"payments parallel in one block","m.constraints":"circuit constraints",
+          "m.leak":"of your address or amounts made public","m.less":"cheaper per payment","m.gas":"gas per payment","m.proof":"proof, right on your device","m.chains":"EVM chains at launch: Base, Polygon, Arbitrum",
+          "cmp.label":"THE DIFFERENCE","cmp.title":"Why not a mixer?","cmp.c1t":"Public chain","cmp.c1s":"The status quo","cmp.c1p":"Address, amount & balance public to everyone","cmp.c1c":"Compliance is trivial — but there's zero privacy","cmp.c2t":"Anonymous mixer","cmp.c2s":"Privacy at any cost","cmp.c2p":"Full payment privacy","cmp.c2c":"Unknown origin → sanctioned, unusable for regulated firms","cmp.c3t":"Cloister","cmp.c3s":"Privacy with accountability","cmp.c3p":"Full payment privacy","cmp.c3c":"Provable clean origin + auditable disclosure for auditors",
+          "faq.label":"FAQ","faq.title":"Common questions","faq.q1":"Is Cloister an anonymous mixer?","faq.a1":"No. Funds only enter the pool through a KYC-screened source, and every payout proves in zero knowledge that it belongs to a screened compliance set. Privacy with provably clean origin — not an anonymous mixer.","faq.q2":"How is it private if the blockchain is public?","faq.a2":"Inside the pool, value is held as an encrypted commitment (a hash), not a balance. A zk-SNARK authorizes the payment and a relayer broadcasts it and pays the gas — your address never appears as the sender or in the transaction data.","faq.q3":"Can a bank or authority still check my funds?","faq.a3":"Yes. Viewing keys give authorized auditors selective, verifiable insight into exactly the transactions you choose to disclose — without exposing anything else, and without any ability to spend.","faq.q4":"Which chains are supported, and is it production-ready?","faq.a4":"Any EVM chain (Base, Polygon and Arbitrum at launch). Cloister is a Proof of Concept — external audits and a multi-party trusted-setup ceremony are still pending before mainnet.","faq.more":"All answers in the docs FAQ",
           "v1.t":"Privacy by default","v1.d":"A payment never reveals who pays: the payer's address appears neither as sender nor in the transaction data.",
           "v2.t":"Any EVM chain","v2.d":"Identical contracts, once-compiled circuits — deployable to any EVM L2; focused on Polygon, Base and Arbitrum.",
           "v3.t":"Built for builders","v3.d":"An open, additive extension with HTTP API and SDK: any wallet and any provider can integrate — with no lock-in.",
@@ -518,12 +594,12 @@
           "s4.t":"Parallel lanes","s4.d":"Multiple independent lanes let payments land in the same block in parallel (6 of 6 in the PoC). View tags let wallets find their own notes quickly — without decrypting anyone else's.",
           "uc.label":"USE CASES","uc.title":"Privacy for real-world payments.","uc.1":"Private merchant payments at checkout","uc.2":"DAO contributor payouts","uc.3":"B2B settlements without an exposed counterparty","uc.4":"Payroll-style transfers","uc.5":"Cross-chain private checkout",
           "dev.label":"FOR DEVELOPERS","dev.title":"Integrate private payments in minutes.","dev.sub":"Cloister is designed as an open standard: any wallet and any payment provider can implement it — without permission or dependency, backward-compatible.","dev.cmt":"// any EVM chain","dev.cta":"View documentation",
-          "p.1":"zk-SNARKs · <b>Groth16</b> / BN254","p.2":"<b>Poseidon</b> hashing","p.3":"<b>BabyJubJub</b> keys","p.4":"Encrypted-UTXO model","p.5":"On-chain verification · nullifiers prevent double-spend",
-          "tx.label":"SHIELDED BY DESIGN","tx.title":"Sensitive details vanish into smoke.","tx.sub":"Hover any field to see what an observer can — and cannot — learn. Addresses and amounts dissolve to “Private”; the payment still settles on-chain.",
+          "p.1":"zk-SNARKs · <b>Groth16</b> / BN254","p.2":"<b>Poseidon2</b> hashing","p.3":"<b>Curve-free</b> keys · H(privKey)","p.4":"Encrypted-UTXO model","p.5":"<b>50,481</b> circuit constraints · nullifiers prevent double-spend",
+          "tx.label":"SHIELDED BY DESIGN","tx.title":"Sensitive details vanish into smoke.","tx.sub":"Hover any field — or tap on mobile — to see what an observer can and cannot learn. Addresses and amounts dissolve to “Private”; the payment still settles on-chain.",
           "tx.head":"LATEST PRIVATE TX","tx.live":"live","tx.from":"From","tx.to":"To","tx.amount":"Amount","tx.chain":"Chain","tx.status":"Status","tx.statusv":"Shielded","tx.ph.private":"Private","tx.ph.shielded":"Shielded",
           "sec.label":"COMPLIANCE & SECURITY","sec.title":"Compliant by design.","sec.sub":"Cloister is not an anonymous mixer — it is shielded privacy with accountability, built for regulated providers in Europe. Association sets and viewing keys enable selective, auditable disclosure while preserving the payer's privacy.",
-          "sec.hard":"Hardened & audited","sec.h1":"Reentrancy closed: strict checks-effects-interactions, a ReentrancyGuard and SafeERC20 on all transfers.","sec.h2":"Circuit hardened: the spending scalar is bound to the subgroup order (no self-double-spend); value conservation with 248-bit range checks.","sec.h3":"Registry secured: Ownable2Step, zero-checks and an append-only registration with visible migration.","sec.h4":"On-chain Groth16 verification and a global nullifier set prevent double-spends.",
-          "sec.req":"Compliance & governance","sec.r1":"Association-set inclusion: only funds from screened sources are admitted.","sec.r2":"Viewing-key disclosure: selective, auditable insight for authorized auditors — never all-or-nothing.","sec.r3":"Neutral governance: open roles for wallet, PSP, relayer and pool — no mandatory central party.","sec.poc":"Built for European regulation (MiCA)",
+          "sec.hard":"Hardened & audited","sec.h1":"Reentrancy closed: strict checks-effects-interactions, a ReentrancyGuard and SafeERC20 on all transfers.","sec.h2":"Circuit hardened: curve-free keys (pubKey = H(privKey)) structurally eliminate the BabyJubJub self-double-spend class; value conservation with 248-bit range checks.","sec.h3":"Registry secured: Ownable2Step, zero-checks and an append-only registration with visible migration.","sec.h4":"On-chain Groth16 verification and a global nullifier set prevent double-spends.",
+          "sec.req":"Compliance & governance","sec.r1":"Association-set inclusion: only funds from screened sources are admitted.","sec.r2":"Viewing-key disclosure: selective, auditable insight for authorized auditors — never all-or-nothing.","sec.r3":"Neutral governance: open roles for wallet, PSP, relayer and pool — no mandatory central party.","sec.poc":"Designed for European regulation (MiCA)",
           "cta.title":"Build privacy into your payments.","cta.sub":"Read the architecture, the compliance model and the API. Private, compliance-ready payments on any EVM chain.",
           "about.dfx":"Cloister is a product of DFX AG — independent, shared privacy infrastructure for payments on any EVM chain.",
           "foot.tag":"Compliance-minded privacy for payments on any EVM chain.","foot.dfx":"A product of DFX AG · Switzerland","foot.rights":"© 2026 DFX AG · All rights reserved.",
@@ -550,6 +626,7 @@
         __LOCK_SM__:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f4f5f7" stroke-width="1.6"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
         __SHIELD_SM__:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9aa" stroke-width="1.6"><path d="M12 3l7 3v5c0 4.4-3 8-7 10-4-2-7-5.6-7-10V6z"/></svg>',
         __CHECK__:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f4f5f7" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>',
+        __XMARK__:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7a7d85" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>',
         __ARROW__:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9aa" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M9 13l3 3 3-3"/></svg>',
         __LOGO__:'<svg class="logomark" width="56" height="16" viewBox="0 0 120 32" fill="none" aria-label="Cloister"><circle cx="13" cy="16" r="9" fill="#f4f5f7"/><rect x="27" y="14.4" width="16" height="3.2" rx="1.6" fill="#f4f5f7"/><circle cx="60" cy="16" r="8.5" stroke="#f4f5f7" stroke-width="3"/><rect x="77" y="14.4" width="16" height="3.2" rx="1.6" fill="#f4f5f7"/><circle cx="107" cy="16" r="9" fill="#f4f5f7"/></svg>',
       };
@@ -565,15 +642,23 @@
           const real = el.querySelector(".real"), placeholder = el.querySelector(".placeholder");
           const refreshPh = () => { placeholder.textContent = el.getAttribute("data-ph") || "Private"; };
           refreshPh();
-          el.addEventListener("mouseenter", () => {
+          const dissolve = () => {
             refreshPh();
             [...real.children].forEach((ch, i) => setTimeout(() => { ch.style.filter = "blur(6px)"; ch.style.opacity = "0"; ch.style.transform = "translateY(-6px) scale(1.4)"; }, i * 22));
             puff(el); setTimeout(() => { placeholder.style.opacity = "1"; }, 180);
-          });
-          el.addEventListener("mouseleave", () => {
+          };
+          const restore = () => {
             placeholder.style.opacity = "0";
             [...real.children].forEach((ch, i) => setTimeout(() => { ch.style.filter = "none"; ch.style.opacity = "1"; ch.style.transform = "none"; }, i * 14));
-          });
+          };
+          // Touch devices have no hover, so let a tap toggle the field; desktop uses hover.
+          if (matchMedia("(pointer: coarse)").matches) {
+            el.style.cursor = "pointer";
+            el.addEventListener("click", () => { el._shown = !el._shown; el._shown ? dissolve() : restore(); });
+          } else {
+            el.addEventListener("mouseenter", dissolve);
+            el.addEventListener("mouseleave", restore);
+          }
         });
       }
       function puff(el) {
