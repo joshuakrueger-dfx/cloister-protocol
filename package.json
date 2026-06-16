@@ -17,7 +17,9 @@
     "demo:trace": "node apps/demo/src/trace-audit.js",
     "demo:spike": "node apps/demo/src/prover-spike.mjs",
     "app": "pnpm --filter @cloister/web dev",
-    "dev:stack": "bash scripts/dev-stack.sh"
+    "dev:stack": "bash scripts/dev-stack.sh",
+    "docs:build": "node docs-site/build.mjs",
+    "docs:deploy": "node docs-site/build.mjs && npx wrangler pages deploy docs-site/dist --project-name cloister-docs --branch=main"
   },
   "engines": {
     "node": ">=20"
