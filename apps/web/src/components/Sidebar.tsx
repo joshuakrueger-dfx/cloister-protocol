@@ -4,6 +4,13 @@ import type { IconName } from "./icons";
 import { useSession } from "../lib/SessionProvider";
 import { useApi } from "../lib/ApiProvider";
 import { useAsync } from "../lib/useAsync";
+import { useT } from "../lib/i18n";
+
+const NAV_DE: Record<string, string> = {
+  Overview: "Übersicht", Fund: "Einzahlen", Disburse: "Auszahlen", Approvals: "Freigaben",
+  Recipients: "Empfänger", Activity: "Aktivität", "Compliance Center": "Compliance-Center", Settings: "Einstellungen",
+};
+const SEC_DE: Record<string, string> = { OPERATE: "BETRIEB", COMPLIANCE: "COMPLIANCE" };
 
 interface NavDef {
   to: string;
@@ -26,9 +33,10 @@ const COMPLIANCE: NavDef[] = [
 ];
 
 function Section({ title, items, onNav }: { title: string; items: NavDef[]; onNav: () => void }) {
+  const tr = useT();
   return (
     <>
-      <div className="navsec">{title}</div>
+      <div className="navsec">{tr(title, SEC_DE[title] ?? title)}</div>
       {items.map((n) => (
         <NavLink
           key={n.to}
@@ -39,7 +47,7 @@ function Section({ title, items, onNav }: { title: string; items: NavDef[]; onNa
           <span className="ic">
             <Icon name={n.icon} />
           </span>
-          {n.label}
+          {tr(n.label, NAV_DE[n.label] ?? n.label)}
           {n.badge ? <span className="badge">{n.badge}</span> : null}
         </NavLink>
       ))}
