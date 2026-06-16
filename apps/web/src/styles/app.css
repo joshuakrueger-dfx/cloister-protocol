@@ -1207,3 +1207,32 @@ textarea.input {
   transition: border-color 0.25s, color 0.25s, background 0.25s;
 }
 .theme-btn:hover { color: var(--white); border-color: var(--line-2); background: var(--fill-2); }
+
+/* ---------- Kontierung (cost-accounting block on Disburse) ---------- */
+.acct-block { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 6px; }
+.acct-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px 2px;
+  cursor: pointer;
+}
+.acct-toggle:hover { color: var(--white); }
+.acct-chev { color: var(--faint); font-size: 11px; }
+.acct-badge {
+  margin-left: 8px;
+  font-size: 10px;
+  color: var(--ok);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1px 6px;
+  letter-spacing: 0;
+}

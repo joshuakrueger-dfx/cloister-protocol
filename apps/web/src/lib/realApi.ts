@@ -379,7 +379,7 @@ export class RealApi implements CloisterApi {
     this.markSpent(note.index);
     onProgress?.({ progress: 100, html: "<span class='ok'>✓ settled</span> · change note returned · nothing linkable on-chain" });
     const id = `tx_${Date.now()}`;
-    this.pushActivity({ id, date: todayLabel(), recipient: params.recipient, purpose: params.memo || "Single payment", amount: fmtAmount(payAmt, params.asset), chain: "Base", compliance: "clean", status: "settled" });
+    this.pushActivity({ id, date: todayLabel(), recipient: params.recipient, purpose: params.memo || "Single payment", amount: fmtAmount(payAmt, params.asset), chain: "Base", compliance: "clean", status: "settled", ...(params.accounting ? { accounting: params.accounting } : {}) });
     await this.sync();
     return { id, status: "settled", receiptAvailable: true };
   }
@@ -391,7 +391,7 @@ export class RealApi implements CloisterApi {
     for (const row of params.rows) {
       const amt = row.amount.split(" ")[0];
       const asset = (row.amount.split(" ")[1] as Asset) || "USDC";
-      await this.disburseSingle({ recipient: row.address, amount: amt, asset, memo: `Batch · ${row.role}` }, (s) => {
+      await this.disburseSingle({ recipient: row.address, amount: amt, asset, memo: `Batch · ${row.role}`, accounting: row.accounting }, (s) => {
         if (s.progress === 100) return;
         const base = 6 + Math.round((done / total) * 88);
         onProgress?.({ progress: Math.min(base + Math.round((s.progress * 0.88) / total), 96), html: `[${done + 1}/${total}] ${s.html}` });
@@ -460,7 +460,7 @@ export class RealApi implements CloisterApi {
     const a = list.find((x) => x.id === id);
     if (!a) throw new Error("approval not found");
     if (a.kind === "single" && a.single) {
-      await this.disburseSingle({ recipient: a.single.recipient, amount: a.single.amount, asset: a.single.asset, memo: a.single.memo }, onProgress);
+      await this.disburseSingle({ recipient: a.single.recipient, amount: a.single.amount, asset: a.single.asset, memo: a.single.memo, accounting: a.single.accounting }, onProgress);
     } else if (a.kind === "batch" && a.batch) {
       await this.disburseBatch({ rows: a.batch.rows }, onProgress);
     }
