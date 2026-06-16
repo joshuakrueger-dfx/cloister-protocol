@@ -86,6 +86,14 @@ const TX: Array<[string, string, string, string, string, Disbursement["status"]]
   ["Auditor", "DAO payout", "6,000 USDC", "Arbitrum", "clean", "settled"],
 ];
 
+// A few seeded payments carry Kontierung so Activity + the accounting export
+// show realistic coding out of the box (demo backend).
+const TX_ACCT: Record<number, Disbursement["accounting"]> = {
+  0: { costCenter: "2000", glAccount: "6300", project: "P-2026-A", postingDate: "2026-06-12", taxCode: "19" },
+  1: { costCenter: "5000", glAccount: "6200", project: "P-0001", postingDate: "2026-06-11" },
+  4: { costCenter: "6000", glAccount: "6300", postingDate: "2026-06-08" },
+};
+
 function txToDisbursement(
   t: (typeof TX)[number],
   i: number,
@@ -100,7 +108,12 @@ function txToDisbursement(
     chain: t[3],
     compliance: "clean",
     status: t[5],
+    ...(TX_ACCT[i] ? { accounting: TX_ACCT[i] } : {}),
   };
+}
+
+function shortDate(d: Date): string {
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export class MockApi implements CloisterApi {
@@ -278,7 +291,19 @@ export class MockApi implements CloisterApi {
       onProgress?.({ progress: p, html: t });
     }
     await wait(300);
-    return { id: uid("tx"), status: "settled", receiptAvailable: true };
+    const id = uid("tx");
+    this.appended.unshift({
+      id,
+      date: shortDate(new Date()),
+      recipient: params.recipient.split(" · ")[0] || params.recipient,
+      purpose: params.memo || "Payment",
+      amount: `${params.amount} ${params.asset}`,
+      chain: "Base",
+      compliance: "clean",
+      status: "settled",
+      ...(params.accounting ? { accounting: params.accounting } : {}),
+    });
+    return { id, status: "settled", receiptAvailable: true };
   }
 
   async disburseBatch(
@@ -295,6 +320,20 @@ export class MockApi implements CloisterApi {
     for (const [p, t] of steps) {
       await wait(560);
       onProgress?.({ progress: p, html: t });
+    }
+    const date = shortDate(new Date());
+    for (const r of params.rows) {
+      this.appended.unshift({
+        id: uid("tx"),
+        date,
+        recipient: r.role && r.role !== "—" ? r.role : r.address,
+        purpose: "Batch payout",
+        amount: r.amount,
+        chain: r.chain,
+        compliance: r.sanctions === "ok" ? "clean" : "flagged",
+        status: "settled",
+        ...(r.accounting ? { accounting: r.accounting } : {}),
+      });
     }
     return { id: uid("batch"), status: "settled", receiptAvailable: true };
   }
@@ -337,6 +376,10 @@ export class MockApi implements CloisterApi {
     return structuredClone(this.recipients);
   }
 
+  // Payments made this session, newest first — prepended to the seeded ledger so
+  // a payout (with its Kontierung) shows up in Activity and the accounting export.
+  private appended: Disbursement[] = [];
+
   // ---------- maker-checker ----------
   private approvals: Approval[] = [];
 
@@ -355,7 +398,7 @@ export class MockApi implements CloisterApi {
     const a = this.approvals.find((x) => x.id === id);
     if (!a) throw new Error("approval not found");
     if (a.kind === "single" && a.single) {
-      await this.disburseSingle({ recipient: a.single.recipient, amount: a.single.amount, asset: a.single.asset, memo: a.single.memo }, onProgress);
+      await this.disburseSingle({ recipient: a.single.recipient, amount: a.single.amount, asset: a.single.asset, memo: a.single.memo, accounting: a.single.accounting }, onProgress);
     } else if (a.kind === "batch" && a.batch) {
       await this.disburseBatch({ rows: a.batch.rows }, onProgress);
     }
@@ -408,12 +451,12 @@ export class MockApi implements CloisterApi {
 
   async getActivity(): Promise<Disbursement[]> {
     await wait(320);
-    return TX.map((t, i) => txToDisbursement(t, i, true));
+    return [...structuredClone(this.appended), ...TX.map((t, i) => txToDisbursement(t, i, true))];
   }
 
   async getRecentDisbursements(): Promise<Disbursement[]> {
     await wait(280);
-    return TX.map((t, i) => txToDisbursement(t, i, false));
+    return [...structuredClone(this.appended), ...TX.map((t, i) => txToDisbursement(t, i, false))].slice(0, 6);
   }
 
   // ---------- Compliance Center ----------

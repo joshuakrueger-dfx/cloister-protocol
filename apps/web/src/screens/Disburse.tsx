@@ -6,7 +6,8 @@ import { ProofConsole } from "../components/ProofConsole";
 import { toast } from "../lib/overlays";
 import { getApprovalThreshold, getRequireApproval } from "../lib/prefs";
 import { useT } from "../lib/i18n";
-import type { Asset, BatchRow, PayrollSession, ProofStep } from "../lib/types";
+import { getMd, mdLabel, codingLabel } from "../lib/masterdata";
+import type { Accounting, Asset, BatchRow, PayrollSession, ProofStep } from "../lib/types";
 
 type Mode = "single" | "batch" | "recurring";
 
@@ -18,6 +19,61 @@ const UPLOAD_ICON = (
     <path d="M4 14v3.5A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5V14" />
   </svg>
 );
+
+// Returns a cleaned Accounting object, or undefined when no field is filled — so
+// payments without coding don't carry an empty object through to the ledger.
+function cleanAccounting(a: Accounting): Accounting | undefined {
+  const out: Accounting = {};
+  (Object.keys(a) as (keyof Accounting)[]).forEach((k) => {
+    const v = (a[k] ?? "").trim();
+    if (v) out[k] = v;
+  });
+  return Object.keys(out).length ? out : undefined;
+}
+
+// Kontierung — optional cost-accounting block. Inputs use datalists fed from the
+// Stammdaten lists, so a controller picks "1000 · Sales" or types a free code.
+function AccountingSection({ value, onChange }: { value: Accounting; onChange: (a: Accounting) => void }) {
+  const tr = useT();
+  const [open, setOpen] = useState(false);
+  const ccs = getMd("costCenters");
+  const gls = getMd("glAccounts");
+  const prj = getMd("projects");
+  const tax = getMd("taxCodes");
+  const filled = cleanAccounting(value);
+  const set = (k: keyof Accounting, v: string) => onChange({ ...value, [k]: v });
+  return (
+    <div className="acct-block">
+      <button type="button" className="acct-toggle" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <span>{tr("Cost accounting (Kontierung)", "Kontierung")}{filled ? <span className="acct-badge">{Object.keys(filled).length}</span> : null}</span>
+        <span className="acct-chev">{open ? "▾" : "▸"}</span>
+      </button>
+      {open ? (
+        <div className="grid g2" style={{ marginTop: 4 }}>
+          <Field label={tr("COST CENTER", "KOSTENSTELLE")}>
+            <input className="input" list="md-cc" value={value.costCenter ?? ""} onChange={(e) => set("costCenter", e.target.value)} placeholder={tr("e.g. 2000 · Sales", "z. B. 2000 · Vertrieb")} />
+          </Field>
+          <Field label={tr("GL ACCOUNT", "SACHKONTO")}>
+            <input className="input" list="md-gl" value={value.glAccount ?? ""} onChange={(e) => set("glAccount", e.target.value)} placeholder={tr("e.g. 6300 · External services", "z. B. 6300 · Fremdleistungen")} />
+          </Field>
+          <Field label={tr("PROJECT / ORDER", "PROJEKT / INNENAUFTRAG")}>
+            <input className="input" list="md-prj" value={value.project ?? ""} onChange={(e) => set("project", e.target.value)} placeholder={tr("optional", "optional")} />
+          </Field>
+          <Field label={tr("POSTING DATE", "BUCHUNGSDATUM")}>
+            <input className="input" type="date" value={value.postingDate ?? ""} onChange={(e) => set("postingDate", e.target.value)} />
+          </Field>
+          <Field label={tr("TAX CODE", "STEUERSCHLÜSSEL")}>
+            <input className="input" list="md-tax" value={value.taxCode ?? ""} onChange={(e) => set("taxCode", e.target.value)} placeholder={tr("optional", "optional")} />
+          </Field>
+          <datalist id="md-cc">{ccs.map((i) => <option key={i.code} value={mdLabel(i)} />)}</datalist>
+          <datalist id="md-gl">{gls.map((i) => <option key={i.code} value={mdLabel(i)} />)}</datalist>
+          <datalist id="md-prj">{prj.map((i) => <option key={i.code} value={mdLabel(i)} />)}</datalist>
+          <datalist id="md-tax">{tax.map((i) => <option key={i.code} value={mdLabel(i)} />)}</datalist>
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function Disburse() {
   const [mode, setMode] = useState<Mode>("single");
@@ -58,6 +114,7 @@ function SingleMode() {
   const [customRecipient, setCustomRecipient] = useState("");
   const recipient = recipientSel === PASTE_RECIPIENT ? customRecipient.trim() : recipientSel;
   const [memo, setMemo] = useState("");
+  const [acct, setAcct] = useState<Accounting>({});
   const [lines, setLines] = useState<ProofStep[]>([]);
   const [progress, setProgress] = useState<number | undefined>(undefined);
   const [busy, setBusy] = useState(false);
@@ -100,11 +157,12 @@ function SingleMode() {
   }
 
   async function pay() {
+    const accounting = cleanAccounting(acct);
     // maker-checker: amounts at/above the threshold need a second approver (when enabled)
     if (getRequireApproval() && amountNumber(amount) >= getApprovalThreshold()) {
       setBusy(true);
       try {
-        await api.requestApproval({ kind: "single", summary: recipient, amount: `${amount} ${asset}`, single: { recipient, amount, asset, memo } });
+        await api.requestApproval({ kind: "single", summary: recipient, amount: `${amount} ${asset}`, single: { recipient, amount, asset, memo, accounting } });
         setLines([{ progress: 100, html: `<span class='ok'>${tr("submitted for dual approval — see <b>Approvals</b>.", "zur Zweit-Freigabe eingereicht — siehe <b>Freigaben</b>.")}</span>` }]);
         toast(tr("Submitted for approval — needs a second approver", "Zur Freigabe eingereicht — braucht einen Zweit-Freigeber"), "info");
       } catch (e) {
@@ -118,7 +176,7 @@ function SingleMode() {
     setProgress(0);
     setLines([{ progress: 0, html: "confirm received — proof was pre-warming…" }]);
     try {
-      const res = await api.disburseSingle({ recipient, amount, asset, memo }, (s) => {
+      const res = await api.disburseSingle({ recipient, amount, asset, memo, accounting }, (s) => {
         setProgress(s.progress);
         setLines((prev) => [...prev, s]);
       });
@@ -189,6 +247,7 @@ function SingleMode() {
         <Field label={tr("MEMO (encrypted — viewing-key only)", "MEMO (verschlüsselt — nur Viewing-Key)")}>
           <input className="input" value={memo} onChange={(e) => setMemo(e.target.value)} />
         </Field>
+        <AccountingSection value={acct} onChange={setAcct} />
         <div className="actions">
           <Button variant="solid" arrow onClick={pay} disabled={busy || !recipient || !amount.trim()}>
             {busy ? <>{tr("Proving", "Beweise")}<Dots /></> : tr("Confirm & pay", "Bestätigen & zahlen")}
@@ -222,26 +281,48 @@ function SingleMode() {
 }
 
 // ---------- Batch ----------
-// Build batch rows from a matrix of cells (header columns address,role,amount,
-// chain[,sanctions]). Tolerant of quotes/whitespace; defaults sanctions to "ok".
+// Build batch rows from a matrix of cells. Core columns: address, role, amount,
+// chain. Optional Kontierung columns (any of, case-insensitive + German aliases):
+// costcenter/kostenstelle, glaccount/sachkonto, project/projekt, postingdate/
+// buchungsdatum, taxcode/steuerschlüssel. Tolerant of quotes/whitespace.
 // Both CSV and Excel (.xlsx) imports funnel through here.
 function rowsFromMatrix(matrix: (string | number)[][]): BatchRow[] {
   const grid = matrix.map((r) => r.map((c) => String(c ?? "").trim())).filter((r) => r.some((c) => c));
   if (!grid.length) return [];
-  const header = grid[0].map((h) => h.toLowerCase());
-  const idx = (name: string) => header.indexOf(name);
+  const header = grid[0].map((h) => h.toLowerCase().replace(/[\s_-]/g, ""));
+  // first header index matching any alias
+  const idxOf = (...names: string[]) => header.findIndex((h) => names.includes(h));
+  const idx = (name: string) => idxOf(name);
   const hasHeader = idx("address") !== -1 || idx("amount") !== -1;
   const body = hasHeader ? grid.slice(1) : grid;
-  const col = { address: idx("address"), role: idx("role"), amount: idx("amount"), chain: idx("chain") };
+  const col = {
+    address: idx("address"),
+    role: idx("role"),
+    amount: idx("amount"),
+    chain: idx("chain"),
+    costCenter: idxOf("costcenter", "kostenstelle", "cc"),
+    glAccount: idxOf("glaccount", "gl", "sachkonto", "account", "konto"),
+    project: idxOf("project", "projekt", "order", "innenauftrag"),
+    postingDate: idxOf("postingdate", "buchungsdatum", "date", "datum"),
+    taxCode: idxOf("taxcode", "tax", "steuerschlüssel", "steuerschluessel", "steuer"),
+  };
   return body.map((c) => {
     const at = (i: number, fallback: number) => c[i >= 0 ? i : fallback] ?? "";
+    const opt = (i: number) => (i >= 0 ? (c[i] ?? "").trim() : "");
     const amount = at(col.amount, 2);
+    const accounting: Accounting = {};
+    if (opt(col.costCenter)) accounting.costCenter = opt(col.costCenter);
+    if (opt(col.glAccount)) accounting.glAccount = opt(col.glAccount);
+    if (opt(col.project)) accounting.project = opt(col.project);
+    if (opt(col.postingDate)) accounting.postingDate = opt(col.postingDate);
+    if (opt(col.taxCode)) accounting.taxCode = opt(col.taxCode);
     return {
       address: at(col.address, 0) || "0x…",
       role: at(col.role, 1) || "—",
       amount: /[a-z]/i.test(amount) ? amount : `${amount} USDC`,
       chain: at(col.chain, 3) || "Base",
       sanctions: "ok" as const,
+      ...(Object.keys(accounting).length ? { accounting } : {}),
     };
   });
 }
@@ -270,6 +351,7 @@ function BatchMode() {
   const totalNum = rows.reduce((s, r) => s + amountNumber(r.amount), 0);
   const asset = rows[0]?.amount.split(" ")[1] || "USDC";
   const total = `${totalNum.toLocaleString("en-US")} ${asset}`;
+  const hasCoding = rows.some((r) => r.accounting && Object.keys(r.accounting).length > 0);
 
   async function importFile(file?: File) {
     if (!file) return;
@@ -302,10 +384,10 @@ function BatchMode() {
   async function downloadTemplate() {
     const { downloadCsv } = await import("../lib/exporters");
     downloadCsv("cloister-batch-template.csv", [
-      ["address", "role", "amount", "chain"],
-      ["0xRecipientAddress…", "Employee — Jane Doe", "2400", "Polygon"],
-      ["0xRecipientAddress…", "Contractor — Acme Ltd", "1150", "Base"],
-      ["0xRecipientAddress…", "Reimbursement — travel", "380", "Arbitrum"],
+      ["address", "role", "amount", "chain", "costcenter", "glaccount", "project", "postingdate"],
+      ["0xRecipientAddress…", "Employee — Jane Doe", "2400", "Polygon", "4000", "6200", "P-0001", "2026-06-30"],
+      ["0xRecipientAddress…", "Contractor — Acme Ltd", "1150", "Base", "3000", "6300", "P-2026-A", "2026-06-30"],
+      ["0xRecipientAddress…", "Reimbursement — travel", "380", "Arbitrum", "2000", "6800", "", "2026-06-30"],
     ]);
   }
 
@@ -377,7 +459,8 @@ function BatchMode() {
             <div className="dz-t">{tr("Drop a CSV or Excel file to build the batch", "CSV- oder Excel-Datei ablegen, um die Sammelauszahlung zu erstellen")}</div>
             <div className="dz-s">
               {tr("Columns:", "Spalten:")} <span className="mono">address, role, amount, chain</span>{" "}
-              {tr("— ideal for payroll, vendor & contractor payouts, reimbursements and dividends.", "— ideal für Gehälter, Lieferanten- & Auftragnehmer-Zahlungen, Spesen und Dividenden.")}
+              {tr("— plus optional", "— plus optional")} <span className="mono">costcenter, glaccount, project, postingdate</span>{" "}
+              {tr("for cost accounting. Ideal for payroll, vendor & contractor payouts, reimbursements and dividends.", "zur Kontierung. Ideal für Gehälter, Lieferanten- & Auftragnehmer-Zahlungen, Spesen und Dividenden.")}
             </div>
             <div className="dz-actions">
               <Button sm variant="solid" onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}>{tr("Choose file", "Datei wählen")}</Button>
@@ -394,6 +477,7 @@ function BatchMode() {
                     <th>{tr("Role", "Rolle")}</th>
                     <th>{tr("Amount", "Betrag")}</th>
                     <th>{tr("Chain", "Chain")}</th>
+                    {hasCoding ? <th>{tr("Coding", "Kontierung")}</th> : null}
                     <th>{tr("Sanctions", "Sanktionen")}</th>
                   </tr>
                 </thead>
@@ -404,6 +488,7 @@ function BatchMode() {
                       <td>{r.role}</td>
                       <td className="addr">{r.amount}</td>
                       <td>{r.chain}</td>
+                      {hasCoding ? <td className="mono" style={{ fontSize: 12 }}>{codingLabel(r.accounting)}</td> : null}
                       <td><SanctionsTag level={r.sanctions} /></td>
                     </tr>
                   ))}

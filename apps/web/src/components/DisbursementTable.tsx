@@ -1,6 +1,7 @@
 import type { Disbursement } from "../lib/types";
 import { Tag } from "./primitives";
 import { useT } from "../lib/i18n";
+import { codingLabel } from "../lib/masterdata";
 
 function statusTag(status: Disbursement["status"], tr: (en: string, de: string) => string) {
   if (status === "proving" || status === "pending") return <Tag level="pending">{tr("proving", "läuft")}</Tag>;
@@ -13,16 +14,20 @@ function statusTag(status: Disbursement["status"], tr: (en: string, de: string) 
 export function DisbursementTable({
   rows,
   withDate = false,
+  withCoding = false,
   loading = false,
   error = null,
 }: {
   rows: Disbursement[];
   withDate?: boolean;
+  withCoding?: boolean;
   loading?: boolean;
   error?: string | null;
 }) {
   const tr = useT();
-  const cols = withDate ? 7 : 6;
+  // Only show the coding column when asked AND at least one row is coded.
+  const showCoding = withCoding && rows.some((r) => r.accounting && Object.keys(r.accounting).length > 0);
+  const cols = (withDate ? 7 : 6) + (showCoding ? 1 : 0);
   return (
     <div className="table-scroll">
     <table>
@@ -33,6 +38,7 @@ export function DisbursementTable({
           <th>{tr("Purpose", "Zweck")}</th>
           <th>{tr("Amount", "Betrag")}</th>
           <th>{tr("Chain", "Chain")}</th>
+          {showCoding ? <th>{tr("Coding", "Kontierung")}</th> : null}
           <th>{tr("Compliance", "Compliance")}</th>
           <th>{tr("Status", "Status")}</th>
         </tr>
@@ -58,6 +64,7 @@ export function DisbursementTable({
               <td>{t.purpose}</td>
               <td className="addr">{t.amount}</td>
               <td>{t.chain}</td>
+              {showCoding ? <td className="mono" style={{ fontSize: 12 }}>{codingLabel(t.accounting)}</td> : null}
               <td>
                 {t.compliance === "flagged" ? (
                   <Tag level="bad">{tr("flagged", "markiert")}</Tag>

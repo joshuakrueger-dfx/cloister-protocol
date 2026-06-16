@@ -127,6 +127,18 @@ export interface JurisdictionProfile {
   items: ComplianceItem[];
 }
 
+// ---------- Kontierung (cost accounting dimensions) ----------
+// Optional posting metadata a controlling team attaches to every payment so it
+// reconciles into the GL/ERP. Free-text here; the Stammdaten lists (master data)
+// feed the input suggestions and the accounting export maps these 1:1.
+export interface Accounting {
+  costCenter?: string; // Kostenstelle
+  glAccount?: string; // Sachkonto / GL account
+  project?: string; // Projekt / Innenauftrag
+  postingDate?: string; // Buchungsdatum (ISO yyyy-mm-dd)
+  taxCode?: string; // Steuerschlüssel / tax code (optional)
+}
+
 // ---------- Disbursements / Activity ----------
 export type DisbursementStatus = "settled" | "pending" | "proving" | "failed";
 
@@ -139,6 +151,7 @@ export interface Disbursement {
   chain: string;
   compliance: "clean" | "flagged";
   status: DisbursementStatus;
+  accounting?: Accounting;
 }
 
 export interface Recipient {
@@ -163,6 +176,7 @@ export interface BatchRow {
   amount: string;
   chain: string;
   sanctions: StatusLevel;
+  accounting?: Accounting;
 }
 
 // ---------- Maker-checker (dual approval) ----------
@@ -174,7 +188,7 @@ export interface Approval {
   chain?: string;
   createdAt: string;
   // execution payload (one of the two depending on kind):
-  single?: { recipient: string; amount: string; asset: Asset; memo: string };
+  single?: { recipient: string; amount: string; asset: Asset; memo: string; accounting?: Accounting };
   batch?: { rows: BatchRow[] };
 }
 
@@ -203,6 +217,7 @@ export interface SingleDisburseParams {
   amount: string;
   asset: Asset;
   memo: string;
+  accounting?: Accounting;
 }
 
 export interface BatchDisburseParams {
