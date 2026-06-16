@@ -95,7 +95,7 @@ const CSS = readFileSync(resolve(__dirname, "docs.css"), "utf8");
 function page({ slug, title, contentHtml }) {
   const isHome = slug === "index";
   const canonical = `https://docs.cloister-protocol.com/${isHome ? "" : slug + ".html"}`;
-  const desc = "Cloister Protocol documentation — a compliant privacy layer for stablecoin payments on any EVM chain. A product of DFX AG.";
+  const desc = "Cloister Protocol documentation — a compliant privacy layer for stablecoin payments on any EVM chain.";
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -129,7 +129,7 @@ function page({ slug, title, contentHtml }) {
 <div class="scrim" onclick="document.body.classList.remove('nav-open')"></div>
 <aside class="side">
   <nav>${navHtml(slug)}</nav>
-  <div class="side-foot">© 2026 DFX AG · All rights reserved</div>
+  <div class="side-foot">© 2026 Cloister Protocol · All rights reserved</div>
 </aside>
 <main class="content">
   <article class="doc">${contentHtml}</article>
@@ -210,7 +210,7 @@ Sitemap: ${BASE}/sitemap.xml
 // llms.txt — a concise, agent-readable map of the docs (llmstxt.org convention)
 const llms = `# Cloister Protocol — Documentation
 
-> A compliant privacy layer for stablecoin payments on any EVM chain, by DFX AG (Switzerland).
+> A compliant privacy layer for stablecoin payments on any EVM chain.
 > Cloister is a shielded payment pool: it hides the payer's address, amount and the
 > payer-recipient link, while proving in zero knowledge that funds are clean (KYC-screened,
 > association-set membership) and allowing selective audit via viewing keys. It is privacy WITH
@@ -222,7 +222,7 @@ ${NAV.map((sec) => `### ${sec.section}\n${sec.items.map((it) => `- [${it.title}]
 
 ## Key facts
 
-- Built by DFX AG, Switzerland. First integration: OpenCryptoPay (protocol is rail-agnostic).
+- First integration: OpenCryptoPay (protocol is rail-agnostic).
 - ZK layer: gnark / Groth16 over BN254, Poseidon2 hashing, curve-free keys (pubKey = H(privKey)), 50,481-constraint circuit.
 - ~350k gas per shielded payment (~5x cheaper) via off-chain Merkle insertion proven in-circuit.
 - Self-custodial: on-device proving; the witness never leaves the device.

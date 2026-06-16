@@ -391,7 +391,7 @@ export class RealApi implements CloisterApi {
     const stored = lsGet<Recipient[] | null>(`${this.ns}.recipients`, null);
     if (stored) return stored;
     const seed: Recipient[] = [
-      { id: "r_dfx", label: "DFX Settlement", type: "PSP / broker", address: shortHex(BigInt(cfg.dfxShieldAddress.pubKey)), lastPaid: "—", sanctions: "ok" },
+      { id: "r_dfx", label: "PSP settlement", type: "PSP / broker", address: shortHex(BigInt(cfg.dfxShieldAddress.pubKey)), lastPaid: "—", sanctions: "ok" },
     ];
     lsSet(`${this.ns}.recipients`, seed);
     return seed;
@@ -422,7 +422,7 @@ export class RealApi implements CloisterApi {
     const sig = await noteNullifier(BigInt(cfg.aspRoot || "1"), BigInt(params.period.length + 1), kp.privateKey);
     const signed = {
       kind: "cloister.proof-of-innocence.v1",
-      issuer: "Cloister ASP (DFX)",
+      issuer: "Cloister ASP",
       subject: shortHex(kp.publicKey),
       scope: params.scope,
       period: params.period,
@@ -488,11 +488,11 @@ export class RealApi implements CloisterApi {
     const cfg = await this.getConfig();
     const enforced = cfg.aspEnforced;
     return {
-      provider: "DFX AG",
+      provider: "Cloister",
       rootAge: enforced ? "current" : "permissive (dev)",
       inclusion: enforced, badSetExclusion: enforced,
       items: [
-        { label: "Provider", value: "DFX AG", level: "ok" },
+        { label: "Provider", value: "Cloister", level: "ok" },
         { label: "Association root", value: enforced ? shortHex(BigInt(cfg.aspRoot || "0")) : "permissive (dev)", level: enforced ? "ok" : "pending" },
         { label: "Inclusion proof", value: enforced ? "in-circuit · all inputs ∈ good-set" : "circuit-bound (not enforced)", level: enforced ? "ok" : "pending" },
         { label: "Bad-set exclusion", value: enforced ? "enforced" : "dev mode", level: enforced ? "ok" : "pending" },

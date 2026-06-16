@@ -8,7 +8,7 @@ import { getActiveBackendId } from "../lib/backends";
 import { CHAINS } from "../lib/types";
 import type { Asset, ChainId } from "../lib/types";
 
-const DFX_SOURCE = "DFX Onramp (bank / card → USDC)";
+const DFX_SOURCE = "Bank / card onramp (→ USDC)";
 const FAUCET_SOURCE = "Devnet faucet (test USDC)";
 
 export function Fund() {
@@ -78,7 +78,7 @@ export function Fund() {
             // DFX onramp: you shield exactly what the buy delivers on-chain — no
             // free-form amount, so you can never "shield" funds you don't hold.
             <div style={{ marginTop: 18 }}>
-              <div className="clab" style={{ marginBottom: 4 }}>DFX ONRAMP — BANK → USDC</div>
+              <div className="clab" style={{ marginBottom: 4 }}>ONRAMP — BANK → USDC</div>
               <DfxOnramp chain={chain} onShield={shieldAmount} />
             </div>
           ) : (
@@ -140,7 +140,7 @@ export function Fund() {
           <div className="clab">WHAT BECOMES PUBLIC</div>
           <div style={{ marginTop: 14 }}>
             <KeyValue k="Deposit tx (from)" tone="pub">
-              {isDfxOnramp ? "DFX onramp" : "provider / relayer (gas sponsored)"}
+              {isDfxOnramp ? "onramp" : "provider / relayer (gas sponsored)"}
             </KeyValue>
             <KeyValue k="Amount deposited" tone="pub">
               {isDfxOnramp ? "the onramp amount" : `${amount} test USDC`}

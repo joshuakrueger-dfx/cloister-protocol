@@ -74,7 +74,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
             <span>{org.kind}</span>
           </div>
         </div>
-        <div className="copyright">© 2026 DFX AG · All rights reserved</div>
+        <div className="copyright">© 2026 Cloister Protocol · All rights reserved</div>
       </div>
     </aside>
   );

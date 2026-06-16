@@ -1,7 +1,7 @@
 // Onboarding/Auth-Flow (NEU, nicht im Prototyp).
 // 4 Schritte: (a) Seed erstellen/importieren, (b) Vault-Passwort,
 // (c) KYC (entity/individual, simulierte Verifikation → verified-Badge),
-// (d) optional "Continue with DFX account".
+// (d) optional "Continue with a funding account".
 // Reine UI + Mock-State. Nach Abschluss → Console.
 
 import { useState } from "react";
@@ -418,7 +418,7 @@ export function Onboarding() {
             <h2>You're set</h2>
             <p className="hint">
               Your vault is created, secured and your identity screening passed. Enter the console — or
-              link a DFX account for fiat onramp (bank → USDC) straight into the shielded pool.
+              link a funding account for fiat onramp (bank → USDC) straight into the shielded pool.
             </p>
             {showDfx ? (
               <>
@@ -435,7 +435,7 @@ export function Onboarding() {
                   Enter console <span className="arr">→</span>
                 </button>
                 <button className="btn full" onClick={() => setShowDfx(true)}>
-                  Continue with DFX account
+                  Continue with a funding account
                 </button>
               </div>
             )}

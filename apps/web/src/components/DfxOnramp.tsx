@@ -80,7 +80,7 @@ export function DfxOnramp({ chain, onShield }: { chain: ChainId; onShield?: (amo
       <div>
         <DfxConnect compact methods={["mail"]} />
         {dfx.connected && !verified ? (
-          <div className="note">A DFX buy needs a verified account. Complete KYC above, then return to onramp.</div>
+          <div className="note">A buy needs a verified account. Complete KYC above, then return to onramp.</div>
         ) : null}
       </div>
     );
@@ -100,7 +100,7 @@ export function DfxOnramp({ chain, onShield }: { chain: ChainId; onShield?: (amo
         </Field>
       </div>
       <div className="note" style={{ marginTop: 12 }}>
-        Buying <b>USDC on {CHAIN_LABEL[chain]}</b> → delivered to your DFX address. It's then detected
+        Buying <b>USDC on {CHAIN_LABEL[chain]}</b> → delivered to your onramp address. It's then detected
         here and shielded into the pool in one click.
       </div>
       <div className="actions">
@@ -141,7 +141,7 @@ export function DfxOnramp({ chain, onShield }: { chain: ChainId; onShield?: (amo
               </div>
             ) : (
               <div className="note">
-                Waiting for DFX to deliver USDC on {CHAIN_LABEL[chain]} — this updates automatically every
+                Waiting for the onramp to deliver USDC on {CHAIN_LABEL[chain]} — this updates automatically every
                 15&nbsp;s. <button className="reveal-btn" onClick={() => dfx.receivedUsdc(chain).then(setReceived)}>check now</button>
               </div>
             )}
