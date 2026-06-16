@@ -462,7 +462,7 @@ export class RealApi implements CloisterApi {
     else if (params.format === "csv") downloadCsv(`${base}.csv`, [["field", "value"], ...fields]);
     else
       downloadPdf(`${base}.pdf`, {
-        title: "Cloister — Proof of Innocence",
+        title: "Proof of Innocence",
         subtitle: "Signed attestation that the selected funds belong to the ASP good-set and originate from a KYC-verified source. No transaction history is revealed.",
         fields,
         footer: "Cloister Protocol · compliant shielded payments · verify the signature against the issuer's viewing key.",
@@ -481,11 +481,35 @@ export class RealApi implements CloisterApi {
     else if (format === "csv") downloadCsv("cloister-audit-log.csv", [headers, ...rows]);
     else
       downloadPdf("cloister-audit-log.pdf", {
-        title: "Cloister — Audit Log",
+        title: "Audit Log",
         subtitle: `${acts.length} disbursement events · viewing-key-decrypted ledger`,
         table: { headers, rows },
         footer: "Cloister Protocol · selective disclosure · no plaintext on-chain.",
       });
+  }
+
+  async exportStatement(period: string, format: ExportFormat): Promise<void> {
+    const { downloadJson, downloadCsv, downloadPdf } = await import("./exporters");
+    const bal = await this.getBalance();
+    const session = await this.getSession();
+    const acts = await this.getActivity();
+    const fields: [string, string][] = [
+      ["Account holder", session.org.name],
+      ["Account type", session.org.kind],
+      ["Statement period", period],
+      ["Jurisdiction", session.kyc.jurisdiction ?? "—"],
+      ["KYC status", session.kyc.status === "verified" ? `verified · ${session.kyc.level}` : session.kyc.status],
+      ["Shielded balance", `${bal.total.toLocaleString("en-US")} ${bal.asset}`],
+      ["Notes · chains", `${bal.notes} notes · ${bal.chains} chains`],
+    ];
+    const headers = ["Date", "Counterparty", "Purpose", "Amount", "Chain", "Status"];
+    const rows = acts.map((a) => [a.date, a.recipient, a.purpose, a.amount, a.chain, a.status]);
+    const base = `cloister-statement-${period.replace(/\s+/g, "_")}`;
+    const subtitle = "Private account statement — balance and settled activity for the period. Counterparties are visible to you, the account holder, only; on-chain the payments stay shielded.";
+    const footer = "Issued by Cloister Protocol. Reflects shielded-pool activity for the stated period. For an audit-grade clean-origin attestation, use a Compliance Receipt (proof of innocence).";
+    if (format === "json") downloadJson(`${base}.json`, { kind: "cloister.account-statement.v1", holder: session.org.name, period, balance: bal, transactions: acts });
+    else if (format === "csv") downloadCsv(`${base}.csv`, [["Cloister Account Statement", period], [], headers, ...rows]);
+    else downloadPdf(`${base}.pdf`, { title: "Account Statement", subtitle, fields, table: { headers, rows }, footer });
   }
 
   async createDisclosure(params: DisclosureParams): Promise<Disclosure> {

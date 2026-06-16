@@ -82,6 +82,8 @@ export interface CloisterApi {
   // ---------- Compliance Center ----------
   generateReceipt(params: ReceiptParams, onProgress?: ProgressCallback): Promise<Receipt>;
   exportAuditLog(format: ExportFormat): Promise<void>;
+  /** Branded account statement (Konto-Auszug): balance + settled activity for a period. */
+  exportStatement(period: string, format: ExportFormat): Promise<void>;
   createDisclosure(params: DisclosureParams): Promise<Disclosure>;
   listDisclosures(): Promise<Disclosure[]>;
   revokeDisclosure(id: string): Promise<void>;

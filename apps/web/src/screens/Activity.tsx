@@ -4,6 +4,7 @@ import { useApi } from "../lib/ApiProvider";
 import { useAsync } from "../lib/useAsync";
 import { Button, Card, ScreenHead } from "../components/primitives";
 import { DisbursementTable } from "../components/DisbursementTable";
+import type { ExportFormat } from "../lib/types";
 
 export function Activity() {
   const api = useApi();
@@ -12,6 +13,9 @@ export function Activity() {
   const [showFilter, setShowFilter] = useState(false);
   const [query, setQuery] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [stmtPeriod, setStmtPeriod] = useState("Q2 2026");
+  const [stmtFmt, setStmtFmt] = useState<ExportFormat>("pdf");
+  const [stmtBusy, setStmtBusy] = useState(false);
 
   const rows = useMemo(() => {
     const all = data ?? [];
@@ -31,6 +35,15 @@ export function Activity() {
     }
   }
 
+  async function exportStatement() {
+    setStmtBusy(true);
+    try {
+      await api.exportStatement(stmtPeriod, stmtFmt);
+    } finally {
+      setStmtBusy(false);
+    }
+  }
+
   return (
     <section className="view">
       <ScreenHead
@@ -45,6 +58,22 @@ export function Activity() {
         </Button>
         <Button sm onClick={() => nav("/compliance")}>
           Generate receipt
+        </Button>
+      </div>
+      <div className="actions" style={{ marginTop: 10, alignItems: "center", gap: 10 }}>
+        <span className="clab" style={{ marginRight: 2 }}>ACCOUNT STATEMENT</span>
+        <select className="input" style={{ width: "auto" }} value={stmtPeriod} onChange={(e) => setStmtPeriod(e.target.value)}>
+          <option>Q2 2026</option>
+          <option>Jun 2026</option>
+          <option>2026 YTD</option>
+        </select>
+        <select className="input" style={{ width: "auto" }} value={stmtFmt} onChange={(e) => setStmtFmt(e.target.value as ExportFormat)}>
+          <option value="pdf">PDF</option>
+          <option value="csv">CSV (Excel / Sheets)</option>
+          <option value="json">JSON</option>
+        </select>
+        <Button sm variant="solid" arrow onClick={exportStatement} disabled={stmtBusy}>
+          {stmtBusy ? "Generating…" : "Download statement"}
         </Button>
       </div>
       {showFilter ? (
