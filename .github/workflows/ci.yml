@@ -46,6 +46,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # fails if FIELD_SIZE / MERKLE_LEVELS drift between Solidity, the Go circuit and the SDK
+      # (a silent verifier↔circuit↔SDK soundness mismatch).
+      - run: node scripts/check-constants.mjs
       # asserts the SDK's extData hash matches the gnark/Solidity-verified golden — the
       # independent JS↔Go↔Solidity binding surface (recipient/amount malleability guard).
       - run: pnpm --filter @cloister/sdk test

@@ -51,20 +51,41 @@ const poolRead = new Contract(dep.pool, POOL_ABI, provider);
 const depositExtData = (amount) => ({ recipient: ZeroAddress, extAmount: String(amount), relayer: ZeroAddress, fee: "0", encryptedOutput1: "0x", encryptedOutput2: "0x" });
 
 let memTree;
-const laneRoot0 = async () => (await poolRead.laneRoot(0)).toString();
+// Short-TTL cache of the on-chain lane root, so a burst of /prepare calls doesn't hammer the
+// RPC with one laneRoot(0) read each. 2s ≈ the Base block time, so drift is still caught promptly.
+const ROOT_TTL_MS = 2000;
+let rootCache = { val: null, at: 0 };
+async function laneRoot0(force = false) {
+  const now = Date.now();
+  if (!force && rootCache.val && now - rootCache.at < ROOT_TTL_MS) return rootCache.val;
+  const v = (await poolRead.laneRoot(0)).toString();
+  rootCache = { val: v, at: Date.now() };
+  return v;
+}
 
-// Build the lane-0 tree from chain, trying each RPC's eth_getLogs until the rebuilt
-// root matches the on-chain laneRoot (guards against RPC lag / partial results).
+// Single-flight: concurrent requests that both observe a stale/absent tree share ONE sync
+// instead of each launching a full from-genesis getLogs scan (which would race `memTree` and
+// pin the CPU). The first caller does the work; the rest await the same promise.
+let syncInFlight = null;
+function ensureSync() {
+  if (!syncInFlight) syncInFlight = syncMemTree().finally(() => { syncInFlight = null; });
+  return syncInFlight;
+}
+
+// Build the lane-0 tree from chain, trying each RPC's eth_getLogs until the rebuilt root matches
+// THAT SAME RPC's laneRoot (block-consistency: target root and the log scan come from one
+// endpoint, so a reorg/lag on a different endpoint can't produce a false match).
 async function syncMemTree() {
-  const target = await laneRoot0();
   for (const r of RPCS) {
     try {
       const pr = new Contract(dep.pool, POOL_ABI, new JsonRpcProvider(r));
+      const target = (await pr.laneRoot(0)).toString(); // same endpoint as the logs below
       const tree = await new MerkleTree().init();
       await syncFromChain(pr, tree, [], FROM_BLOCK);
       if ((await tree.root()).toString() === target) {
         console.log(`tree synced via ${r}: ${tree.leaves.length} leaves`);
         memTree = tree;
+        rootCache = { val: target, at: Date.now() };
         return;
       }
       console.log(`sync via ${r}: root mismatch (rpc lag), trying next`);
@@ -75,6 +96,20 @@ async function syncMemTree() {
   throw new Error("could not sync tree from any RPC");
 }
 
+// Inline fixed-window rate limit (no dependency) — caps full-sync amplification + abuse.
+const RATE_WINDOW_MS = 10_000;
+const RATE_MAX = 30; // per client per window
+const rateHits = new Map();
+function rateLimited(key) {
+  const now = Date.now();
+  const e = rateHits.get(key);
+  if (!e || now > e.resetAt) { rateHits.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS }); return false; }
+  e.count += 1;
+  return e.count > RATE_MAX;
+}
+// bound the map so a churn of client IPs can't grow it without limit
+setInterval(() => { const now = Date.now(); for (const [k, e] of rateHits) if (now > e.resetAt) rateHits.delete(k); }, RATE_WINDOW_MS).unref?.();
+
 const app = express();
 
 app.get("/config", (_req, res) => {
@@ -83,11 +118,17 @@ app.get("/config", (_req, res) => {
 
 app.get("/v1/deposit/prepare", async (req, res) => {
   try {
-    const amount = BigInt(req.query.amount || "0");
+    if (rateLimited(req.ip || "global")) return res.status(429).json({ error: "rate limited" });
+    let amount;
+    try {
+      amount = BigInt(req.query.amount ?? "");
+    } catch {
+      return res.status(400).json({ error: "amount must be a positive integer" });
+    }
     if (amount <= 0n) return res.status(400).json({ error: "amount required" });
-    if (!memTree) await syncMemTree();
-    // self-validate against chain; on drift (a new deposit landed), re-sync once
-    if ((await memTree.root()).toString() !== (await laneRoot0())) await syncMemTree();
+    if (!memTree) await ensureSync();
+    // self-validate against chain; on drift (a new deposit landed), re-sync once (single-flight)
+    if ((await memTree.root()).toString() !== (await laneRoot0())) await ensureSync();
     const rootVal = (await memTree.root()).toString();
     const pairIndex = Math.floor(memTree.leaves.length / 2);
     const { pathElements } = await memTree.pairPath(pairIndex);
