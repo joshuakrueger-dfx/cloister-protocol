@@ -110,7 +110,14 @@ func (c *TxCircuit) Define(api frontend.API) error {
 	// value conservation: sumIn + publicAmount == sumOut (in the field)
 	api.AssertIsEqual(api.Add(sumIn, c.PublicAmount), sumOut)
 
-	// bind extDataHash into the constraint system (so it can't be dropped)
+	// ExtDataHash is a declared public input, so Groth16 binds it cryptographically into the
+	// proof — a verifier cannot drop or alter it without invalidating the proof. It is
+	// deliberately NOT relation-constrained inside the circuit: the binding of the hash to the
+	// actual extData (recipient, extAmount, relayer, fee, encrypted outputs) is enforced
+	// ON-CHAIN, where ShieldedPool._transact recomputes keccak256(abi.encode(extData)) % p and
+	// passes that as this public input (see the "tampered extData reverts" e2e test). The line
+	// below is a deliberate pass-through, not a binding; any other consumer of these proofs MUST
+	// likewise recompute the hash from extData rather than trust a supplied value.
 	api.AssertIsEqual(c.ExtDataHash, c.ExtDataHash)
 
 	// off-chain insertion: prove Root → NewRoot by replacing the empty pair slot
