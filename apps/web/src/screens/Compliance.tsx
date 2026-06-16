@@ -5,6 +5,7 @@ import { useAsync } from "../lib/useAsync";
 import { Button, Card, ComplianceList, Field, ScreenHead } from "../components/primitives";
 import { ProofConsole } from "../components/ProofConsole";
 import { KycVerify } from "../components/KycVerify";
+import { toast } from "../lib/overlays";
 import type { Disclosure, ExportFormat, ProofStep, ReceiptScope } from "../lib/types";
 
 export function Compliance() {
@@ -57,6 +58,9 @@ function ReceiptCard() {
     setLines([{ progress: 0, html: "assembling proof of innocence…" }]);
     try {
       await api.generateReceipt({ scope, period, format }, (s) => setLines((p) => [...p, s]));
+      toast(`Receipt downloaded · ${format.toUpperCase()}`, "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Receipt failed", "error");
     } finally {
       setBusy(false);
     }
@@ -138,6 +142,7 @@ function DisclosureCard() {
     try {
       await api.revokeDisclosure(id);
       reload();
+      toast("Disclosure revoked", "info");
     } finally {
       setBusyId(null);
     }
@@ -151,6 +156,7 @@ function DisclosureCard() {
       setGrantee("");
       setShowForm(false);
       reload();
+      toast("Read-only disclosure issued", "success");
     } finally {
       setCreating(false);
     }

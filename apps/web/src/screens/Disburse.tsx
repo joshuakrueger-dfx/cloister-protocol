@@ -3,6 +3,7 @@ import { useApi } from "../lib/ApiProvider";
 import { useAsync } from "../lib/useAsync";
 import { Button, Card, Dots, Field, KeyValue, ScreenHead, Seg, SanctionsTag } from "../components/primitives";
 import { ProofConsole } from "../components/ProofConsole";
+import { toast } from "../lib/overlays";
 import type { Asset, BatchRow, PayrollSession, ProofStep } from "../lib/types";
 
 type Mode = "single" | "batch" | "recurring";
@@ -107,11 +108,13 @@ function SingleMode() {
           { progress: 100, html: "<span class='ok'>receipt available in Compliance Center.</span>" },
         ]);
       }
+      toast("Payment sent privately", "success");
     } catch (e) {
       setLines((prev) => [
         ...prev,
         { progress: 100, html: `<span class='w'>error: ${(e as Error).message}</span>` },
       ]);
+      toast((e as Error).message || "Payment failed", "error");
     } finally {
       setBusy(false);
     }
@@ -298,6 +301,9 @@ function BatchMode() {
         setProgress(s.progress);
         setLines((prev) => [...prev, s]);
       });
+      toast(`Batch of ${rows.length} sent privately`, "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "Batch failed", "error");
     } finally {
       setBusy(false);
     }
