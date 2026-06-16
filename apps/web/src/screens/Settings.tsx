@@ -6,6 +6,7 @@ import { useSession } from "../lib/SessionProvider";
 import { getActiveBackendId, getBackendConfig } from "../lib/backends";
 import { clearVault } from "../lib/vault";
 import { toast, confirmDialog } from "../lib/overlays";
+import { getApprovalThreshold, setApprovalThreshold } from "../lib/prefs";
 
 const SHOW_BAL_KEY = "cloister.showBalances";
 
@@ -22,6 +23,13 @@ export function Settings() {
   const [showBalances, setShowBalances] = useState(() => {
     try { return localStorage.getItem(SHOW_BAL_KEY) === "1"; } catch { return false; }
   });
+  const [threshold, setThreshold] = useState(() => getApprovalThreshold());
+
+  function changeThreshold(v: string) {
+    const n = Number(v) || 0;
+    setThreshold(n);
+    setApprovalThreshold(n);
+  }
 
   async function save() {
     setSaving(true);
@@ -95,6 +103,22 @@ export function Settings() {
             >
               <span />
             </button>
+          </div>
+          <div className="set-row">
+            <div>
+              <div className="set-t">Approval threshold (USDC)</div>
+              <div className="set-s">Payments at or above this amount need a second approver (four-eyes).</div>
+            </div>
+            <input
+              className="input"
+              style={{ width: 130, flex: "0 0 auto" }}
+              type="number"
+              min={0}
+              step={1000}
+              value={threshold}
+              onChange={(e) => changeThreshold(e.target.value)}
+              aria-label="Approval threshold in USDC"
+            />
           </div>
         </Card>
 

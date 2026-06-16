@@ -165,6 +165,21 @@ export interface BatchRow {
   sanctions: StatusLevel;
 }
 
+// ---------- Maker-checker (dual approval) ----------
+export interface Approval {
+  id: string;
+  kind: "single" | "batch";
+  summary: string; // human label, e.g. "Acme GmbH" or "14 recipients"
+  amount: string; // display total, e.g. "12,400 USDC"
+  chain?: string;
+  createdAt: string;
+  // execution payload (one of the two depending on kind):
+  single?: { recipient: string; amount: string; asset: Asset; memo: string };
+  batch?: { rows: BatchRow[] };
+}
+
+export type ApprovalRequest = Omit<Approval, "id" | "createdAt">;
+
 // ---------- Disbursement-Params ----------
 export interface SingleDisburseParams {
   recipient: string;

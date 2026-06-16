@@ -30,6 +30,8 @@ function screenApplicantLocal(p: import("./types").KycSubmitPayload): KycCheck[]
 }
 import type {
   AnonymitySet,
+  Approval,
+  ApprovalRequest,
   AspStatus,
   Asset,
   Backend,
@@ -330,6 +332,37 @@ export class MockApi implements CloisterApi {
   async toggleRecipientFavorite(id: string): Promise<Recipient[]> {
     this.recipients = this.recipients.map((r) => (r.id === id ? { ...r, favorite: !r.favorite } : r));
     return structuredClone(this.recipients);
+  }
+
+  // ---------- maker-checker ----------
+  private approvals: Approval[] = [];
+
+  async requestApproval(req: ApprovalRequest): Promise<Approval[]> {
+    await wait(200);
+    this.approvals = [{ ...req, id: uid("ap"), createdAt: new Date().toISOString() }, ...this.approvals];
+    return structuredClone(this.approvals);
+  }
+
+  async getApprovals(): Promise<Approval[]> {
+    await wait(120);
+    return structuredClone(this.approvals);
+  }
+
+  async approveDisbursement(id: string, onProgress?: ProgressCallback): Promise<void> {
+    const a = this.approvals.find((x) => x.id === id);
+    if (!a) throw new Error("approval not found");
+    if (a.kind === "single" && a.single) {
+      await this.disburseSingle({ recipient: a.single.recipient, amount: a.single.amount, asset: a.single.asset, memo: a.single.memo }, onProgress);
+    } else if (a.kind === "batch" && a.batch) {
+      await this.disburseBatch({ rows: a.batch.rows }, onProgress);
+    }
+    this.approvals = this.approvals.filter((x) => x.id !== id);
+  }
+
+  async rejectDisbursement(id: string): Promise<Approval[]> {
+    await wait(150);
+    this.approvals = this.approvals.filter((x) => x.id !== id);
+    return structuredClone(this.approvals);
   }
 
   async getActivity(): Promise<Disbursement[]> {

@@ -1,7 +1,9 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { Icon, Logo } from "./icons";
 import type { IconName } from "./icons";
 import { useSession } from "../lib/SessionProvider";
+import { useApi } from "../lib/ApiProvider";
+import { useAsync } from "../lib/useAsync";
 
 interface NavDef {
   to: string;
@@ -14,6 +16,7 @@ const OPERATE: NavDef[] = [
   { to: "/overview", label: "Overview", icon: "grid" },
   { to: "/fund", label: "Fund", icon: "shield" },
   { to: "/disburse", label: "Disburse", icon: "send" },
+  { to: "/approvals", label: "Approvals", icon: "check" },
   { to: "/recipients", label: "Recipients", icon: "users" },
   { to: "/activity", label: "Activity", icon: "list" },
 ];
@@ -46,11 +49,19 @@ function Section({ title, items, onNav }: { title: string; items: NavDef[]; onNa
 
 export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { session } = useSession();
+  const api = useApi();
+  const loc = useLocation();
   const org = session?.org ?? { name: "Your Treasury", kind: "Treasury · self-custody" };
   // Badge reflects the real KYC level — only shown once screening passed.
   const level = session?.kyc.status === "verified" ? session.kyc.level ?? undefined : undefined;
   const compliance: NavDef[] = COMPLIANCE.map((n) =>
     n.to === "/compliance" ? { ...n, badge: level } : n,
+  );
+  // Pending-approval count (refreshes on navigation).
+  const { data: approvals } = useAsync(() => api.getApprovals(), [loc.pathname]);
+  const pending = (approvals ?? []).length;
+  const operate: NavDef[] = OPERATE.map((n) =>
+    n.to === "/approvals" && pending > 0 ? { ...n, badge: String(pending) } : n,
   );
   return (
     <aside className={`sidebar${open ? " open" : ""}`}>
@@ -63,7 +74,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
         </span>
       </div>
 
-      <Section title="OPERATE" items={OPERATE} onNav={onClose} />
+      <Section title="OPERATE" items={operate} onNav={onClose} />
       <Section title="COMPLIANCE" items={compliance} onNav={onClose} />
 
       <div className="nav-foot">
