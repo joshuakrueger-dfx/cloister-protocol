@@ -138,19 +138,18 @@ function SingleMode() {
 }
 
 // ---------- Batch ----------
-// Parse a CSV with header columns address,role,amount,chain[,sanctions].
-// Tolerant of quotes/extra whitespace; defaults sanctions to "ok".
-function parseBatchCsv(text: string): BatchRow[] {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (!lines.length) return [];
-  const split = (l: string) => l.split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
-  const header = split(lines[0]).map((h) => h.toLowerCase());
+// Build batch rows from a matrix of cells (header columns address,role,amount,
+// chain[,sanctions]). Tolerant of quotes/whitespace; defaults sanctions to "ok".
+// Both CSV and Excel (.xlsx) imports funnel through here.
+function rowsFromMatrix(matrix: (string | number)[][]): BatchRow[] {
+  const grid = matrix.map((r) => r.map((c) => String(c ?? "").trim())).filter((r) => r.some((c) => c));
+  if (!grid.length) return [];
+  const header = grid[0].map((h) => h.toLowerCase());
   const idx = (name: string) => header.indexOf(name);
   const hasHeader = idx("address") !== -1 || idx("amount") !== -1;
-  const body = hasHeader ? lines.slice(1) : lines;
+  const body = hasHeader ? grid.slice(1) : grid;
   const col = { address: idx("address"), role: idx("role"), amount: idx("amount"), chain: idx("chain") };
-  return body.map((line) => {
-    const c = split(line);
+  return body.map((c) => {
     const at = (i: number, fallback: number) => c[i >= 0 ? i : fallback] ?? "";
     const amount = at(col.amount, 2);
     return {
@@ -161,6 +160,11 @@ function parseBatchCsv(text: string): BatchRow[] {
       sanctions: "ok" as const,
     };
   });
+}
+
+function parseBatchCsv(text: string): BatchRow[] {
+  const matrix = text.split(/\r?\n/).map((l) => l.split(",").map((c) => c.trim().replace(/^"|"$/g, "")));
+  return rowsFromMatrix(matrix);
 }
 
 function amountNumber(a: string): number {
@@ -174,22 +178,46 @@ function BatchMode() {
   const [progress, setProgress] = useState<number | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [screened, setScreened] = useState<string | null>(null);
+  const [importErr, setImportErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const totalNum = rows.reduce((s, r) => s + amountNumber(r.amount), 0);
   const asset = rows[0]?.amount.split(" ")[1] || "USDC";
   const total = `${totalNum.toLocaleString("en-US")} ${asset}`;
 
-  function onImport(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const parsed = parseBatchCsv(String(reader.result || ""));
-      if (parsed.length) { setRows(parsed); setScreened(null); }
-    };
-    reader.readAsText(file);
     e.target.value = "";
+    if (!file) return;
+    setImportErr(null);
+    const name = file.name.toLowerCase();
+    try {
+      let parsed: BatchRow[] = [];
+      if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+        // Excel → first sheet → matrix (lazy-load the parser; keeps it out of the main bundle)
+        const XLSX = await import("xlsx");
+        const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const matrix = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1, blankrows: false, raw: false });
+        parsed = rowsFromMatrix(matrix);
+      } else {
+        parsed = parseBatchCsv(await file.text());
+      }
+      if (parsed.length) { setRows(parsed); setScreened(null); }
+      else setImportErr("No rows found. Expected columns: address, role, amount, chain.");
+    } catch {
+      setImportErr("Could not read that file. Use a CSV or .xlsx with columns: address, role, amount, chain.");
+    }
+  }
+
+  async function downloadTemplate() {
+    const { downloadCsv } = await import("../lib/exporters");
+    downloadCsv("cloister-batch-template.csv", [
+      ["address", "role", "amount", "chain"],
+      ["0xRecipientAddress…", "Employee — Jane Doe", "2400", "Polygon"],
+      ["0xRecipientAddress…", "Contractor — Acme Ltd", "1150", "Base"],
+      ["0xRecipientAddress…", "Reimbursement — travel", "380", "Arbitrum"],
+    ]);
   }
 
   function screenAll() {
@@ -215,11 +243,15 @@ function BatchMode() {
   return (
     <div className="split" style={{ marginTop: 22 }}>
       <Card style={{ gridColumn: "1 / -1" }}>
-        <div className="clab" style={{ display: "flex", justifyContent: "space-between" }}>
+        <div className="clab" style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
           BATCH PAYOUT
-          <button className="reveal-btn" onClick={() => fileRef.current?.click()}>import CSV</button>
+          <span style={{ display: "inline-flex", gap: 14 }}>
+            <button className="reveal-btn" onClick={downloadTemplate}>template</button>
+            <button className="reveal-btn" onClick={() => fileRef.current?.click()}>import CSV / Excel</button>
+          </span>
         </div>
-        <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={onImport} style={{ display: "none" }} />
+        <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,text/csv" onChange={onImport} style={{ display: "none" }} />
+        {importErr ? <div className="note" style={{ color: "var(--bad)" }}>{importErr}</div> : null}
         <div className="table-scroll">
         <table style={{ marginTop: 10 }}>
           <thead>
@@ -234,7 +266,7 @@ function BatchMode() {
           <tbody>
             {rows.length === 0 ? (
               <tr className="loading-row">
-                <td colSpan={5}>No recipients yet — import a CSV (address,role,amount,chain) to build the batch.</td>
+                <td colSpan={5}>No recipients yet — import a CSV or Excel file (columns: address, role, amount, chain), or download the template above.</td>
               </tr>
             ) : (
               rows.map((r, i) => (
@@ -284,8 +316,9 @@ function BatchMode() {
         ) : (
           <div className="note">
             Each recipient gets an <b>independent</b> shielded payment in its own lane — one relayer tx
-            per recipient, each unlinkable on-chain. Import a CSV
-            (<span className="mono">address,role,amount,chain</span>) to build the batch.
+            per recipient, each unlinkable on-chain. Import a <b>CSV or Excel</b> file
+            (<span className="mono">address, role, amount, chain</span>) — ideal for <b>payroll, vendor
+            &amp; contractor payouts, reimbursements, grants/bounties and dividends</b>.
           </div>
         )}
       </Card>
