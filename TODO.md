@@ -16,10 +16,12 @@ Erledigtes ist unten unter „Bereits live" gelistet.
 - [ ] Echter On-Device-Prover-Pfad für die Web-App (heute Demo-Backend).
 
 ## 2) Maker-Checker — Tiefe
-> Basis (4-Augen-Queue ab Schwelle) ist live. Es fehlt das Mehrnutzer-Modell.
+> 4-Augen-Queue ab Schwelle live · **Team-Verwaltung + Rollen + optionale Zweit-Freigabe live** (Team-Screen: einladen/Rollen/entfernen; Settings-Toggle). Es fehlt das echte **Mehrnutzer-Backend**.
 
-- [ ] **Echte Rollen** (Initiator / Approver / Viewer) statt Single-User-Simulation.
-- [ ] **Funktionstrennung erzwingen**: Approver ≠ Initiator.
+- [x] **Team anlegen + Mitglieder per E-Mail einladen + Rollen** (Admin/Approver/Initiator/Viewer) — Team-Screen + api (mock+real).
+- [x] **Optionale Zweit-Freigabe** (Settings-Toggle „Zweit-Freigeber erforderlich" + Schwelle).
+- [ ] **Echtes Mehrnutzer-Backend**: server-seitige Konten/Auth pro Mitglied, echte E-Mail-Einladungen, geräteübergreifende Freigabe (heute lokal/demo).
+- [ ] **Funktionstrennung erzwingen**: Approver ≠ Initiator (sobald echte Identitäten da sind).
 - [ ] **Freigabe-Audit-Trail** (wer/wann freigegeben/abgelehnt).
 - [ ] **Limits & Whitelist**: Tages-/Transaktionslimits, Empfänger-Whitelist, typ-/empfängerabhängige Regeln.
 
