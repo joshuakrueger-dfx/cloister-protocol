@@ -39,7 +39,7 @@ networks carries inherent and irreducible risk, including the risk of total loss
 
 ## Limitation of liability
 
-To the maximum extent permitted by law, **DFX AG** and its contributors shall not be liable for any
+To the maximum extent permitted by law, the project maintainers and contributors shall not be liable for any
 direct, indirect, incidental, special, consequential or exemplary damages arising from the use of,
 or inability to use, the protocol, software or documentation.
 

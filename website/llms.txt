@@ -1,7 +1,6 @@
 # Cloister Protocol
 
-> Cloister Protocol is a compliant privacy layer for stablecoin payments on any EVM chain, by
-> DFX AG (Switzerland). A payer settles without revealing the on-chain link between their funds
+> Cloister Protocol is a compliant privacy layer for stablecoin payments on any EVM chain. A payer settles without revealing the on-chain link between their funds
 > and the recipient, while proving in zero knowledge that the funds come from a screened
 > compliance "good set" (an Association-Set Provider). It is privacy WITH accountability — not
 > an anonymous mixer.
@@ -13,7 +12,6 @@
   disclosure. Built for regulated providers in Europe (MiCA-minded).
 - Universal: works on any EVM chain (Base, Polygon, Arbitrum, Ethereum, Optimism, …).
   OpenCryptoPay is the first integration.
-- A product of DFX AG, Switzerland.
 
 ## How it works
 

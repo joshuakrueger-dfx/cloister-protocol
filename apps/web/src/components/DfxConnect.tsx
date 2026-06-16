@@ -34,7 +34,7 @@ export function DfxConnect({
     return (
       <div className={`gatebox${verified ? "" : " warn"}`} style={compact ? { marginTop: 12 } : undefined}>
         <div className="clab" style={{ marginBottom: 10 }}>
-          DFX ACCOUNT — {dfx.method === "mail" ? "EMAIL" : SHORT(dfx.address).toUpperCase()}
+          ACCOUNT — {dfx.method === "mail" ? "EMAIL" : SHORT(dfx.address).toUpperCase()}
         </div>
         <div className="kv">
           <span className="k">KYC level</span>
@@ -52,7 +52,7 @@ export function DfxConnect({
             onVerified ? (
               <Button variant="solid" arrow onClick={onVerified}>Continue</Button>
             ) : (
-              <span className="tag-ok" style={{ alignSelf: "center" }}>KYC verified at DFX</span>
+              <span className="tag-ok" style={{ alignSelf: "center" }}>KYC verified</span>
             )
           ) : (
             <Button variant="solid" arrow onClick={() => dfx.startKyc()} disabled={dfx.busy}>
@@ -63,7 +63,7 @@ export function DfxConnect({
         </div>
         {!verified ? (
           <div className="note">
-            KYC runs in DFX's regulated flow (real identity documents, a real person). Complete it
+            KYC runs in a regulated flow (real identity documents, a real person). Complete it
             in the opened tab, then return — your level updates here.
           </div>
         ) : null}
@@ -77,7 +77,7 @@ export function DfxConnect({
       <div className="gatebox" style={compact ? { marginTop: 12 } : undefined}>
         <div className="clab" style={{ marginBottom: 10 }}>CHECK YOUR EMAIL</div>
         <div className="note" style={{ marginTop: 0 }}>
-          DFX emailed you a confirmation link. Open it and click <b>confirm</b> — then come back here
+          A confirmation link was emailed to you. Open it and click <b>confirm</b> — then come back here
           and continue. (The link can't return to localhost, so you confirm manually.)
         </div>
         {dfx.error ? <div className="note" style={{ color: "var(--bad)" }}>{dfx.error}</div> : null}
@@ -93,11 +93,11 @@ export function DfxConnect({
   // ---------- not connected ----------
   return (
     <div className={compact ? "" : "gatebox"} style={compact ? { marginTop: 12 } : undefined}>
-      {!compact ? <div className="clab" style={{ marginBottom: 10 }}>CONNECT DFX ACCOUNT</div> : null}
+      {!compact ? <div className="clab" style={{ marginBottom: 10 }}>CONNECT ACCOUNT</div> : null}
       {allowed.length > 1 ? (
         <div className="seg" style={{ marginBottom: 14 }}>
           {allowed.includes("derived") ? (
-            <button type="button" className={method === "derived" ? "on" : ""} onClick={() => setMethod("derived")}>DFX key</button>
+            <button type="button" className={method === "derived" ? "on" : ""} onClick={() => setMethod("derived")}>In-app key</button>
           ) : null}
           {allowed.includes("wallet") ? (
             <button type="button" className={method === "wallet" ? "on" : ""} onClick={() => setMethod("wallet")}>Browser wallet</button>
@@ -111,12 +111,12 @@ export function DfxConnect({
       {method === "derived" ? (
         <>
           <div className="note" style={{ marginTop: 0 }}>
-            Derives a dedicated EVM key from your seed and signs DFX's challenge in-app — no external
+            Derives a dedicated EVM key from your seed and signs the challenge in-app — no external
             wallet. The onramped USDC lands on this address, ready to shield.
           </div>
           <div className="actions" style={{ marginTop: 14 }}>
             <Button variant="solid" arrow onClick={() => dfx.connect("derived", { mnemonic })} disabled={dfx.busy}>
-              {dfx.busy ? "Signing in…" : "Sign in with DFX"}
+              {dfx.busy ? "Signing in…" : "Sign in"}
             </Button>
           </div>
         </>
@@ -125,7 +125,7 @@ export function DfxConnect({
           <div className="note" style={{ marginTop: 0 }}>
             {hasInjectedWallet()
               ? "Connect MetaMask / a browser wallet to sign in and receive the onramped USDC."
-              : "No browser wallet detected — install MetaMask, or use the DFX key method."}
+              : "No browser wallet detected — install MetaMask, or use the in-app key method."}
           </div>
           <div className="actions" style={{ marginTop: 14 }}>
             <Button variant="solid" arrow onClick={() => dfx.connect("wallet")} disabled={dfx.busy || !hasInjectedWallet()}>
@@ -136,7 +136,7 @@ export function DfxConnect({
       ) : (
         <>
           <div className="note" style={{ marginTop: 0 }}>
-            Sign in with your DFX email — we'll send a confirmation link to verify it's you.
+            Sign in with your email — we'll send a confirmation link to verify it's you.
           </div>
           <div className="field" style={{ marginTop: 0 }}>
             <label>EMAIL</label>

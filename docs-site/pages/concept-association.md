@@ -53,7 +53,7 @@ policy at the ASP and forward-looking root management, not by silently breaking 
 ## Who runs the ASP
 
 The ASP defines and curates the compliance policy — which screened deposits enter the good-set. In
-the reference design DFX operates it, applying the same KYC/AML standards as its regulated
+the reference design a regulated operator runs it, applying the same KYC/AML standards as its
 on-ramp. Importantly, the ASP's power is **bounded**:
 
 | The ASP **can** | The ASP **cannot** |

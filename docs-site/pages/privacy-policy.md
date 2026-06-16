@@ -4,7 +4,7 @@ This policy explains how the **Cloister Protocol documentation site** and refere
 handle data. It is distinct from the protocol's *privacy model* (what the chain reveals), which is
 documented under [Privacy model](privacy.html).
 
-> This is a Proof-of-Concept project by **DFX AG**. This page describes current practice for the
+> This is a Proof-of-Concept project. This page describes current practice for the
 > documentation and demo surfaces and will be expanded into a full legal privacy notice ahead of any
 > production launch.
 
@@ -24,7 +24,7 @@ The reference web application at `app.cloister-protocol.com` is **self-custodial
   [Keys & recovery](concept-keys.html).
 - **Relayer.** When you submit a payment, the relayer receives only the finished zero-knowledge
   proof and public calldata — never your keys or witness. See [Private payments](concept-pay.html).
-- **On-ramp / KYC.** If you use an integrated on-ramp (e.g. DFX) to acquire funds, that provider
+- **On-ramp / KYC.** If you use an integrated on-ramp (e.g. a regulated provider) to acquire funds, that provider
   performs KYC and processes your identity data under **its own** privacy policy and as the relevant
   data controller. Cloister does not receive or store that KYC data.
 - **Demo mode.** The Console's demo backend uses **sample data** and test tokens; no real funds or
@@ -45,6 +45,6 @@ your rights with **that provider** directly.
 
 ## Contact
 
-Questions about this policy or data handling: **DFX AG**, Switzerland — see the
+Questions about this policy or data handling: the project maintainers — see the
 [Imprint](imprint.html) for contact details. This policy may be updated as the project moves toward
 production.

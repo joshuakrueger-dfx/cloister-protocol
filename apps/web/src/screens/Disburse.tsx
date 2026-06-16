@@ -129,7 +129,7 @@ function SingleMode() {
           <KeyValue k="ASP inclusion" tone="pub">proven clean</KeyValue>
         </div>
         <div className="note">
-          The recipient (e.g. DFX/OCP settlement address) receives a payment note. Amount +
+          The recipient (e.g. a PSP / settlement address) receives a payment note. Amount +
           counterparty are known only to the settlement broker — never to the chain.
         </div>
       </Card>

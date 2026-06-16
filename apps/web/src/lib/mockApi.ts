@@ -77,7 +77,7 @@ const TX: Array<[string, string, string, string, string, Disbursement["status"]]
   ["Acme GmbH", "B2B settlement", "12,500 USDC", "Base", "clean", "settled"],
   ["Core dev — Lena", "Contributor payout", "8,000 USDC", "Base", "clean", "settled"],
   ["Oracle payout bot", "Programmatic", "2,400 USDC", "Polygon", "clean", "proving"],
-  ["DFX Settlement", "Merchant checkout", "340 EURC", "Base", "clean", "settled"],
+  ["PSP settlement", "Merchant checkout", "340 EURC", "Base", "clean", "settled"],
   ["Auditor", "DAO payout", "6,000 USDC", "Arbitrum", "clean", "settled"],
 ];
 
@@ -281,7 +281,7 @@ export class MockApi implements CloisterApi {
   private recipients: Recipient[] = [
     { id: uid("r"), label: "Acme GmbH", type: "B2B vendor", address: "0x4f21…ab90", lastPaid: "Jun 11", sanctions: "ok" },
     { id: uid("r"), label: "Core dev — Lena", type: "Contributor", address: "0x7a3f…9c2d", lastPaid: "Jun 1", sanctions: "ok" },
-    { id: uid("r"), label: "DFX Settlement", type: "PSP / broker", address: "0x9C22…10FC", lastPaid: "Jun 12", sanctions: "ok" },
+    { id: uid("r"), label: "PSP settlement", type: "PSP / broker", address: "0x9C22…10FC", lastPaid: "Jun 12", sanctions: "ok" },
     { id: uid("r"), label: "Oracle payout bot", type: "Programmatic", address: "0x33ee…0f5a", lastPaid: "Jun 13", sanctions: "ok" },
   ];
 
@@ -325,7 +325,7 @@ export class MockApi implements CloisterApi {
     }
     const signed = {
       kind: "cloister.proof-of-innocence.v1",
-      issuer: "Cloister ASP (DFX)",
+      issuer: "Cloister ASP",
       subject: this.session.org.name,
       scope: params.scope,
       period: params.period,
@@ -378,12 +378,12 @@ export class MockApi implements CloisterApi {
   async getAspStatus(): Promise<AspStatus> {
     await wait(220);
     return {
-      provider: "DFX AG",
+      provider: "Cloister",
       rootAge: "fresh · 4 min",
       inclusion: true,
       badSetExclusion: true,
       items: [
-        { label: "Provider", value: "DFX AG", level: "ok" },
+        { label: "Provider", value: "Cloister", level: "ok" },
         { label: "Association root", value: "fresh · 4 min", level: "ok" },
         { label: "Inclusion proof", value: "all funds ∈ good-set", level: "ok" },
         { label: "Bad-set exclusion", value: "enforced", level: "ok" },

@@ -2,10 +2,9 @@
 
 ## Publisher
 
-**DFX AG**
-Switzerland
+**Cloister Protocol**
 
-Cloister Protocol is a product of DFX AG. OpenCryptoPay is its first integration, but the protocol
+Cloister Protocol is an independent, compliance-minded privacy protocol. OpenCryptoPay is its first integration, but the protocol
 is payment-rail agnostic and is offered as a standalone privacy layer for stablecoin payments on EVM
 chains.
 
@@ -32,4 +31,4 @@ and registration details will be published here ahead of any production launch.
 
 See also: [Disclaimer](disclaimer.html) · [Privacy policy](privacy-policy.html)
 
-© 2026 DFX AG · All rights reserved.
+© 2026 Cloister Protocol · All rights reserved.

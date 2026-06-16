@@ -33,7 +33,7 @@ export function Settings() {
               { label: "Backend", value: `${backend.label} · ${backend.meta}`, level: "ok" },
               { label: "Relayer", value: "broadcast-only (gas sponsored)", level: "ok" },
               { label: "Indexer", value: "view-tags" },
-              { label: "DFX account", value: dfxLinked ? "linked" : "not linked", level: dfxLinked ? "ok" : "pending" },
+              { label: "Funding account", value: dfxLinked ? "linked" : "not linked", level: dfxLinked ? "ok" : "pending" },
             ]}
           />
         </Card>

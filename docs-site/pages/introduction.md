@@ -1,6 +1,6 @@
 # Cloister Protocol
 
-> A compliant privacy layer for stablecoin payments on any EVM chain — by **DFX AG** (Switzerland).
+> A compliant privacy layer for stablecoin payments on any EVM chain.
 
 Public blockchains are radically transparent. Every stablecoin transfer permanently exposes
 the sender, the receiver, the amount, and — through that address — the sender's entire balance
@@ -29,7 +29,7 @@ touch them. Cloister takes the opposite stance:
 
 So a user can stay private **and** demonstrate clean origin to a regulator. That is the whole
 point: *privacy is the default, disclosure is a key you hold.* This is what makes Cloister a
-product a regulated Swiss company can ship.
+product a regulated business can ship.
 
 ## What it is, in one paragraph
 

@@ -6,9 +6,9 @@ where identity, amount and screening meet the chain.
 
 ## What happens when you shield
 
-1. **Acquire clean funds.** You obtain stablecoins through a KYC-verified on-ramp. In the
-   reference flow this is **DFX** — you complete KYC once, then buy USDC (bank transfer / card)
-   that lands in your in-app wallet. (See the live flow in the [Console](https://app.cloister-protocol.com).)
+1. **Acquire clean funds.** You obtain stablecoins through a regulated, KYC-verified on-ramp —
+   you complete KYC once, then buy USDC (bank transfer / card) that lands in your in-app wallet.
+   (See the live flow in the [Console](https://app.cloister-protocol.com).)
 2. **Screening.** Sanctions screening and geofencing run at this boundary. Only funds that pass
    are admitted to the good-set.
 3. **Deposit.** You deposit the tokens into the pool contract. On-chain this is a visible ERC-20
@@ -42,7 +42,7 @@ entry**. Money with unknown origin cannot get in, and therefore cannot later be 
 
 ## A worked example
 
-Alice completes DFX KYC and buys **5,000 USDC**. She shields all of it:
+Alice completes KYC and buys **5,000 USDC**. She shields all of it:
 
 - On-chain: a 5,000 USDC transfer into the pool, and one new commitment.
 - The world sees: *Alice deposited 5,000 USDC into Cloister.* Nothing more.
