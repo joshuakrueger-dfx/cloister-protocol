@@ -17,8 +17,9 @@ the first integration (see [`docs/en/INTEGRATION.md`](docs/en/INTEGRATION.md)).
 > ⚠️ **Status: Proof of Concept — not production-ready.** The ZK layer, contracts, and
 > critical paths have passed an adversarial internal audit and are hardened (reentrancy/CEI,
 > SafeERC20, scalar binding, and more — see [`docs/en/SECURITY.md`](docs/en/SECURITY.md)).
-> **Still open for mainnet:** a real multi-party trusted-setup ceremony, two external audits,
-> and the compliance layer enforced inside the circuit.
+> **Still open for mainnet:** a real multi-party trusted-setup ceremony and two external audits
+> (circuit + contracts). The compliance layer (ASP good-set membership) is already enforced
+> inside the circuit and revocable on-chain.
 
 ## What the PoC proves
 
@@ -31,8 +32,9 @@ the first integration (see [`docs/en/INTEGRATION.md`](docs/en/INTEGRATION.md)).
 - **Compliance without disclosure.** An **ASP good-set inclusion proof** attests that funds
   are clean, revealing nothing about history — the basis for the *proof-of-innocence* receipt.
 - **Scalable gas.** Off-chain insertion means the contract computes **zero Poseidon hashes
-  on-chain**; the Merkle-root transition is proven in the circuit → **~350k vs ~1.74M gas/tx
-  (~5×)**.
+  on-chain** — the Merkle-root transition is proven in the circuit instead of running ~40
+  Poseidon hashes per insert on-chain. This is a *design* reduction (verify-only vs. naive
+  on-chain `_insert`); cite exact figures from a `hardhat-gas-reporter` run, not from prose.
 - **Fast note discovery.** An indexer plus view-tags filter foreign notes without full decrypt.
 - **Parallel throughput.** `numLanes` independent roots let payments in different lanes land
   in the same block; only same-lane spends serialize.
@@ -148,8 +150,9 @@ Deliberately **out of scope** for the PoC — external gates, not code problems:
 
 - **External security audits** of the circuit and contracts — mandatory before real funds.
 - **A production trusted setup** (multi-party ceremony) instead of the local single contributor.
-- **The compliance layer (ASP) enforced inside the circuit** — association-inclusion proofs and
-  Level-3 viewing-key disclosure are designed and demonstrated, but not yet circuit-enforced.
+- **Compliance — remaining pieces.** ASP association-set membership **is** enforced inside the
+  circuit today (every real input proves membership in the ASP good-set root) and roots are
+  revocable on-chain. Still designed-but-not-enforced: Level-3 selective viewing-key disclosure.
 - **Mainnet deployment** — the target is the major L2s (Polygon / Base / Arbitrum), not L1.
 
 The prioritized blocker list for productization lives in

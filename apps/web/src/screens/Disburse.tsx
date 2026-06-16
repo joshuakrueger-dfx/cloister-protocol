@@ -5,6 +5,7 @@ import { Button, Card, Dots, Field, KeyValue, ScreenHead, Seg, SanctionsTag } fr
 import { ProofConsole } from "../components/ProofConsole";
 import { toast } from "../lib/overlays";
 import { getApprovalThreshold } from "../lib/prefs";
+import { useT } from "../lib/i18n";
 import type { Asset, BatchRow, PayrollSession, ProofStep } from "../lib/types";
 
 type Mode = "single" | "batch" | "recurring";
@@ -18,23 +19,26 @@ const UPLOAD_ICON = (
   </svg>
 );
 
-const MODES: { value: Mode; label: string }[] = [
-  { value: "single", label: "Single payment" },
-  { value: "batch", label: "Batch payout" },
-  { value: "recurring", label: "Payroll · recurring" },
-];
-
 export function Disburse() {
   const [mode, setMode] = useState<Mode>("single");
+  const tr = useT();
+  const modes: { value: Mode; label: string }[] = [
+    { value: "single", label: tr("Single payment", "Einzelzahlung") },
+    { value: "batch", label: tr("Batch payout", "Sammelauszahlung") },
+    { value: "recurring", label: tr("Payroll · recurring", "Gehalt · wiederkehrend") },
+  ];
   return (
     <section className="view">
       <ScreenHead
-        eyebrow="PRIVATE PAYOUT"
-        title="Disburse"
-        sub="Pay anyone — privately and compliantly. The proof generates in the background while you confirm, so it feels instant."
+        eyebrow={tr("PRIVATE PAYOUT", "PRIVATE AUSZAHLUNG")}
+        title={tr("Disburse", "Auszahlen")}
+        sub={tr(
+          "Pay anyone — privately and compliantly. The proof generates in the background while you confirm, so it feels instant.",
+          "Zahle an jeden — privat und compliant. Der Beweis entsteht im Hintergrund, während du bestätigst — fühlt sich sofort an.",
+        )}
       />
       <div style={{ marginTop: 22 }}>
-        <Seg value={mode} onChange={setMode} options={MODES} />
+        <Seg value={mode} onChange={setMode} options={modes} />
       </div>
       {mode === "single" ? <SingleMode /> : mode === "batch" ? <BatchMode /> : <RecurringMode />}
     </section>
@@ -46,6 +50,7 @@ const PASTE_RECIPIENT = "Paste address / OCP quote";
 
 function SingleMode() {
   const api = useApi();
+  const tr = useT();
   const { data: recipients } = useAsync(() => api.getRecipients(), []);
   const [amount, setAmount] = useState("");
   const [asset, setAsset] = useState<Asset>("USDC");
@@ -64,7 +69,7 @@ function SingleMode() {
   async function handleInvoice(file?: File) {
     if (!file) return;
     setInvBusy(true);
-    setInvMsg("Reading invoice…");
+    setInvMsg(tr("Reading invoice…", "Lese Rechnung…"));
     try {
       // lazy-load the extractor (pdf.js + OCR) only when an invoice is uploaded
       const { extractInvoice } = await import("../lib/invoice");
@@ -75,15 +80,15 @@ function SingleMode() {
       if (r.amount) setAmount(r.amount);
       if (r.currency === "EURC" || r.currency === "EUR") setAsset("EURC");
       else if (r.currency === "USDC" || r.currency === "USD") setAsset("USDC");
-      if (r.reference) setMemo(`Invoice ${r.reference}`);
-      const found = [r.amount && "amount", r.recipient && "recipient", r.reference && "reference"].filter(Boolean).join(", ");
+      if (r.reference) setMemo(`${tr("Invoice", "Rechnung")} ${r.reference}`);
+      const src = r.source === "ocr" ? tr("via OCR", "per OCR") : tr("from the PDF text", "aus dem PDF-Text");
       setInvMsg(
-        found
-          ? `Extracted ${found} (${r.source === "ocr" ? "via OCR" : "from the PDF text"}) — please verify below before paying.`
-          : `Couldn't read the fields automatically (${r.source}). Please enter them manually.`,
+        r.amount || r.recipient || r.reference
+          ? tr(`Extracted fields (${src}) — please verify below before paying.`, `Felder erkannt (${src}) — bitte unten vor dem Zahlen prüfen.`)
+          : tr(`Couldn't read the fields automatically (${src}). Please enter them manually.`, `Felder konnten nicht automatisch gelesen werden (${src}). Bitte manuell eingeben.`),
       );
     } catch {
-      setInvMsg("Could not read that invoice. Upload a PDF or an image (PNG/JPG).");
+      setInvMsg(tr("Could not read that invoice. Upload a PDF or an image (PNG/JPG).", "Diese Rechnung konnte nicht gelesen werden. Lade ein PDF oder Bild (PNG/JPG) hoch."));
     } finally {
       setInvBusy(false);
     }
@@ -100,8 +105,8 @@ function SingleMode() {
       setBusy(true);
       try {
         await api.requestApproval({ kind: "single", summary: recipient, amount: `${amount} ${asset}`, single: { recipient, amount, asset, memo } });
-        setLines([{ progress: 100, html: "<span class='ok'>submitted for dual approval — see <b>Approvals</b>.</span>" }]);
-        toast("Submitted for approval — needs a second approver", "info");
+        setLines([{ progress: 100, html: `<span class='ok'>${tr("submitted for dual approval — see <b>Approvals</b>.", "zur Zweit-Freigabe eingereicht — siehe <b>Freigaben</b>.")}</span>` }]);
+        toast(tr("Submitted for approval — needs a second approver", "Zur Freigabe eingereicht — braucht einen Zweit-Freigeber"), "info");
       } catch (e) {
         toast(e instanceof Error ? e.message : "Could not submit", "error");
       } finally {
@@ -120,16 +125,16 @@ function SingleMode() {
       if (res.receiptAvailable) {
         setLines((prev) => [
           ...prev,
-          { progress: 100, html: "<span class='ok'>receipt available in Compliance Center.</span>" },
+          { progress: 100, html: `<span class='ok'>${tr("receipt available in Compliance Center.", "Beleg im Compliance-Center verfügbar.")}</span>` },
         ]);
       }
-      toast("Payment sent privately", "success");
+      toast(tr("Payment sent privately", "Zahlung privat gesendet"), "success");
     } catch (e) {
       setLines((prev) => [
         ...prev,
         { progress: 100, html: `<span class='w'>error: ${(e as Error).message}</span>` },
       ]);
-      toast((e as Error).message || "Payment failed", "error");
+      toast((e as Error).message || tr("Payment failed", "Zahlung fehlgeschlagen"), "error");
     } finally {
       setBusy(false);
     }
@@ -143,13 +148,13 @@ function SingleMode() {
         onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }}
         onDrop={(e) => { e.preventDefault(); setDrag(false); handleInvoice(e.dataTransfer.files?.[0]); }}
       >
-        <div className="clab">SINGLE PAYMENT</div>
+        <div className="clab">{tr("SINGLE PAYMENT", "EINZELZAHLUNG")}</div>
         <input ref={invoiceRef} type="file" accept=".pdf,application/pdf,image/*" onChange={onInvoice} style={{ display: "none" }} />
         <div className="dropzone sm" onClick={() => invoiceRef.current?.click()} role="button" tabIndex={0}
           onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && invoiceRef.current?.click()}>
           <div className="dz-ic">{UPLOAD_ICON}</div>
-          <div className="dz-t">{invBusy ? "Reading invoice…" : "Drop an invoice to auto-fill"}</div>
-          <div className="dz-s">PDF or image — we read the recipient, amount and reference. Or click to browse.</div>
+          <div className="dz-t">{invBusy ? tr("Reading invoice…", "Lese Rechnung…") : tr("Drop an invoice to auto-fill", "Rechnung ablegen — füllt automatisch aus")}</div>
+          <div className="dz-s">{tr("PDF or image — we read the recipient, amount and reference. Or click to browse.", "PDF oder Bild — wir lesen Empfänger, Betrag und Referenz. Oder klicken zum Auswählen.")}</div>
         </div>
         {invMsg ? <div className="note" style={{ marginTop: 12 }}>{invMsg}</div> : null}
         <Field label="RECIPIENT">

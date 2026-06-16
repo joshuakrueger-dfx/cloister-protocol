@@ -7,6 +7,45 @@ Severities reflect the post-adversarial-review verdicts: findings whose adversar
 
 ---
 
+## 0. Status update — 2026-06-16 (hardening pass)
+
+The NO-GO audit below is preserved verbatim as a point-in-time record (2026-06-15). Since then a
+hardening pass closed the fixable findings **without changing the circuit** (keys, deployed
+verifier and the Sepolia deployment are unchanged; privacy and on-device performance preserved):
+
+**Resolved**
+- **P0-2 / licensing (go-ethereum LGPL on device):** go-ethereum removed from the gomobile
+  surface — `go list -deps ./mobile` now contains zero ethereum packages; the device binary is
+  copyleft-clean. On-chain submission moved to the wallet (ethers/WDK). `LICENSES.md` + README
+  corrected to the accurate "shipped product is GPL/LGPL-free; LGPL go-ethereum is confined to
+  non-distributed dev CLIs" statement. The podspec is MIT.
+- **P1-2 (no kill-switch on a novel verifier):** `emergencyPause` (time-boxed) + a per-tx
+  `maxWithdrawal` cap exist; the pause is now **non-renewable** via `PAUSE_COOLDOWN`, so a
+  guardian can never permanently freeze withdrawals (proven by tests).
+- **Compliance defaults:** ASP good-set roots are now **revocable** (`revokeAspRoot`); ASP and
+  guardian transfers are two-step with zero-address guards.
+- **Verifier provenance:** a Go provenance test fails CI if `Groth16Verifier.sol` drifts from the
+  committed `vk.bin`; `keys/SETUP_MANIFEST.md` pins the artifact hashes + deployed address.
+- **Cross-language soundness:** an SDK KAT asserts the extData binding is byte-identical across
+  SDK ↔ Go ↔ Solidity; CI now hard-fails Slither on High and runs the SDK + provenance gates.
+- **Deploy safety:** `deployAll` is safe-by-default — permissive ASP / MockERC20 are allowed only
+  on an allowlist of dev chains; every real mainnet requires a non-zero ASP + a real token.
+- **Mobile key handling (Phase-A):** the constant `'12345'` owner key was replaced by a
+  per-install random key in secure storage; the sideload auto-auth is gated behind an explicit
+  pilot flag.
+
+**Still the genuine mainnet gate (intentional testnet-pilot state)**
+- **P0-1 — trusted setup:** keys still come from a single-party `groth16.Setup`. This is the
+  documented testnet-pilot trust root; mainnet is gated on a published multi-party Phase-2 MPC
+  ceremony (`docs/en/concepts/MPC_CEREMONY.md`). Not a code defect — a launch prerequisite.
+- Independent circuit/contract audit, a 100k/day throughput model (root-history window, indexer
+  pagination), and real-asset (USDC) settlement at scale remain open.
+
+The verdict below therefore stands **for mainnet** (gated chiefly on the ceremony + external
+audit + scale), while the testnet pilot is materially hardened relative to 2026-06-15.
+
+---
+
 ## 1. Executive summary — NO-GO for Base mainnet
 
 **Recommendation: NO-GO.** The protocol is a well-built proof-of-concept on Base Sepolia testnet, but it is not safe to hold real value at any scale, let alone 100k users/day. There are three categories of hard blockers that must be closed before mainnet:
@@ -37,6 +76,7 @@ The cryptographic core (value conservation, nullifier/double-spend handling, CEI
 - **Fix:** Block mainnet on a verifiable multi-party Phase-2 ceremony (perpetual-powers-of-tau-derived or gnark MPC). Publish the full transcript + a deterministic verification script. Re-export `Groth16Verifier.sol` from the ceremony vk and re-audit. Gate `cmd/setup` behind `--insecure-singleparty` that refuses any chain-id other than Sepolia. Add a CI guard that fails if the deployed verifier matches the committed dev vk hash.
 
 ### P0-2 · go-ethereum (LGPL-3.0) statically linked into the proprietary iOS framework
+- **✅ RESOLVED (2026-06-16, see §0):** go-ethereum removed from the gomobile surface; `go list -deps ./mobile` = 0 ethereum packages; on-chain submit moved to the wallet (ethers/WDK); podspec MIT; LICENSES/README wording corrected.
 - **Subsystem:** mobile-onchain / licenses
 - **File:** `packages/prover-gnark/onchain/submit.go:16-22` (imports), reachable via `packages/prover-gnark/mobile/mobile.go:15,184`; shipped at `dfx-wallet/modules/cloister-prover/ios/Cloister.xcframework`
 - **Problem:** `onchain/submit.go` imports six LGPL-3.0 go-ethereum packages. `mobile.go` imports `onchain` and calls `DepositAndSubmit`, so geth is compiled into the gomobile bind. `strings` over the shipped 37 MB framework shows thousands of go-ethereum symbols; it is shipped as a `static_framework` declared `Proprietary … All rights reserved` (podspec). LGPL-3.0 §4/§6 require relinkable objects/dynamic linking + license text + attribution — none present. This is a live, distributed LGPL violation, and `docs/LICENSES.md` falsely declares the stack "no GPL/copyleft code."
@@ -66,6 +106,7 @@ The cryptographic core (value conservation, nullifier/double-spend handling, CEI
 - **Fix:** Add a bounded per-lane rolling root-history (e.g. `mapping(lane => mapping(root => bool))` + a FIFO of ~64-128 recent roots); accept `oldRoot` if it is any recent known root. Note: the proof also binds `pairIndex`/the exact insertion transition, so a stale root cannot be naively applied at a new slot — pair the history window with a relayer/sequencer that re-targets proofs (or move index assignment on-chain). Re-evaluate `numLanes` for mainnet.
 
 ### P1-2 · No kill-switch / withdrawal pause / upgrade path on a novel unaudited verifier
+- **✅ RESOLVED (2026-06-16, see §0):** added a time-boxed `emergencyPause` (stops ALL tx incl. withdrawals for incident response) that is **non-renewable** via `PAUSE_COOLDOWN` (a guaranteed open withdrawal window between pauses → never permanently frozen), plus a per-tx `maxWithdrawal` cap as a soundness circuit-breaker.
 - **Subsystem:** contracts (security) · **File:** `packages/contracts/contracts/ShieldedPool.sol:36,41-43,257-265`
 - **Problem:** `verifier` is `immutable`; the only Guardian power is `setDepositsPaused` (deposits only). Withdrawals are intentionally never blockable, and there is no per-tx/per-block withdrawal cap. If a soundness bug exists in the self-built gnark circuit or in the hand-repacked `TransactionVerifier`, the pool can be drained to zero with zero containment, and the privacy break is unrecoverable. `PoolRegistry.migrate` only repoints a lookup; it is not a recovery path.
 - **Fix:** Add a time-boxed, auto-expiring emergency circuit-breaker (multisig Guardian, e.g. 72h pause of ALL transactions) that preserves the "never permanently freeze" property. Add per-tx and/or per-block aggregate withdrawal caps as defense-in-depth. Require an independent audit of the circuit + verifier vkey before mainnet.
