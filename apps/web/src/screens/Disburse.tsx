@@ -45,6 +45,39 @@ function SingleMode() {
   const [lines, setLines] = useState<ProofStep[]>([]);
   const [progress, setProgress] = useState<number | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const invoiceRef = useRef<HTMLInputElement>(null);
+  const [invBusy, setInvBusy] = useState(false);
+  const [invMsg, setInvMsg] = useState<string | null>(null);
+
+  async function onInvoice(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setInvBusy(true);
+    setInvMsg("reading invoice…");
+    try {
+      // lazy-load the extractor (pdf.js + OCR) only when an invoice is uploaded
+      const { extractInvoice } = await import("../lib/invoice");
+      const r = await extractInvoice(file, (stage, p) =>
+        setInvMsg(p != null ? `${stage} ${Math.round(p * 100)}%` : `${stage}…`),
+      );
+      if (r.recipient) { setRecipientSel(PASTE_RECIPIENT); setCustomRecipient(r.recipient); }
+      if (r.amount) setAmount(r.amount);
+      if (r.currency === "EURC" || r.currency === "EUR") setAsset("EURC");
+      else if (r.currency === "USDC" || r.currency === "USD") setAsset("USDC");
+      if (r.reference) setMemo(`Invoice ${r.reference}`);
+      const found = [r.amount && "amount", r.recipient && "recipient", r.reference && "reference"].filter(Boolean).join(", ");
+      setInvMsg(
+        found
+          ? `Extracted ${found} (${r.source === "ocr" ? "via OCR" : "from the PDF text"}) — please verify below before paying.`
+          : `Couldn't read the fields automatically (${r.source}). Please enter them manually.`,
+      );
+    } catch {
+      setInvMsg("Could not read that invoice. Upload a PDF or an image (PNG/JPG).");
+    } finally {
+      setInvBusy(false);
+    }
+  }
 
   async function pay() {
     setBusy(true);
@@ -74,7 +107,14 @@ function SingleMode() {
   return (
     <div className="split" style={{ marginTop: 22 }}>
       <Card>
-        <div className="clab">SINGLE PAYMENT</div>
+        <div className="clab" style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+          SINGLE PAYMENT
+          <button className="reveal-btn" onClick={() => invoiceRef.current?.click()} disabled={invBusy}>
+            {invBusy ? "reading…" : "upload invoice"}
+          </button>
+        </div>
+        <input ref={invoiceRef} type="file" accept=".pdf,application/pdf,image/*" onChange={onInvoice} style={{ display: "none" }} />
+        {invMsg ? <div className="note" style={{ marginTop: 0 }}>{invMsg}</div> : null}
         <Field label="RECIPIENT">
           <select className="input" value={recipientSel} onChange={(e) => setRecipientSel(e.target.value)}>
             <option>{PASTE_RECIPIENT}</option>
