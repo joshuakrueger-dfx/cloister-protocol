@@ -1,6 +1,7 @@
 # Cloister CI — runs on every PR + push to main/feat. Sets the bar the org lacks for a
-# ZK shielded-pool: race-checked Go prover/circuit (incl. soundness negative tests + KAT),
-# Hardhat contract tests, and Slither static analysis on the Solidity.
+# ZK shielded-pool: race-checked Go prover/circuit (incl. soundness negative tests + the
+# verifier↔key provenance gate), the SDK cross-language extData KAT (JS == Go == Solidity),
+# Hardhat contract tests, and Slither static analysis (hard-fails on High findings).
 name: ci
 
 on:
@@ -27,9 +28,27 @@ jobs:
           cache-dependency-path: packages/prover-gnark/go.sum
       - run: go vet ./...
       - run: go build ./...
-      # -race catches data races; the zk suite includes soundness negative tests
-      # (tampered witness MUST fail) + a Poseidon2 known-answer vector.
+      # -race catches data races; the suite includes soundness negative tests (tampered
+      # witness MUST fail), a Poseidon2 known-answer vector, and the provenance gate
+      # (./provenance) which fails if Groth16Verifier.sol drifts from the committed vk.bin.
       - run: go test -race -timeout 600s ./...
+
+  sdk:
+    name: SDK cross-language KAT (JS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # asserts the SDK's extData hash matches the gnark/Solidity-verified golden — the
+      # independent JS↔Go↔Solidity binding surface (recipient/amount malleability guard).
+      - run: pnpm --filter @cloister/sdk test
 
   contracts:
     name: Solidity contracts (Hardhat)
@@ -64,5 +83,5 @@ jobs:
       - uses: crytic/slither-action@v0.4.0
         with:
           target: packages/contracts
+          fail-on: high # hard-fail on High findings; Medium/Low/Info are reported, not blocking
           slither-args: --exclude-dependencies --filter-paths "node_modules"
-        continue-on-error: true # report findings without hard-failing the pilot; tighten for prod

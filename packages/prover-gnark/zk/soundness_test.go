@@ -75,9 +75,12 @@ func TestDepositRejectsTamperedWitness(t *testing.T) {
 	}
 }
 
-// Known-answer vector for Poseidon2 — a golden value that the Go prover, the Solidity
-// verifier and the TS SDK must all reproduce. Guards against silent parameter/serialization
-// drift across the language boundary (the SDK + relayer delegate hashing to this code).
+// Known-answer vector for Poseidon2 — guards the in-circuit hash, the native hasher and the
+// verifier against silent parameter/round/serialization drift. NOTE: the JS SDK does NOT
+// re-implement Poseidon2; it delegates hashing to THIS code via the prover backend (native
+// gomobile bind or proverd), so there is no independent JS Poseidon2 to diverge. The truly
+// independent cross-language surface — the keccak/ABI extData binding — is covered separately
+// by packages/sdk/test/extdata.kat.test.mjs (SDK == Go == Solidity).
 func TestPoseidon2KnownAnswer(t *testing.T) {
 	const want = "4443443265955166080716935670700081889283598504231460571509928329665379862364"
 	got, err := HashDecimal([]string{"1", "2"})

@@ -34,12 +34,23 @@ export async function deployAll(
   signer,
   { levels = 20, numLanes = 8, asp = ZeroAddress, initialAspRoot, token: tokenAddress, guardian } = {},
 ) {
-  // Base mainnet guardrails: no permissive (ASP-less) dev mode and no MockERC20 — a real
-  // ASP + the canonical USDC address are mandatory. Sepolia/local keep the dev defaults.
+  // Safe-by-default guardrails: the permissive (ASP-less) dev mode and the free-mint
+  // MockERC20 are ONLY allowed on explicitly-known dev/test chains. Every other chain —
+  // i.e. any real mainnet (Base 8453, Arbitrum 42161, Optimism 10, Polygon 137, Ethereum 1,
+  // …) — MUST pass a non-zero ASP + a real token address. This avoids the footgun of a
+  // single mainnet denylist that any non-Base L2 would slip past.
+  const DEV_CHAIN_IDS = new Set([
+    31337, // hardhat / local
+    1337, // ganache / local
+    84532, // base-sepolia (current pilot)
+    11155111, // ethereum sepolia
+  ]);
   const chainId = Number((await signer.provider.getNetwork()).chainId);
-  if (chainId === 8453) {
-    if (asp === ZeroAddress) throw new Error("mainnet deploy: a non-zero ASP is required (no permissive dev mode)");
-    if (!tokenAddress) throw new Error("mainnet deploy: a real token address (canonical USDC) is required; refusing MockERC20");
+  if (!DEV_CHAIN_IDS.has(chainId)) {
+    if (asp === ZeroAddress)
+      throw new Error(`production deploy (chainId ${chainId}): a non-zero ASP is required (no permissive dev mode)`);
+    if (!tokenAddress)
+      throw new Error(`production deploy (chainId ${chainId}): a real token address is required; refusing free-mint MockERC20`);
   }
 
   const initialRoot = (await (await new MerkleTree(levels).init()).root()).toString();

@@ -9,7 +9,8 @@
     ".": "./src/index.js"
   },
   "scripts": {
-    "build:browser": "esbuild src/browser.js --bundle --format=iife --global-name=CloisterSDK --platform=browser --inject:src/buffer-inject.js --outfile=./dist/cloister-sdk.browser.js"
+    "build:browser": "esbuild src/browser.js --bundle --format=iife --global-name=CloisterSDK --platform=browser --inject:src/buffer-inject.js --outfile=./dist/cloister-sdk.browser.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@noble/hashes": "^2.2.0",

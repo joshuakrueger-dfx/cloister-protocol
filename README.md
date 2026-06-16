@@ -40,8 +40,10 @@ the first integration (see [`docs/en/INTEGRATION.md`](docs/en/INTEGRATION.md)).
 ## How it works
 
 The zero-knowledge layer is **self-built on [gnark](https://github.com/Consensys/gnark)**
-(Apache-2.0) — there is no GPL code anywhere in the stack (see [`docs/LICENSES.md`](docs/LICENSES.md)
-and [`docs/LICENSE_AUDIT.md`](docs/LICENSE_AUDIT.md)).
+(Apache-2.0). The **shipped product** — the on-device prover binary and the app — contains no
+GPL/LGPL/copyleft code (verified by `go list -deps ./mobile`). LGPL go-ethereum is confined to
+developer-only CLI tooling that is never distributed. See [`docs/LICENSES.md`](docs/LICENSES.md)
+and [`docs/LICENSE_AUDIT.md`](docs/LICENSE_AUDIT.md).
 
 - **Groth16 / BN254**, **Poseidon2**, a 2-in / 2-out transaction circuit, **50,481 constraints**.
 - Proving runs **on-device in ~190–220 ms** (≈ 8× faster than the superseded circom/snarkjs
@@ -114,15 +116,12 @@ pnpm dev:stack    # Hardhat devnet → gnark proverd → provider/relayer/ASP �
 Then open <http://localhost:5180> and switch the backend to **Local**. A single `Ctrl-C`
 tears the whole stack down; logs land in `$TMPDIR/cloister-*.log`.
 
-**Demos and measurements** (each needs a devnet — run `pnpm node` in a separate terminal first):
-
-```bash
-pnpm demo:api        # E2E over the HTTP API (provider + relayer)
-pnpm demo:indexer    # E2E with the indexer + view-tags (foreign notes rejected without decrypt)
-pnpm demo:gas        # gas measurement — ~350k vs ~1.74M gas/tx
-pnpm demo:parallel   # lane parallelism — 6 payments across 6 lanes in ONE block
-pnpm demo:trace      # auditor trace — pay via the OCP flow, then prove no trace remains
-```
+**Demos and measurements.** The scripted CLI demos under `apps/demo/` predate the circom→gnark
+migration and are being ported to the native prover (they referenced the removed snarkjs
+`artifactPaths`); they are intentionally not wired into `package.json` yet. Until then, the
+real, verified end-to-end path is the contracts test suite (`pnpm --filter @cloister/contracts test`,
+incl. the gnark real-proof deposit E2E) and the prover-gnark Go tests. Gas figures should be cited
+only from a `hardhat-gas-reporter` run, not from the legacy demo script.
 
 ## Documentation
 
@@ -158,6 +157,6 @@ The prioritized blocker list for productization lives in
 
 ## License
 
-MIT for this repository's code. The ZK layer is built on gnark (Apache-2.0); the stack is
-GPL-free by design. See [`docs/LICENSES.md`](docs/LICENSES.md) and
+MIT for this repository's code. The ZK layer is built on gnark (Apache-2.0); the shipped
+product is GPL/LGPL-free (LGPL go-ethereum is confined to non-distributed dev CLIs). See [`docs/LICENSES.md`](docs/LICENSES.md) and
 [`docs/LICENSE_AUDIT.md`](docs/LICENSE_AUDIT.md).

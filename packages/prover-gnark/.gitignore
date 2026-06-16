@@ -5,3 +5,4 @@ keys/circuit.r1cs
 
 # vk.bin and the exported Verifier.sol are small + the on-chain source of truth → keep them
 !keys/vk.bin
+build/

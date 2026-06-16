@@ -56,6 +56,35 @@ describe("ShieldedPool — real-proof deposit (gnark E2E)", function () {
     expect(await pool.nullifierSpent(BigInt(fx.nullifiers[0]))).to.equal(true);
   });
 
+  it("rejects tampered extData — the on-chain keccak binding is airtight (no malleability)", async function () {
+    // Fresh pool so oldRoot is still valid; the proof binds extDataHash for the ORIGINAL
+    // extData. We submit the SAME proof but mutate a hash-only field (encryptedOutput1) that
+    // does NOT change publicAmount. The contract recomputes keccak256(abi.encode(extData)) %
+    // FIELD from the tampered extData → pub[2] no longer matches the proof → verifyProof fails.
+    // This proves a relayer/MEV actor cannot swap recipient/relayer/fee/outputs of a valid proof.
+    const verifier = await (await ethers.getContractFactory("TransactionVerifier")).deploy();
+    const tok = await (await ethers.getContractFactory("MockERC20")).deploy("USD Coin", "USDC", 6);
+    const Pool = await ethers.getContractFactory("ShieldedPool");
+    const freshPool = await Pool.deploy(
+      LEVELS, LANES, BigInt(fx.oldRoot), await verifier.getAddress(), await tok.getAddress(),
+      owner.address, ethers.ZeroAddress, 0n,
+    );
+    await tok.mint(owner.address, BigInt(fx.amount));
+    await tok.approve(await freshPool.getAddress(), BigInt(fx.amount));
+
+    const proof = { a: fx.a, b: fx.b, c: fx.c };
+    const ed = fx.extData;
+    const tampered = [ed.recipient, ed.extAmount, ed.relayer, ed.fee, "0xdeadbeef", ed.encryptedOutput2];
+    await expect(
+      freshPool.transact(
+        proof, BigInt(fx.oldRoot), BigInt(fx.newRoot), BigInt(fx.associationRoot),
+        [BigInt(fx.nullifiers[0]), BigInt(fx.nullifiers[1])],
+        [BigInt(fx.commitments[0]), BigInt(fx.commitments[1])],
+        tampered,
+      ),
+    ).to.be.revertedWith("invalid proof");
+  });
+
   it("rejects a replay of the same nullifiers", async function () {
     const proof = { a: fx.a, b: fx.b, c: fx.c };
     const ed = fx.extData;

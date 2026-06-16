@@ -1,7 +1,10 @@
 # Cloister — License & IP statement
 
-**Status: clean (2026-06-14).** The shipped product contains no GPL/copyleft code and
-no GPL/copyleft code; the project itself is MIT-licensed (see LICENSE).
+**Status: clean (2026-06-14).** The **shipped product** — the on-device gomobile prover binary
+and the app — contains no GPL/LGPL/copyleft code; verified by `go list -deps ./mobile` (zero
+go-ethereum) plus the JS dependency set. LGPL-3.0 go-ethereum remains a dependency of the
+**developer-only CLI tools** (`onchain/submit.go`, used by `cmd/*` for testnet ops) which are
+never distributed to users. The project's own code is MIT-licensed (see LICENSE).
 The historical analysis that led here is preserved in `LICENSE_AUDIT.md` (German).
 
 ## What ships

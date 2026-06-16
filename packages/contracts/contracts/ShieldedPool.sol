@@ -40,13 +40,21 @@ contract ShieldedPool is ReentrancyGuard {
 
     /// Guardian darf Einzahlungen pausieren + einen zeitlich begrenzten Notfall-Stopp setzen.
     address public guardian;
+    address public pendingGuardian; // 2-Step-Übergabe
     bool public depositsPaused;
 
-    /// Notfall-Kill-Switch: stoppt ALLE Transaktionen (Incident Response), läuft aber
-    /// automatisch nach MAX_EMERGENCY_PAUSE aus → der Pool kann NIE dauerhaft eingefroren
-    /// werden (Auszahlungen bleiben dauerhaft-blockier-frei). Mainnet: Guardian = Multisig.
+    /// Notfall-Kill-Switch: stoppt ALLE Transaktionen (Incident Response, z.B. ein live
+    /// vermuteter Verifier-/Soundness-Bug — darum MUSS er auch Auszahlungen stoppen können).
+    /// Eine Pause läuft automatisch nach MAX_EMERGENCY_PAUSE aus UND danach erzwingt
+    /// PAUSE_COOLDOWN ein garantiert offenes Betriebsfenster, bevor erneut pausiert werden
+    /// darf. Dadurch kann ein (kompromittierter) Guardian den Pool NIE dauerhaft einfrieren:
+    /// zwischen je zwei Pausen liegen immer >= PAUSE_COOLDOWN, in denen Auszahlungen laufen.
+    /// Mainnet: Guardian = Multisig + Timelock.
     uint256 public constant MAX_EMERGENCY_PAUSE = 72 hours;
+    uint256 public constant PAUSE_COOLDOWN = 72 hours;
     uint256 public emergencyPausedUntil;
+    /// Frühester Zeitpunkt, zu dem eine NEUE Pause gesetzt werden darf (Anti-Renewal).
+    uint256 public pauseCooldownEnds;
 
     /// Defense-in-depth: optionaler Auszahlungs-Cap pro Transaktion (0 = aus).
     uint256 public maxWithdrawal;
@@ -58,6 +66,7 @@ contract ShieldedPool is ReentrancyGuard {
     /// „sauber", da älterer Set ⊂ neuerer Set) — das vermeidet Races mit Root-Updates.
     /// asp == address(0) ⇒ permissiver Dev-Modus (keine ASP-Erzwingung, für PoC-Demos).
     address public asp;
+    address public pendingAsp; // 2-Step-Übergabe: muss von der neuen Adresse akzeptiert werden
     uint256 public aspRoot; // zuletzt veröffentlichte Root (Info)
     mapping(uint256 => bool) public knownAspRoot;
 
@@ -85,8 +94,11 @@ contract ShieldedPool is ReentrancyGuard {
     event DepositsPaused(bool paused);
     event EmergencyPaused(uint256 until);
     event MaxWithdrawalSet(uint256 cap);
+    event GuardianTransferStarted(address indexed previousGuardian, address indexed newGuardian);
     event GuardianTransferred(address indexed previousGuardian, address indexed newGuardian);
     event AspRootPublished(uint256 indexed root);
+    event AspRootRevoked(uint256 indexed root);
+    event AspTransferStarted(address indexed previousAsp, address indexed newAsp);
     event AspTransferred(address indexed previousAsp, address indexed newAsp);
 
     modifier onlyGuardian() {
@@ -136,7 +148,9 @@ contract ShieldedPool is ReentrancyGuard {
 
     // ---------------- ASP (Compliance-Root-Pflege) ----------------
 
-    /// Der ASP veröffentlicht eine neue Good-Set-Root. Monoton: alte Roots bleiben gültig.
+    /// Der ASP veröffentlicht eine neue Good-Set-Root. Im Normalfall wächst der Good-Set
+    /// monoton, darum bleiben alte Roots gültig. Die Monotonie ist eine VERTRAUENS-Annahme
+    /// über den ASP, KEINE on-chain erzwungene Invariante — darum existiert revokeAspRoot.
     function publishAspRoot(uint256 root) external onlyAsp {
         require(root < FIELD_SIZE, "root range");
         aspRoot = root;
@@ -144,9 +158,30 @@ contract ShieldedPool is ReentrancyGuard {
         emit AspRootPublished(root);
     }
 
+    /// Macht eine zuvor veröffentlichte Good-Set-Root ungültig (z.B. wenn eine darin
+    /// enthaltene Note nachträglich als illegal erkannt wird). Ab Revocation reverten
+    /// Proofs, die gegen diese Root gebunden sind ("unknown asp root"). Ohne diese Funktion
+    /// wäre die Compliance-Schicht unwiderrufbar — der einzige Hebel gegen einen
+    /// nachträglich als „schmutzig" erkannten Set.
+    function revokeAspRoot(uint256 root) external onlyAsp {
+        require(knownAspRoot[root], "root not known");
+        knownAspRoot[root] = false;
+        emit AspRootRevoked(root);
+    }
+
+    /// 2-Step-Übergabe: verhindert versehentliches Verlieren der Rolle an eine falsche oder
+    /// die Null-Adresse. Die neue Adresse muss acceptAsp() aufrufen.
     function transferAsp(address newAsp) external onlyAsp {
-        emit AspTransferred(asp, newAsp);
-        asp = newAsp;
+        require(newAsp != address(0), "zero asp");
+        pendingAsp = newAsp;
+        emit AspTransferStarted(asp, newAsp);
+    }
+
+    function acceptAsp() external {
+        require(msg.sender == pendingAsp, "only pending asp");
+        emit AspTransferred(asp, pendingAsp);
+        asp = pendingAsp;
+        pendingAsp = address(0);
     }
 
     // Lane 0 (rückwärtskompatibel)
@@ -276,15 +311,23 @@ contract ShieldedPool is ReentrancyGuard {
         emit DepositsPaused(paused);
     }
 
-    /// Time-boxed emergency stop of ALL transactions. Auto-expires after MAX_EMERGENCY_PAUSE
-    /// so the pool can never be permanently frozen.
+    /// Time-boxed emergency stop of ALL transactions. Auto-expires after MAX_EMERGENCY_PAUSE,
+    /// and a new pause may only be armed once PAUSE_COOLDOWN has elapsed since the last pause
+    /// window ended. This caps the freeze duty-cycle so the pool can never be permanently
+    /// frozen (a malicious guardian cannot renew the pause back-to-back).
     function emergencyPause() external onlyGuardian {
+        require(block.timestamp >= pauseCooldownEnds, "pause on cooldown");
         emergencyPausedUntil = block.timestamp + MAX_EMERGENCY_PAUSE;
+        pauseCooldownEnds = emergencyPausedUntil + PAUSE_COOLDOWN;
         emit EmergencyPaused(emergencyPausedUntil);
     }
 
+    /// Lifting early starts the cooldown from now, so a short pause is rewarded with an
+    /// earlier re-arm window; lifting just before auto-expiry yields ~the same cooldown,
+    /// so it cannot be gamed to extend the freeze.
     function liftEmergencyPause() external onlyGuardian {
         emergencyPausedUntil = 0;
+        pauseCooldownEnds = block.timestamp + PAUSE_COOLDOWN;
         emit EmergencyPaused(0);
     }
 
@@ -294,8 +337,19 @@ contract ShieldedPool is ReentrancyGuard {
         emit MaxWithdrawalSet(cap);
     }
 
+    /// 2-Step-Übergabe mit Zero-Address-Schutz: die neue Adresse muss acceptGuardian()
+    /// aufrufen, sonst bleibt der bisherige Guardian aktiv (kein versehentliches Bricken
+    /// der Pause-/Cap-Hebel).
     function transferGuardian(address newGuardian) external onlyGuardian {
-        emit GuardianTransferred(guardian, newGuardian);
-        guardian = newGuardian;
+        require(newGuardian != address(0), "zero guardian");
+        pendingGuardian = newGuardian;
+        emit GuardianTransferStarted(guardian, newGuardian);
+    }
+
+    function acceptGuardian() external {
+        require(msg.sender == pendingGuardian, "only pending guardian");
+        emit GuardianTransferred(guardian, pendingGuardian);
+        guardian = pendingGuardian;
+        pendingGuardian = address(0);
     }
 }
