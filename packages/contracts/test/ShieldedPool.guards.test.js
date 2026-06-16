@@ -42,8 +42,8 @@ describe("ShieldedPool — security hardening", () => {
       const t = await tok.getAddress();
       await expect(Pool.deploy(LEVELS, LANES, INITIAL_ROOT, ethers.ZeroAddress, t, owner, ethers.ZeroAddress, 0n)).to.be.revertedWith("verifier");
       await expect(Pool.deploy(LEVELS, LANES, INITIAL_ROOT, v, ethers.ZeroAddress, owner, ethers.ZeroAddress, 0n)).to.be.revertedWith("token");
-      await expect(Pool.deploy(0, LANES, INITIAL_ROOT, v, t, owner, ethers.ZeroAddress, 0n)).to.be.revertedWith("levels");
-      await expect(Pool.deploy(33, LANES, INITIAL_ROOT, v, t, owner, ethers.ZeroAddress, 0n)).to.be.revertedWith("levels");
+      await expect(Pool.deploy(0, LANES, INITIAL_ROOT, v, t, owner, ethers.ZeroAddress, 0n)).to.be.revertedWith("levels must be 20 (circuit-fixed)");
+      await expect(Pool.deploy(19, LANES, INITIAL_ROOT, v, t, owner, ethers.ZeroAddress, 0n)).to.be.revertedWith("levels must be 20 (circuit-fixed)");
       // numLanes << levels must fit uint32: 2^13 << 20 = 2^33 > uint32 → revert
       await expect(Pool.deploy(20, 8192, INITIAL_ROOT, v, t, owner, ethers.ZeroAddress, 0n)).to.be.revertedWith("index space");
       const FIELD = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
@@ -134,6 +134,72 @@ describe("ShieldedPool — security hardening", () => {
 
       // non-guardian cannot pause
       await expect(pool.connect(alice).setDepositsPaused(false)).to.be.revertedWith("only guardian");
+    });
+  });
+
+  describe("emergency kill-switch", () => {
+    it("stops ALL tx, only guardian, and auto-expires (never permanently frozen)", async () => {
+      const tok = await (await ethers.getContractFactory("ReentrantToken")).deploy();
+      const pool = await deployPool(await tok.getAddress(), await verifier.getAddress(), owner.address);
+      const poolAddr = await pool.getAddress();
+      await tok.approve(poolAddr, ethers.parseEther("2000"));
+      await pool.transact(PROOF, INITIAL_ROOT, 100n, 0n, [1n, 2n], [3n, 4n], extData(ethers.ZeroAddress, ethers.parseEther("1000"), ethers.ZeroAddress, 0n));
+
+      await expect(pool.connect(alice).emergencyPause()).to.be.revertedWith("only guardian");
+      await pool.emergencyPause();
+
+      // both a deposit AND a withdrawal are blocked while emergency-paused
+      await expect(
+        pool.transact(PROOF, 100n, 200n, 0n, [30n, 31n], [32n, 33n], extData(ethers.ZeroAddress, ethers.parseEther("10"), ethers.ZeroAddress, 0n)),
+      ).to.be.revertedWith("emergency paused");
+      await expect(
+        pool.transact(PROOF, 100n, 200n, 0n, [40n, 41n], [42n, 43n], extData(attacker.address, -ethers.parseEther("100"), ethers.ZeroAddress, 0n)),
+      ).to.be.revertedWith("emergency paused");
+
+      // auto-expiry after MAX_EMERGENCY_PAUSE → transactions resume (funds never frozen)
+      await ethers.provider.send("evm_increaseTime", [72 * 3600 + 1]);
+      await ethers.provider.send("evm_mine", []);
+      await expect(
+        pool.transact(PROOF, 100n, 200n, 0n, [40n, 41n], [42n, 43n], extData(attacker.address, -ethers.parseEther("100"), ethers.ZeroAddress, 0n)),
+      ).to.not.be.reverted;
+    });
+
+    it("guardian can lift the pause early", async () => {
+      const tok = await (await ethers.getContractFactory("ReentrantToken")).deploy();
+      const pool = await deployPool(await tok.getAddress(), await verifier.getAddress(), owner.address);
+      await tok.approve(await pool.getAddress(), ethers.parseEther("1000"));
+      await pool.transact(PROOF, INITIAL_ROOT, 100n, 0n, [1n, 2n], [3n, 4n], extData(ethers.ZeroAddress, ethers.parseEther("1000"), ethers.ZeroAddress, 0n));
+      await pool.emergencyPause();
+      await pool.liftEmergencyPause();
+      await expect(
+        pool.transact(PROOF, 100n, 200n, 0n, [40n, 41n], [42n, 43n], extData(attacker.address, -ethers.parseEther("100"), ethers.ZeroAddress, 0n)),
+      ).to.not.be.reverted;
+    });
+  });
+
+  describe("withdrawal cap", () => {
+    it("caps per-tx withdrawals, leaves deposits unaffected, only guardian", async () => {
+      const tok = await (await ethers.getContractFactory("ReentrantToken")).deploy();
+      const pool = await deployPool(await tok.getAddress(), await verifier.getAddress(), owner.address);
+      const poolAddr = await pool.getAddress();
+      await tok.approve(poolAddr, ethers.parseEther("2000"));
+      await pool.transact(PROOF, INITIAL_ROOT, 100n, 0n, [1n, 2n], [3n, 4n], extData(ethers.ZeroAddress, ethers.parseEther("1000"), ethers.ZeroAddress, 0n));
+
+      await expect(pool.connect(alice).setMaxWithdrawal(1n)).to.be.revertedWith("only guardian");
+      await pool.setMaxWithdrawal(ethers.parseEther("50"));
+
+      // over-cap withdrawal blocked (root unchanged on revert)
+      await expect(
+        pool.transact(PROOF, 100n, 200n, 0n, [40n, 41n], [42n, 43n], extData(attacker.address, -ethers.parseEther("100"), ethers.ZeroAddress, 0n)),
+      ).to.be.revertedWith("withdrawal over cap");
+      // within-cap withdrawal ok (root → 200)
+      await expect(
+        pool.transact(PROOF, 100n, 200n, 0n, [50n, 51n], [52n, 53n], extData(attacker.address, -ethers.parseEther("40"), ethers.ZeroAddress, 0n)),
+      ).to.not.be.reverted;
+      // deposits are unaffected by the withdrawal cap (root → 300)
+      await expect(
+        pool.transact(PROOF, 200n, 300n, 0n, [60n, 61n], [62n, 63n], extData(ethers.ZeroAddress, ethers.parseEther("10"), ethers.ZeroAddress, 0n)),
+      ).to.not.be.reverted;
     });
   });
 });
