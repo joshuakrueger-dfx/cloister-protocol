@@ -36,6 +36,23 @@ jobs:
       # mutation testing is a periodic manual gate: scripts/mutation-test.sh.
       - run: go test -race -timeout 600s ./...
 
+  ceremony:
+    name: MPC ceremony roundtrip
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/prover-gnark
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: packages/prover-gnark/go.mod
+          cache-dependency-path: packages/prover-gnark/go.sum
+      # Full multi-party Phase-1+Phase-2 ceremony through the transcript file I/O, then proves the
+      # extracted keys actually prove+verify the circuit. Heavy MSMs over 2^16 (~3min) → its own
+      # job, no -race (the race build excludes this test by tag).
+      - run: go test -timeout 900s ./ceremony/
+
   sdk:
     name: SDK cross-language KAT (JS)
     runs-on: ubuntu-latest
