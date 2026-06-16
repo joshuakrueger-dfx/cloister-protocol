@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
+import { useT } from "../lib/i18n";
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -63,6 +64,7 @@ const ghostBtn: React.CSSProperties = {
 };
 
 export function PwaPrompts() {
+  const tr = useT();
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
@@ -121,12 +123,12 @@ export function PwaPrompts() {
     return (
       <div style={wrap}>
         <div style={toast}>
-          <span style={{ flex: 1 }}>A new version of the Console is available.</span>
+          <span style={{ flex: 1 }}>{tr("A new version of the Console is available.", "Eine neue Version der Konsole ist verfügbar.")}</span>
           <button style={solidBtn} onClick={() => updateServiceWorker(true)}>
-            Reload
+            {tr("Reload", "Neu laden")}
           </button>
           <button style={ghostBtn} onClick={() => setNeedRefresh(false)}>
-            Later
+            {tr("Later", "Später")}
           </button>
         </div>
       </div>
@@ -137,9 +139,9 @@ export function PwaPrompts() {
     return (
       <div style={wrap}>
         <div style={toast}>
-          <span style={{ flex: 1 }}>Install the Cloister Console for one-tap access — works offline.</span>
+          <span style={{ flex: 1 }}>{tr("Install the Cloister Console for one-tap access — works offline.", "Installiere die Cloister Console für Ein-Tipp-Zugriff — funktioniert offline.")}</span>
           <button style={solidBtn} onClick={install}>
-            Install
+            {tr("Install", "Installieren")}
           </button>
           <button style={ghostBtn} onClick={dismissInstall} aria-label="Dismiss">
             ✕

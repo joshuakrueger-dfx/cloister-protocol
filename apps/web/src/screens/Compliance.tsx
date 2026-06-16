@@ -260,6 +260,7 @@ function AspCard() {
 
 function JurisdictionCard() {
   const api = useApi();
+  const tr = useT();
   const { data, loading, error } = useAsync(() => api.getJurisdictionProfile(), []);
   const [fmt, setFmt] = useState<ExportFormat>("pdf");
   const [exporting, setExporting] = useState(false);
@@ -268,6 +269,7 @@ function JurisdictionCard() {
     setExporting(true);
     try {
       await api.exportAuditLog(fmt);
+      toast(tr(`Audit log exported · ${fmt.toUpperCase()}`, `Audit-Log exportiert · ${fmt.toUpperCase()}`), "success");
     } finally {
       setExporting(false);
     }
@@ -276,11 +278,11 @@ function JurisdictionCard() {
   return (
     <Card style={{ marginTop: 18 }}>
       <div className="clab" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span>JURISDICTION PROFILE</span>
+        <span>{tr("JURISDICTION PROFILE", "JURISDIKTIONS-PROFIL")}</span>
         {data ? <span className="chip">{data.label}</span> : null}
       </div>
       {loading ? (
-        <div className="note">Loading…</div>
+        <div className="note">{tr("Loading…", "Lädt…")}</div>
       ) : error ? (
         <div className="note" style={{ color: "var(--bad)" }}>
           {error}
@@ -295,7 +297,7 @@ function JurisdictionCard() {
           <option value="json">JSON</option>
         </select>
         <Button sm onClick={exportLog} disabled={exporting}>
-          {exporting ? "Exporting…" : "Export audit log"}
+          {exporting ? tr("Exporting…", "Exportiere…") : tr("Export audit log", "Audit-Log exportieren")}
         </Button>
       </div>
     </Card>

@@ -8,6 +8,7 @@ import { useDfx } from "../lib/dfx/useDfx";
 import type { BuyPaymentInfoDto } from "../lib/dfx";
 import { DfxConnect } from "./DfxConnect";
 import { Button, Field } from "./primitives";
+import { useT } from "../lib/i18n";
 import type { ChainId } from "../lib/types";
 
 const CHAIN_LABEL: Record<ChainId, string> = { base: "Base", polygon: "Polygon", arbitrum: "Arbitrum" };
@@ -16,6 +17,7 @@ const POLL_MS = 15000;
 
 export function DfxOnramp({ chain, onShield }: { chain: ChainId; onShield?: (amount: string) => void | Promise<void> }) {
   const dfx = useDfx();
+  const tr = useT();
   const [amount, setAmount] = useState("100");
   const [currency, setCurrency] = useState("EUR");
   const [info, setInfo] = useState<BuyPaymentInfoDto | null>(null);
@@ -58,7 +60,7 @@ export function DfxOnramp({ chain, onShield }: { chain: ChainId; onShield?: (amo
       setInfo(res.info);
       setBlocked(res.blocked);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not create the buy.");
+      setError(e instanceof Error ? e.message : tr("Could not create the buy.", "Kauf konnte nicht erstellt werden."));
     } finally {
       setBusy(false);
     }
@@ -80,7 +82,7 @@ export function DfxOnramp({ chain, onShield }: { chain: ChainId; onShield?: (amo
       <div>
         <DfxConnect compact methods={["mail"]} />
         {dfx.connected && !verified ? (
-          <div className="note">A buy needs a verified account. Complete KYC above, then return to onramp.</div>
+          <div className="note">{tr("A buy needs a verified account. Complete KYC above, then return to onramp.", "Ein Kauf braucht ein verifiziertes Konto. Schließe oben das KYC ab und kehre zum Onramp zurück.")}</div>
         ) : null}
       </div>
     );
@@ -89,10 +91,10 @@ export function DfxOnramp({ chain, onShield }: { chain: ChainId; onShield?: (amo
   return (
     <div style={{ marginTop: 12 }}>
       <div className="grid g2" style={{ marginTop: 0 }}>
-        <Field label="FIAT AMOUNT" style={{ marginTop: 0 }}>
+        <Field label={tr("FIAT AMOUNT", "FIAT-BETRAG")} style={{ marginTop: 0 }}>
           <input className="input" value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
         </Field>
-        <Field label="CURRENCY" style={{ marginTop: 0 }}>
+        <Field label={tr("CURRENCY", "WÄHRUNG")} style={{ marginTop: 0 }}>
           <select className="input" value={currency} onChange={(e) => setCurrency(e.target.value)}>
             <option>EUR</option>
             <option>CHF</option>
@@ -100,12 +102,14 @@ export function DfxOnramp({ chain, onShield }: { chain: ChainId; onShield?: (amo
         </Field>
       </div>
       <div className="note" style={{ marginTop: 12 }}>
-        Buying <b>USDC on {CHAIN_LABEL[chain]}</b> → delivered to your onramp address. It's then detected
-        here and shielded into the pool in one click.
+        {tr(
+          `Buying USDC on ${CHAIN_LABEL[chain]} → delivered to your onramp address. It's then detected here and shielded into the pool in one click.`,
+          `Kauf von USDC auf ${CHAIN_LABEL[chain]} → an deine Onramp-Adresse geliefert. Es wird dann hier erkannt und mit einem Klick in den Pool abgeschirmt.`,
+        )}
       </div>
       <div className="actions">
         <Button variant="solid" arrow onClick={getPaymentInfo} disabled={busy}>
-          {busy ? "Creating buy…" : "Get bank payment details"}
+          {busy ? tr("Creating buy…", "Erstelle Kauf…") : tr("Get bank payment details", "Bank-Zahlungsdetails anzeigen")}
         </Button>
       </div>
 
@@ -115,34 +119,33 @@ export function DfxOnramp({ chain, onShield }: { chain: ChainId; onShield?: (amo
       {info && !blocked ? (
         <>
           <div className="gatebox" style={{ marginTop: 14 }}>
-            <div className="clab" style={{ marginBottom: 8 }}>TRANSFER THESE EXACT DETAILS (SEPA)</div>
-            <div className="kv"><span className="k">Amount</span><span className="v">{info.amount} {info.currency.name}</span></div>
-            <div className="kv"><span className="k">You receive (est.)</span><span className="v">~{info.estimatedAmount} USDC</span></div>
+            <div className="clab" style={{ marginBottom: 8 }}>{tr("TRANSFER THESE EXACT DETAILS (SEPA)", "GENAU DIESE DATEN ÜBERWEISEN (SEPA)")}</div>
+            <div className="kv"><span className="k">{tr("Amount", "Betrag")}</span><span className="v">{info.amount} {info.currency.name}</span></div>
+            <div className="kv"><span className="k">{tr("You receive (est.)", "Du erhältst (ca.)")}</span><span className="v">~{info.estimatedAmount} USDC</span></div>
             <div className="kv"><span className="k">IBAN</span><span className="v mono">{info.iban}</span></div>
             <div className="kv"><span className="k">BIC</span><span className="v mono">{info.bic}</span></div>
-            <div className="kv"><span className="k">Recipient</span><span className="v">{info.name}</span></div>
-            <div className="kv"><span className="k">Reference</span><span className="v mono">{info.remittanceInfo}</span></div>
+            <div className="kv"><span className="k">{tr("Recipient", "Empfänger")}</span><span className="v">{info.name}</span></div>
+            <div className="kv"><span className="k">{tr("Reference", "Verwendungszweck")}</span><span className="v mono">{info.remittanceInfo}</span></div>
             <div className="note">
-              Send the transfer from your own bank account. {info.sepaInstant ? "SEPA Instant supported." : ""}
+              {tr("Send the transfer from your own bank account.", "Sende die Überweisung von deinem eigenen Bankkonto.")} {info.sepaInstant ? tr("SEPA Instant supported.", "SEPA Instant unterstützt.") : ""}
             </div>
           </div>
 
           <div className="gatebox" style={{ marginTop: 12 }}>
             <div className="clab" style={{ marginBottom: 8 }}>ONRAMP → SHIELD</div>
             <div className="kv">
-              <span className="k">USDC at {SHORT(address)}</span>
-              <span className="v">{received === null ? "checking…" : `${received.toLocaleString("en-US")} USDC`}</span>
+              <span className="k">{tr("USDC at", "USDC bei")} {SHORT(address)}</span>
+              <span className="v">{received === null ? tr("checking…", "prüfe…") : `${received.toLocaleString("en-US")} USDC`}</span>
             </div>
             {received !== null && received > 0 ? (
               <div className="actions">
                 <Button variant="solid" arrow onClick={() => shieldReceived(received)} disabled={shielding || !onShield}>
-                  {shielding ? "Shielding…" : `Shield ${Math.floor(received).toLocaleString("en-US")} USDC into the pool`}
+                  {shielding ? tr("Shielding…", "Schirme ab…") : tr(`Shield ${Math.floor(received).toLocaleString("en-US")} USDC into the pool`, `${Math.floor(received).toLocaleString("de-DE")} USDC in den Pool abschirmen`)}
                 </Button>
               </div>
             ) : (
               <div className="note">
-                Waiting for the onramp to deliver USDC on {CHAIN_LABEL[chain]} — this updates automatically every
-                15&nbsp;s. <button className="reveal-btn" onClick={() => dfx.receivedUsdc(chain).then(setReceived)}>check now</button>
+                {tr(`Waiting for the onramp to deliver USDC on ${CHAIN_LABEL[chain]} — this updates automatically every 15 s.`, `Warte darauf, dass der Onramp USDC auf ${CHAIN_LABEL[chain]} liefert — aktualisiert sich automatisch alle 15 s.`)} <button className="reveal-btn" onClick={() => dfx.receivedUsdc(chain).then(setReceived)}>{tr("check now", "jetzt prüfen")}</button>
               </div>
             )}
           </div>
