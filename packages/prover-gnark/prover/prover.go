@@ -18,6 +18,7 @@ import (
 	groth16bn254 "github.com/consensys/gnark/backend/groth16/bn254"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/frontend/cs/r1cs"
 
 	"github.com/DFXswiss/cloister-protocol/prover-gnark/zk"
 )
@@ -76,6 +77,51 @@ func LoadFrom(r1cs, pkR, vkR io.Reader) (*Prover, error) {
 		return nil, fmt.Errorf("load vk: %w", err)
 	}
 	return &Prover{cs: cs, pk: pk, vk: vk}, nil
+}
+
+// NewEphemeral compiles the circuit and runs a fresh in-memory Groth16 setup. The keys are
+// throwaway (their toxic waste is discarded with the process) — strictly for tests/benchmarks
+// that must exercise the full prove→verify path WITHOUT depending on the committed keys (which
+// are gitignored, so they are absent in CI). Never use for anything that holds real value.
+func NewEphemeral() (*Prover, error) {
+	cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &zk.TxCircuit{})
+	if err != nil {
+		return nil, fmt.Errorf("compile: %w", err)
+	}
+	pk, vk, err := groth16.Setup(cs)
+	if err != nil {
+		return nil, fmt.Errorf("setup: %w", err)
+	}
+	return &Prover{cs: cs, pk: pk, vk: vk}, nil
+}
+
+// SetupToDir compiles + runs an ephemeral Groth16 setup and writes circuit.r1cs, pk.bin and
+// vk.bin into dir (the layout Load/Init expect). For tests that need keys on disk (e.g. the
+// gomobile Init path). Same toxic-waste caveat as NewEphemeral.
+func SetupToDir(dir string) error {
+	cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &zk.TxCircuit{})
+	if err != nil {
+		return fmt.Errorf("compile: %w", err)
+	}
+	pk, vk, err := groth16.Setup(cs)
+	if err != nil {
+		return fmt.Errorf("setup: %w", err)
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	for name, obj := range map[string]io.WriterTo{"circuit.r1cs": cs, "pk.bin": pk, "vk.bin": vk} {
+		f, err := os.Create(filepath.Join(dir, name))
+		if err != nil {
+			return err
+		}
+		if _, err := obj.WriteTo(f); err != nil {
+			f.Close()
+			return err
+		}
+		f.Close()
+	}
+	return nil
 }
 
 // Prove generates a proof for the given transaction spec and self-verifies it.

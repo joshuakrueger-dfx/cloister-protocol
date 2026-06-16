@@ -99,3 +99,54 @@ describe("ShieldedPool — real-proof deposit (gnark E2E)", function () {
     ).to.be.reverted; // stale root / spent nullifier
   });
 });
+
+// Real-verifier negative paths: the same genuine proof, submitted with ONE public input
+// tampered, MUST be rejected by the actual Groth16 verifier inside _transact. These signals
+// (nullifiers, commitments, newRoot, associationRoot) pass the pre-verify requires in
+// permissive dev mode, so the ONLY thing that can reject them is verifyProof — proving the
+// verifier is wired correctly and is the real gate (not the always-true MockVerifier).
+describe("ShieldedPool — real verifier rejects tampered public inputs (gnark E2E)", function () {
+  const LEVELS = 20;
+  const LANES = 8;
+  let owner;
+
+  before(async function () {
+    [owner] = await ethers.getSigners();
+  });
+
+  async function freshPool() {
+    const verifier = await (await ethers.getContractFactory("TransactionVerifier")).deploy();
+    const tok = await (await ethers.getContractFactory("MockERC20")).deploy("USD Coin", "USDC", 6);
+    const Pool = await ethers.getContractFactory("ShieldedPool");
+    const pool = await Pool.deploy(
+      LEVELS, LANES, BigInt(fx.oldRoot), await verifier.getAddress(), await tok.getAddress(),
+      owner.address, ethers.ZeroAddress, 0n,
+    );
+    await tok.mint(owner.address, BigInt(fx.amount));
+    await tok.approve(await pool.getAddress(), BigInt(fx.amount));
+    return pool;
+  }
+
+  const ed = () => {
+    const e = fx.extData;
+    return [e.recipient, e.extAmount, e.relayer, e.fee, e.encryptedOutput1, e.encryptedOutput2];
+  };
+  const proof = () => ({ a: fx.a, b: fx.b, c: fx.c });
+  const BUMP = (h) => "0x" + (BigInt(h) + 1n).toString(16); // shift a signal by 1 → proof no longer matches
+
+  const cases = [
+    { name: "tampered input nullifier", nf: [BUMP(fx.nullifiers[0]), BigInt(fx.nullifiers[1])], cm: [BigInt(fx.commitments[0]), BigInt(fx.commitments[1])], nr: BigInt(fx.newRoot), ar: BigInt(fx.associationRoot) },
+    { name: "tampered output commitment", nf: [BigInt(fx.nullifiers[0]), BigInt(fx.nullifiers[1])], cm: [BUMP(fx.commitments[0]), BigInt(fx.commitments[1])], nr: BigInt(fx.newRoot), ar: BigInt(fx.associationRoot) },
+    { name: "tampered newRoot", nf: [BigInt(fx.nullifiers[0]), BigInt(fx.nullifiers[1])], cm: [BigInt(fx.commitments[0]), BigInt(fx.commitments[1])], nr: BUMP(fx.newRoot), ar: BigInt(fx.associationRoot) },
+    { name: "tampered associationRoot", nf: [BigInt(fx.nullifiers[0]), BigInt(fx.nullifiers[1])], cm: [BigInt(fx.commitments[0]), BigInt(fx.commitments[1])], nr: BigInt(fx.newRoot), ar: BUMP(fx.associationRoot) },
+  ];
+
+  for (const c of cases) {
+    it(`rejects ${c.name} via verifyProof`, async function () {
+      const pool = await freshPool();
+      await expect(
+        pool.transact(proof(), BigInt(fx.oldRoot), c.nr, c.ar, c.nf, c.cm, ed()),
+      ).to.be.revertedWith("invalid proof");
+    });
+  }
+});

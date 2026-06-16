@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/DFXswiss/cloister-protocol/prover-gnark/prover"
 	"github.com/DFXswiss/cloister-protocol/prover-gnark/zk"
 )
 
@@ -22,8 +23,16 @@ func TestHashMatchesNative(t *testing.T) {
 }
 
 func TestProveViaMobileSurface(t *testing.T) {
-	if err := Init("../keys"); err != nil {
-		t.Skipf("keys not found (run `go run ./cmd/setup .`): %v", err)
+	// Prefer the committed keys; otherwise generate ephemeral keys into a temp dir so the
+	// gomobile prove surface is exercised in CI too (committed pk.bin/r1cs are gitignored).
+	if Init("../keys") != nil {
+		dir := t.TempDir()
+		if err := prover.SetupToDir(dir); err != nil {
+			t.Fatalf("ephemeral setup: %v", err)
+		}
+		if err := Init(dir); err != nil {
+			t.Fatalf("init from ephemeral keys: %v", err)
+		}
 	}
 	if !Ready() {
 		t.Fatal("Ready() false after Init")

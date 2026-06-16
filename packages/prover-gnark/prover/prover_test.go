@@ -10,10 +10,16 @@ import (
 
 const keysDir = "../keys"
 
+// loadOrSkip loads the committed keys if present, otherwise falls back to an ephemeral
+// in-memory setup so the full prove→verify path is exercised in CI too (committed pk.bin/r1cs
+// are gitignored). It no longer skips — a real proof is always produced.
 func loadOrSkip(t testing.TB) *Prover {
-	p, err := Load(keysDir)
+	if p, err := Load(keysDir); err == nil {
+		return p
+	}
+	p, err := NewEphemeral()
 	if err != nil {
-		t.Skipf("keys not found (run `go run ./cmd/setup .`): %v", err)
+		t.Fatalf("ephemeral setup: %v", err)
 	}
 	return p
 }
