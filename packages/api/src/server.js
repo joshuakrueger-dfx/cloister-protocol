@@ -1,7 +1,7 @@
 import express from "express";
 import { JsonRpcProvider, Contract } from "ethers";
 import { deployAll, loadAbi } from "@cloister/contracts/deploy";
-import { screenApplicant } from "./kyc.js";
+import { screenApplicant, loadFullSdn, screeningStatus } from "./kyc.js";
 import {
   Keypair,
   MerkleTree,
@@ -108,6 +108,7 @@ async function main() {
       indexer: process.env.INDEXER || "http://127.0.0.1:8789",
       aspEnforced: ASP_ENFORCE,
       aspRoot,
+      screening: screeningStatus(),
     });
   });
 
@@ -258,6 +259,14 @@ async function main() {
       res.status(400).json({ error: e.shortMessage || e.message });
     }
   });
+
+  // Load the full sanctions lists (OFAC SDN + alt + optional EU) in the background and
+  // refresh daily. Screening starts on the bundled sample and upgrades to "full" once loaded;
+  // coverage is reported honestly via /config.screening (P1-9).
+  loadFullSdn()
+    .then((st) => console.log(`sanctions screening: ${st.mode} · ${st.count} names · ${st.source}`))
+    .catch((e) => console.warn(`sanctions load failed (staying on sample): ${e.message}`));
+  setInterval(() => { loadFullSdn().catch(() => {}); }, 24 * 60 * 60 * 1000).unref?.();
 
   app.listen(PORT, () => {
     console.log(`Cloister mock provider + relayer on ${BASE}`);
