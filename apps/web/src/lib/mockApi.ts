@@ -10,6 +10,8 @@
 import type { CloisterApi } from "./api";
 import { backendsView, setActiveBackendId } from "./backends";
 import { JURISDICTION_PROFILES, JURISDICTION_LABEL } from "./jurisdictions";
+import { approvalsNeededFor } from "./prefs";
+import { parseAmount } from "./accountingExport";
 import type { ExportFormat, KycCheck } from "./types";
 
 // Demo-Screening (lokal): Embargo-Länder + Sanktionsnamen — kann ablehnen (kein Theater).
@@ -385,7 +387,11 @@ export class MockApi implements CloisterApi {
 
   async requestApproval(req: ApprovalRequest): Promise<Approval[]> {
     await wait(200);
-    this.approvals = [{ ...req, id: uid("ap"), createdAt: new Date().toISOString() }, ...this.approvals];
+    const needed = Math.max(1, approvalsNeededFor(parseAmount(req.amount).value));
+    this.approvals = [
+      { ...req, id: uid("ap"), createdAt: new Date().toISOString(), approvalsNeeded: req.approvalsNeeded ?? needed, approvals: 0, approvedBy: [] },
+      ...this.approvals,
+    ];
     return structuredClone(this.approvals);
   }
 
@@ -394,15 +400,27 @@ export class MockApi implements CloisterApi {
     return structuredClone(this.approvals);
   }
 
-  async approveDisbursement(id: string, onProgress?: ProgressCallback): Promise<void> {
+  async approveDisbursement(id: string, onProgress?: ProgressCallback): Promise<import("./types").ApprovalResult> {
     const a = this.approvals.find((x) => x.id === id);
     if (!a) throw new Error("approval not found");
+    const needed = a.approvalsNeeded ?? 1;
+    const collected = (a.approvals ?? 0) + 1;
+    const who = this.session.email ?? "you";
+    // Not yet enough approvers — record the approval and keep it pending.
+    if (collected < needed) {
+      this.approvals = this.approvals.map((x) =>
+        x.id === id ? { ...x, approvals: collected, approvedBy: [...(x.approvedBy ?? []), who] } : x,
+      );
+      return { executed: false, approvals: collected, approvalsNeeded: needed };
+    }
+    // Final approval — execute the payment and clear it from the queue.
     if (a.kind === "single" && a.single) {
       await this.disburseSingle({ recipient: a.single.recipient, amount: a.single.amount, asset: a.single.asset, memo: a.single.memo, accounting: a.single.accounting }, onProgress);
     } else if (a.kind === "batch" && a.batch) {
       await this.disburseBatch({ rows: a.batch.rows }, onProgress);
     }
     this.approvals = this.approvals.filter((x) => x.id !== id);
+    return { executed: true, approvals: collected, approvalsNeeded: needed };
   }
 
   async rejectDisbursement(id: string): Promise<Approval[]> {

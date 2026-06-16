@@ -8,7 +8,8 @@ import { useT } from "../lib/i18n";
 
 const NAV_DE: Record<string, string> = {
   Overview: "Übersicht", Fund: "Einzahlen", Disburse: "Auszahlen", Approvals: "Freigaben",
-  Recipients: "Empfänger", Activity: "Aktivität", "Compliance Center": "Compliance-Center", Settings: "Einstellungen",
+  Recipients: "Empfänger", Activity: "Aktivität", "Compliance Center": "Compliance-Center",
+  "Master data": "Stammdaten", Settings: "Einstellungen",
 };
 const SEC_DE: Record<string, string> = { OPERATE: "BETRIEB", COMPLIANCE: "COMPLIANCE" };
 
@@ -30,6 +31,7 @@ const OPERATE: NavDef[] = [
 const COMPLIANCE: NavDef[] = [
   { to: "/compliance", label: "Compliance Center", icon: "doc" },
   { to: "/team", label: "Team", icon: "users" },
+  { to: "/masterdata", label: "Master data", icon: "list" },
   { to: "/settings", label: "Settings", icon: "cog" },
 ];
 

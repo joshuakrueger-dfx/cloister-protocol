@@ -1236,3 +1236,22 @@ textarea.input {
   padding: 1px 6px;
   letter-spacing: 0;
 }
+
+/* ---------- power table (sort / totals / pagination on Activity) ---------- */
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; transition: color 0.2s var(--ease); }
+th.sortable:hover { color: var(--dim); }
+.totals-row td { border-top: 1px solid var(--line-2); border-bottom: none; color: var(--white); padding-top: 14px; }
+.table-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 14px 14px 4px;
+}
+.pager-info { font-size: 12px; color: var(--faint); }
+
+/* ---------- multi-level approval progress (pips) ---------- */
+.approval-progress { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--faint); margin-top: 6px; }
+.approval-pips { display: inline-flex; gap: 4px; }
+.approval-pips .pip { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--line-2); background: none; }
+.approval-pips .pip.on { background: var(--ok); border-color: var(--ok); box-shadow: 0 0 8px -2px var(--ok); }

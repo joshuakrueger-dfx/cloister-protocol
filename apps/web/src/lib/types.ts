@@ -187,12 +187,23 @@ export interface Approval {
   amount: string; // display total, e.g. "12,400 USDC"
   chain?: string;
   createdAt: string;
+  approvalsNeeded?: number; // 1 or 2 (multi-level) — defaults to 1 when absent
+  approvals?: number; // collected so far
+  approvedBy?: string[]; // emails/ids of approvers (SoD audit trail)
   // execution payload (one of the two depending on kind):
   single?: { recipient: string; amount: string; asset: Asset; memo: string; accounting?: Accounting };
   batch?: { rows: BatchRow[] };
 }
 
 export type ApprovalRequest = Omit<Approval, "id" | "createdAt">;
+
+// Outcome of recording one approval: whether the payment was executed, and the
+// running approver count so the UI can say "1 of 2".
+export interface ApprovalResult {
+  executed: boolean;
+  approvals: number;
+  approvalsNeeded: number;
+}
 
 // ---------- Team / roles ----------
 // admin: manage team + initiate + approve · approver: initiate + approve
