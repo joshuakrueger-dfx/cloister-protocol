@@ -14,10 +14,12 @@ import {
 import { CHAINS } from "../lib/types";
 import { DisbursementTable } from "../components/DisbursementTable";
 import { KycVerify } from "../components/KycVerify";
+import { useT } from "../lib/i18n";
 
 export function Overview() {
   const api = useApi();
   const nav = useNavigate();
+  const tr = useT();
   const { session } = useSession();
   const [revealed, setRevealed] = useState(() => {
     try { return localStorage.getItem("cloister.showBalances") === "1"; } catch { return false; }
@@ -36,24 +38,28 @@ export function Overview() {
     <section className="view">
       <ScreenHead
         eyebrow="TREASURY"
-        title={`Good morning, ${orgName}`}
-        sub="Your shielded treasury is healthy and compliant. Disburse privately — every payment carries a proof of clean origin, and nothing links a payout to your wallet on-chain."
+        title={tr(`Good morning, ${orgName}`, `Guten Morgen, ${orgName}`)}
+        sub={tr(
+          "Your shielded treasury is healthy and compliant. Disburse privately — every payment carries a proof of clean origin, and nothing links a payout to your wallet on-chain.",
+          "Dein abgeschirmtes Treasury ist gesund und compliant. Zahle privat aus — jede Zahlung trägt einen Beweis sauberer Herkunft, und nichts verknüpft eine Auszahlung on-chain mit deiner Wallet.",
+        )}
       />
 
       {session && session.kyc.status !== "verified" ? (
         <Card style={{ marginTop: 20 }}>
-          <div className="clab">IDENTITY — ACTION NEEDED</div>
+          <div className="clab">{tr("IDENTITY — ACTION NEEDED", "IDENTITÄT — AKTION ERFORDERLICH")}</div>
           <p className="sub" style={{ marginTop: 10 }}>
-            Your account is ready. To unlock funding and private payouts, verify your identity once
-            with a regulated account — connect an existing one or create a new one. It only takes a
-            few minutes.
+            {tr(
+              "Your account is ready. To unlock funding and private payouts, verify your identity once with a regulated account — connect an existing one or create a new one. It only takes a few minutes.",
+              "Dein Konto ist bereit. Um Einzahlung und private Auszahlungen freizuschalten, verifiziere einmalig deine Identität mit einem regulierten Konto — ein bestehendes verbinden oder ein neues anlegen. Dauert nur ein paar Minuten.",
+            )}
           </p>
           {verifyOpen ? (
             <KycVerify onDone={() => setVerifyOpen(false)} />
           ) : (
             <div className="actions">
               <Button variant="solid" arrow onClick={() => setVerifyOpen(true)}>
-                Verify identity
+                {tr("Verify identity", "Identität verifizieren")}
               </Button>
             </div>
           )}
@@ -63,9 +69,9 @@ export function Overview() {
       <div className="grid g3" style={{ marginTop: 28 }}>
         <Card>
           <div className="clab">
-            SHIELDED BALANCE
+            {tr("SHIELDED BALANCE", "ABGESCHIRMTES GUTHABEN")}
             <button className="reveal-btn" onClick={() => setRevealed((r) => !r)}>
-              {revealed ? "hide" : "reveal"}
+              {revealed ? tr("hide", "verbergen") : tr("reveal", "zeigen")}
             </button>
           </div>
           <div className="big">
@@ -84,14 +90,17 @@ export function Overview() {
           </div>
           <div className="cfoot">
             {balance.data
-              ? `across ${balance.data.chains} ${balance.data.chains === 1 ? "chain" : "chains"} · ${balance.data.notes} ${balance.data.notes === 1 ? "note" : "notes"}`
+              ? tr(
+                  `across ${balance.data.chains} ${balance.data.chains === 1 ? "chain" : "chains"} · ${balance.data.notes} ${balance.data.notes === 1 ? "note" : "notes"}`,
+                  `auf ${balance.data.chains} ${balance.data.chains === 1 ? "Chain" : "Chains"} · ${balance.data.notes} Notes`,
+                )
               : "—"}
           </div>
         </Card>
 
         <Card>
           <div className="clab">
-            ANONYMITY SET <span className="chip">{anon.data?.health ?? "—"}</span>
+            {tr("ANONYMITY SET", "ANONYMITÄTS-SET")} <span className="chip">{anon.data?.health ?? "—"}</span>
           </div>
           {anon.loading ? (
             <div className="meter">
@@ -117,7 +126,7 @@ export function Overview() {
         </Card>
 
         <Card>
-          <div className="clab">COMPLIANCE STATUS</div>
+          <div className="clab">{tr("COMPLIANCE STATUS", "COMPLIANCE-STATUS")}</div>
           {comp.loading ? (
             <div className="clist">
               {[0, 1, 2, 3].map((i) => (
@@ -144,13 +153,13 @@ export function Overview() {
 
       <div className="actions" style={{ marginTop: 24 }}>
         <Button variant="solid" arrow onClick={() => nav("/disburse")}>
-          Disburse
+          {tr("Disburse", "Auszahlen")}
         </Button>
         <Button arrow onClick={() => nav("/fund")}>
-          Fund treasury
+          {tr("Fund treasury", "Treasury einzahlen")}
         </Button>
         <Button arrow onClick={() => nav("/compliance")}>
-          Export compliance receipt
+          {tr("Export compliance receipt", "Compliance-Beleg exportieren")}
         </Button>
       </div>
 
@@ -163,9 +172,9 @@ export function Overview() {
             justifyContent: "space-between",
           }}
         >
-          <CardLabel>RECENT DISBURSEMENTS</CardLabel>
+          <CardLabel>{tr("RECENT DISBURSEMENTS", "LETZTE AUSZAHLUNGEN")}</CardLabel>
           <button className="reveal-btn" onClick={() => nav("/activity")}>
-            view all
+            {tr("view all", "alle ansehen")}
           </button>
         </div>
         <DisbursementTable

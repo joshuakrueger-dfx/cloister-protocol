@@ -11,6 +11,7 @@ import { Logo } from "../../components/icons";
 import { Dots } from "../../components/primitives";
 import { vaultExists, clearVault } from "../../lib/vault";
 import { confirmDialog } from "../../lib/overlays";
+import { useT } from "../../lib/i18n";
 import type { Wallet } from "../../lib/types";
 
 type Step = 0 | 1 | 2;
@@ -18,6 +19,7 @@ type Step = 0 | 1 | 2;
 export function Onboarding() {
   const api = useApi();
   const nav = useNavigate();
+  const tr = useT();
   const { setSession } = useSession();
   const [step, setStep] = useState<Step>(0);
 
@@ -35,7 +37,7 @@ export function Onboarding() {
       setSession(await api.getSession());
       nav("/overview");
     } catch (e) {
-      setUnlockError(e instanceof Error ? e.message : "Could not unlock.");
+      setUnlockError(e instanceof Error ? e.message : tr("Could not unlock.", "Konnte nicht entsperren."));
     } finally {
       setUnlockBusy(false);
     }
@@ -83,39 +85,38 @@ export function Onboarding() {
 
   async function setPassword() {
     setPwError(null);
-    if (pw.length < 6) return setPwError("Password must be at least 6 characters.");
-    if (pw !== pw2) return setPwError("Passwords do not match.");
+    if (pw.length < 6) return setPwError(tr("Password must be at least 6 characters.", "Passwort muss mindestens 6 Zeichen haben."));
+    if (pw !== pw2) return setPwError(tr("Passwords do not match.", "Passwörter stimmen nicht überein."));
     setPwBusy(true);
     try {
       await api.unlock(pw);
       setStep(2);
     } catch (e) {
-      setPwError(e instanceof Error ? e.message : "Could not set password.");
+      setPwError(e instanceof Error ? e.message : tr("Could not set password.", "Konnte Passwort nicht setzen."));
     } finally {
       setPwBusy(false);
     }
   }
 
   // PoC: there is no email backend yet, so the one-time code is generated on the
-  // device and shown below. (When a mail service is wired in, only `sendCode`
-  // changes — the verify step stays the same.)
+  // device and shown below.
   function sendCode() {
     setEmailErr(null);
     const e = email.trim();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return setEmailErr("Enter a valid email address.");
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return setEmailErr(tr("Enter a valid email address.", "Bitte eine gültige E-Mail-Adresse eingeben."));
     setSentCode(String(Math.floor(100000 + Math.random() * 900000)));
     setCodeInput("");
   }
 
   async function verifyCode() {
     setEmailErr(null);
-    if (codeInput.trim() !== sentCode) return setEmailErr("That code doesn't match — check it and try again.");
+    if (codeInput.trim() !== sentCode) return setEmailErr(tr("That code doesn't match — check it and try again.", "Code stimmt nicht — bitte prüfen und erneut versuchen."));
     setEmailBusy(true);
     try {
       setSession(await api.confirmEmail(email.trim()));
       setEmailVerified(true);
     } catch (e) {
-      setEmailErr(e instanceof Error ? e.message : "Could not verify.");
+      setEmailErr(e instanceof Error ? e.message : tr("Could not verify.", "Konnte nicht verifizieren."));
     } finally {
       setEmailBusy(false);
     }
@@ -142,12 +143,15 @@ export function Onboarding() {
         </div>
         {unlockMode ? (
           <>
-            <h2>Unlock your vault</h2>
+            <h2>{tr("Unlock your vault", "Vault entsperren")}</h2>
             <p className="hint">
-              A Cloister vault is stored on this device. Enter your password to decrypt your keys.
+              {tr(
+                "A Cloister vault is stored on this device. Enter your password to decrypt your keys.",
+                "Auf diesem Gerät ist ein Cloister-Vault gespeichert. Gib dein Passwort ein, um deine Schlüssel zu entschlüsseln.",
+              )}
             </p>
             <div className="field">
-              <label>PASSWORD</label>
+              <label>{tr("PASSWORD", "PASSWORT")}</label>
               <input
                 className="input"
                 type="password"
@@ -158,25 +162,26 @@ export function Onboarding() {
               />
             </div>
             {unlockError ? (
-              <p className="hint" style={{ color: "var(--bad)" }}>
-                {unlockError}
-              </p>
+              <p className="hint" style={{ color: "var(--bad)" }}>{unlockError}</p>
             ) : null}
             <div className="stack">
               <button className="btn btn-solid full" onClick={doUnlock} disabled={unlockBusy}>
                 {unlockBusy ? (
-                  <>Unlocking<Dots /></>
+                  <>{tr("Unlocking", "Entsperren")}<Dots /></>
                 ) : (
-                  <>Unlock <span className="arr">→</span></>
+                  <>{tr("Unlock", "Entsperren")} <span className="arr">→</span></>
                 )}
               </button>
               <button
                 className="btn full"
                 onClick={async () => {
                   const ok = await confirmDialog({
-                    title: "Start over with a different seed?",
-                    body: "This discards the vault on this device. It can't be undone without your seed phrase.",
-                    confirmLabel: "Discard vault",
+                    title: tr("Start over with a different seed?", "Mit anderem Seed neu beginnen?"),
+                    body: tr(
+                      "This discards the vault on this device. It can't be undone without your seed phrase.",
+                      "Das verwirft den Vault auf diesem Gerät. Ohne deine Seed-Phrase nicht rückgängig zu machen.",
+                    ),
+                    confirmLabel: tr("Discard vault", "Vault verwerfen"),
                     danger: true,
                   });
                   if (ok) {
@@ -185,7 +190,7 @@ export function Onboarding() {
                   }
                 }}
               >
-                Use a different seed
+                {tr("Use a different seed", "Anderen Seed verwenden")}
               </button>
             </div>
           </>
@@ -200,10 +205,12 @@ export function Onboarding() {
         {/* ---- Step 0: Seed ---- */}
         {step === 0 ? (
           <>
-            <h2>Create your vault</h2>
+            <h2>{tr("Create your vault", "Vault erstellen")}</h2>
             <p className="hint">
-              Cloister is self-custody. Your spend, view and nullifier keys derive from one seed
-              phrase and never leave this device.
+              {tr(
+                "Cloister is self-custody. Your spend, view and nullifier keys derive from one seed phrase and never leave this device.",
+                "Cloister ist selbstverwahrend. Deine Spend-, View- und Nullifier-Schlüssel leiten sich aus einer Seed-Phrase ab und verlassen dieses Gerät nie.",
+              )}
             </p>
             {!importMode ? (
               <>
@@ -217,29 +224,34 @@ export function Onboarding() {
                         </span>
                       ))}
                     </div>
-                    <p className="hint">Write these {wallet.seedWords.length} words down. Anyone with them controls the vault.</p>
+                    <p className="hint">
+                      {tr(
+                        `Write these ${wallet.seedWords.length} words down. Anyone with them controls the vault.`,
+                        `Schreib diese ${wallet.seedWords.length} Wörter auf. Wer sie hat, kontrolliert den Vault.`,
+                      )}
+                    </p>
                     <div className="stack">
                       <button className="btn btn-solid full" onClick={() => setStep(1)}>
-                        I've saved it — continue <span className="arr">→</span>
+                        {tr("I've saved it — continue", "Gespeichert — weiter")} <span className="arr">→</span>
                       </button>
                     </div>
                   </>
                 ) : (
                   <div className="stack">
                     <button className="btn btn-solid full" onClick={createSeed} disabled={creatingSeed}>
-                      {creatingSeed ? <>Generating<Dots /></> : "Generate seed phrase"}
+                      {creatingSeed ? <>{tr("Generating", "Erzeuge")}<Dots /></> : tr("Generate seed phrase", "Seed-Phrase erzeugen")}
                     </button>
                   </div>
                 )}
-                <div className="divider">OR</div>
+                <div className="divider">{tr("OR", "ODER")}</div>
                 <button className="btn full" onClick={() => setImportMode(true)}>
-                  Import existing seed
+                  {tr("Import existing seed", "Bestehenden Seed importieren")}
                 </button>
               </>
             ) : (
               <>
                 <div className="field">
-                  <label>SEED PHRASE (12 or 24 words)</label>
+                  <label>{tr("SEED PHRASE (12 or 24 words)", "SEED-PHRASE (12 oder 24 Wörter)")}</label>
                   <textarea
                     className="input"
                     rows={3}
@@ -250,10 +262,10 @@ export function Onboarding() {
                 </div>
                 <div className="stack">
                   <button className="btn btn-solid full" onClick={importSeed} disabled={creatingSeed}>
-                    {creatingSeed ? <>Importing<Dots /></> : "Import & continue"}
+                    {creatingSeed ? <>{tr("Importing", "Importiere")}<Dots /></> : tr("Import & continue", "Importieren & weiter")}
                   </button>
                   <button className="btn full" onClick={() => setImportMode(false)}>
-                    Back
+                    {tr("Back", "Zurück")}
                   </button>
                 </div>
               </>
@@ -264,39 +276,28 @@ export function Onboarding() {
         {/* ---- Step 1: Password ---- */}
         {step === 1 ? (
           <>
-            <h2>Set a vault password</h2>
+            <h2>{tr("Set a vault password", "Vault-Passwort festlegen")}</h2>
             <p className="hint">
-              Encrypts the local note cache and your keys on this device. Required on every unlock.
+              {tr(
+                "Encrypts the local note cache and your keys on this device. Required on every unlock.",
+                "Verschlüsselt den lokalen Notiz-Cache und deine Schlüssel auf diesem Gerät. Bei jedem Entsperren nötig.",
+              )}
             </p>
             <div className="field">
-              <label>PASSWORD</label>
-              <input
-                className="input"
-                type="password"
-                value={pw}
-                onChange={(e) => setPw(e.target.value)}
-              />
+              <label>{tr("PASSWORD", "PASSWORT")}</label>
+              <input className="input" type="password" value={pw} onChange={(e) => setPw(e.target.value)} />
             </div>
             <div className="field">
-              <label>CONFIRM PASSWORD</label>
-              <input
-                className="input"
-                type="password"
-                value={pw2}
-                onChange={(e) => setPw2(e.target.value)}
-              />
+              <label>{tr("CONFIRM PASSWORD", "PASSWORT BESTÄTIGEN")}</label>
+              <input className="input" type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
             </div>
-            {pwError ? (
-              <p className="hint" style={{ color: "var(--bad)" }}>
-                {pwError}
-              </p>
-            ) : null}
+            {pwError ? <p className="hint" style={{ color: "var(--bad)" }}>{pwError}</p> : null}
             <div className="stack">
               <button className="btn btn-solid full" onClick={setPassword} disabled={pwBusy}>
                 {pwBusy ? (
-                  <>Securing<Dots /></>
+                  <>{tr("Securing", "Sichere")}<Dots /></>
                 ) : (
-                  <>Set password & continue <span className="arr">→</span></>
+                  <>{tr("Set password & continue", "Passwort setzen & weiter")} <span className="arr">→</span></>
                 )}
               </button>
             </div>
@@ -306,17 +307,18 @@ export function Onboarding() {
         {/* ---- Step 2: Verify email ---- */}
         {step === 2 ? (
           <>
-            <h2>Verify your email</h2>
+            <h2>{tr("Verify your email", "E-Mail verifizieren")}</h2>
             <p className="hint">
-              Confirm your email to finish creating your account — that's all you need to start.
-              Full identity verification (KYC) happens later in the dashboard, when you're ready to
-              move real funds.
+              {tr(
+                "Confirm your email to finish creating your account — that's all you need to start. Full identity verification (KYC) happens later in the dashboard, when you're ready to move real funds.",
+                "Bestätige deine E-Mail, um dein Konto fertig anzulegen — mehr brauchst du für den Start nicht. Die vollständige Identitätsprüfung (KYC) folgt später im Dashboard, wenn du echtes Geld bewegen willst.",
+              )}
             </p>
 
             {!emailVerified ? (
               <>
                 <div className="field">
-                  <label>EMAIL</label>
+                  <label>{tr("EMAIL", "E-MAIL")}</label>
                   <input
                     className="input"
                     type="email"
@@ -332,7 +334,7 @@ export function Onboarding() {
                 {sentCode ? (
                   <>
                     <div className="field">
-                      <label>6-DIGIT CODE</label>
+                      <label>{tr("6-DIGIT CODE", "6-STELLIGER CODE")}</label>
                       <input
                         className="input"
                         inputMode="numeric"
@@ -345,12 +347,12 @@ export function Onboarding() {
                       />
                     </div>
                     <p className="hint" style={{ marginTop: 0 }}>
-                      We sent a code to <b>{email.trim()}</b>.{" "}
-                      <button type="button" style={linkBtn} onClick={() => setSentCode(null)}>change email</button>
+                      {tr("We sent a code to", "Code gesendet an")} <b>{email.trim()}</b>.{" "}
+                      <button type="button" style={linkBtn} onClick={() => setSentCode(null)}>{tr("change email", "E-Mail ändern")}</button>
                       {" · "}
-                      <button type="button" style={linkBtn} onClick={sendCode}>resend</button>
+                      <button type="button" style={linkBtn} onClick={sendCode}>{tr("resend", "erneut senden")}</button>
                     </p>
-                    <div className="note">For this preview, your code is <b>{sentCode}</b>.</div>
+                    <div className="note">{tr("For this preview, your code is", "Für diese Vorschau lautet dein Code")} <b>{sentCode}</b>.</div>
                   </>
                 ) : null}
 
@@ -359,11 +361,11 @@ export function Onboarding() {
                 <div className="stack">
                   {!sentCode ? (
                     <button className="btn btn-solid full" onClick={sendCode}>
-                      Send code <span className="arr">→</span>
+                      {tr("Send code", "Code senden")} <span className="arr">→</span>
                     </button>
                   ) : (
                     <button className="btn btn-solid full" onClick={verifyCode} disabled={emailBusy || codeInput.length < 6}>
-                      {emailBusy ? <>Verifying<Dots /></> : <>Verify <span className="arr">→</span></>}
+                      {emailBusy ? <>{tr("Verifying", "Verifiziere")}<Dots /></> : <>{tr("Verify", "Verifizieren")} <span className="arr">→</span></>}
                     </button>
                   )}
                 </div>
@@ -371,11 +373,13 @@ export function Onboarding() {
             ) : (
               <div className="stack">
                 <div className="note">
-                  <span className="ok">✓</span> Email verified. You're all set — identity verification
-                  is waiting for you in the dashboard, whenever you want to move real funds.
+                  <span className="ok">✓</span> {tr(
+                    "Email verified. You're all set — identity verification is waiting for you in the dashboard, whenever you want to move real funds.",
+                    "E-Mail verifiziert. Alles bereit — die Identitätsprüfung wartet im Dashboard, wann immer du echtes Geld bewegen willst.",
+                  )}
                 </div>
                 <button className="btn btn-solid full" onClick={enterConsole}>
-                  Enter console <span className="arr">→</span>
+                  {tr("Enter console", "Zur Konsole")} <span className="arr">→</span>
                 </button>
               </div>
             )}
