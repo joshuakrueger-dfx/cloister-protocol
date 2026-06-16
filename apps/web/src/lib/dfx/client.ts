@@ -6,7 +6,10 @@
 // calls the API directly — no proxy.
 // =====================================================================
 
-export const DFX_API_BASE = "https://api.dfx.swiss";
+// Production: https://api.dfx.swiss · Sandbox: https://dev.api.dfx.swiss
+// Override per build with VITE_DFX_API_URL.
+export const DFX_API_BASE =
+  (import.meta.env.VITE_DFX_API_URL as string | undefined)?.replace(/\/$/, "") || "https://api.dfx.swiss";
 
 type RequestOptions = { signal?: AbortSignal; headers?: Record<string, string> };
 

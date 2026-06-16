@@ -263,13 +263,14 @@ export class RealApi implements CloisterApi {
     return this.getSession();
   }
 
-  async markVerifiedExternally(): Promise<Session> {
+  async markVerifiedExternally(info?: { level?: "L1" | "L2" | "L3"; jurisdiction?: "EU" | "US" }): Promise<Session> {
+    const prev = lsGet<KycStatus>("cloister.kyc", { status: "unverified", subjectType: null, jurisdiction: null, verifiedAt: null, level: null });
     lsSet("cloister.kyc", {
       status: "verified",
       subjectType: "individual",
-      jurisdiction: "EU",
+      jurisdiction: info?.jurisdiction ?? prev.jurisdiction ?? "EU",
       verifiedAt: new Date().toISOString(),
-      level: "L1",
+      level: info?.level ?? "L1",
     });
     lsSet("cloister.dfx", true);
     return this.getSession();

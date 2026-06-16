@@ -13,16 +13,24 @@ export interface BackendConfig {
   apiBase?: string; // Provider/Relayer/ASP (server.js / server-testnet.js)
 }
 
+// A production backend is added automatically when the build provides
+// VITE_API_URL (the deployed provider/relayer/indexer). With no env it stays
+// at the self-contained Demo so the hosted tool always works with no infra.
+const ENV_API = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "");
+const ENV_API_LABEL = (import.meta.env.VITE_API_LABEL as string | undefined) || "Production";
+const ENV_API_META = (import.meta.env.VITE_API_META as string | undefined) || "live";
+
 export const BACKENDS: BackendConfig[] = [
   { id: "demo", label: "Demo", meta: "mock data", kind: "mock" },
   { id: "local", label: "Local", meta: "devnet", kind: "real", apiBase: "http://127.0.0.1:8788" },
   { id: "base-sepolia", label: "Base Sepolia", meta: "testnet", kind: "real", apiBase: "http://127.0.0.1:8790" },
+  ...(ENV_API ? [{ id: "production", label: ENV_API_LABEL, meta: ENV_API_META, kind: "real" as const, apiBase: ENV_API }] : []),
 ];
 
 const ACTIVE_KEY = "cloister.backend.v1";
-// Deployed (prod) build defaults to the self-contained Demo backend so the
-// hosted tool works with no infrastructure; local dev defaults to the Local stack.
-const DEFAULT_ID = import.meta.env.PROD ? "demo" : "local";
+// With a production backend configured, default to it. Otherwise: deployed
+// (prod) build → self-contained Demo; local dev → the Local stack.
+const DEFAULT_ID = ENV_API ? "production" : import.meta.env.PROD ? "demo" : "local";
 
 export function getActiveBackendId(): string {
   const id = localStorage.getItem(ACTIVE_KEY);

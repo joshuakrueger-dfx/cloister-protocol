@@ -50,8 +50,9 @@ export interface CloisterApi {
   confirmEmail(email: string): Promise<Session>;
   /** Settings: update the editable account profile (display name, contact email). */
   updateProfile(p: { name?: string; email?: string }): Promise<Session>;
-  /** Mark KYC verified after the account-based (DFX) verification completes in the dashboard. */
-  markVerifiedExternally(): Promise<Session>;
+  /** Mark KYC verified after the account-based (DFX) verification completes in
+   *  the dashboard. Pass the real KYC level/jurisdiction from the provider. */
+  markVerifiedExternally(info?: { level?: "L1" | "L2" | "L3"; jurisdiction?: import("./types").Jurisdiction }): Promise<Session>;
 
   // ---------- Treasury / Notes ----------
   getBalance(chain?: ChainId | "all"): Promise<Balance>;

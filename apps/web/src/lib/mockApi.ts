@@ -196,14 +196,14 @@ export class MockApi implements CloisterApi {
     return structuredClone(this.session);
   }
 
-  async markVerifiedExternally(): Promise<Session> {
+  async markVerifiedExternally(info?: { level?: "L1" | "L2" | "L3"; jurisdiction?: "EU" | "US" }): Promise<Session> {
     await wait(220);
     this.session.kyc = {
       status: "verified",
       subjectType: "individual",
-      jurisdiction: "EU",
+      jurisdiction: info?.jurisdiction ?? this.session.kyc.jurisdiction ?? "EU",
       verifiedAt: new Date().toISOString(),
-      level: "L1",
+      level: info?.level ?? "L1",
     };
     this.session.dfxLinked = true;
     return structuredClone(this.session);

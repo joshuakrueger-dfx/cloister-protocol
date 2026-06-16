@@ -11,8 +11,9 @@ export function KycVerify({ onDone }: { onDone?: () => void }) {
   const api = useApi();
   const { setSession } = useSession();
 
-  async function done() {
-    setSession(await api.markVerifiedExternally());
+  async function done(level?: "L1" | "L2" | "L3") {
+    // record the real DFX KYC tier on the session
+    setSession(await api.markVerifiedExternally({ level }));
     onDone?.();
   }
 
