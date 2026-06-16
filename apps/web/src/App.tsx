@@ -7,6 +7,7 @@ import { Onboarding } from "./screens/auth/Onboarding";
 import { Overview } from "./screens/Overview";
 import { Fund } from "./screens/Fund";
 import { Disburse } from "./screens/Disburse";
+import { Approvals } from "./screens/Approvals";
 import { Recipients } from "./screens/Recipients";
 import { Activity } from "./screens/Activity";
 import { Compliance } from "./screens/Compliance";
@@ -26,6 +27,7 @@ const router = createBrowserRouter([
       { path: "overview", element: <Overview />, handle: { crumb: "CONSOLE", title: "Overview" } },
       { path: "fund", element: <Fund />, handle: { crumb: "OPERATE", title: "Fund" } },
       { path: "disburse", element: <Disburse />, handle: { crumb: "OPERATE", title: "Disburse" } },
+      { path: "approvals", element: <Approvals />, handle: { crumb: "OPERATE", title: "Approvals" } },
       { path: "recipients", element: <Recipients />, handle: { crumb: "OPERATE", title: "Recipients" } },
       { path: "activity", element: <Activity />, handle: { crumb: "OPERATE", title: "Activity" } },
       {

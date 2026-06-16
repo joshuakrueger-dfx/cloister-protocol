@@ -1172,3 +1172,18 @@ textarea.input {
 @media (max-width: 560px) {
   .toast-host { left: 14px; right: 14px; bottom: 14px; max-width: none; }
 }
+
+/* ---------- approvals (maker-checker) ---------- */
+.approval-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 2px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.approval-row:last-child { border-bottom: none; }
+.approval-amt { font-size: 18px; font-weight: 600; color: var(--white); letter-spacing: -0.01em; }
+.approval-meta { font-size: 13px; color: var(--dim); margin-top: 4px; }
+.approval-actions { display: flex; gap: 10px; flex-wrap: wrap; }

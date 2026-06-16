@@ -25,7 +25,7 @@ import {
 } from "@cloister/sdk";
 import type { CloisterApi } from "./api";
 import type {
-  AnonymitySet, AspStatus, Asset, Backend, Balance, BatchDisburseParams, ChainId,
+  AnonymitySet, Approval, ApprovalRequest, AspStatus, Asset, Backend, Balance, BatchDisburseParams, ChainId,
   ComplianceStatus, Disbursement, Disclosure, DisclosureParams, DisburseResult,
   JurisdictionProfile, KycStatus, KycSubmitPayload, Note, PayrollSession,
   PayrollSessionParams, ProgressCallback, Receipt, ReceiptParams, Recipient,
@@ -439,6 +439,37 @@ export class RealApi implements CloisterApi {
     const list = await this.getRecipients();
     const next = list.map((r) => (r.id === id ? { ...r, favorite: !r.favorite } : r));
     lsSet(`${this.ns}.recipients`, next);
+    return next;
+  }
+
+  // ---------- maker-checker ----------
+  async requestApproval(req: ApprovalRequest): Promise<Approval[]> {
+    const list = lsGet<Approval[]>(`${this.ns}.approvals`, []);
+    const next = [{ ...req, id: `ap_${Date.now()}`, createdAt: new Date().toISOString() }, ...list];
+    lsSet(`${this.ns}.approvals`, next);
+    return next;
+  }
+
+  async getApprovals(): Promise<Approval[]> {
+    return lsGet<Approval[]>(`${this.ns}.approvals`, []);
+  }
+
+  async approveDisbursement(id: string, onProgress?: ProgressCallback): Promise<void> {
+    const list = lsGet<Approval[]>(`${this.ns}.approvals`, []);
+    const a = list.find((x) => x.id === id);
+    if (!a) throw new Error("approval not found");
+    if (a.kind === "single" && a.single) {
+      await this.disburseSingle({ recipient: a.single.recipient, amount: a.single.amount, asset: a.single.asset, memo: a.single.memo }, onProgress);
+    } else if (a.kind === "batch" && a.batch) {
+      await this.disburseBatch({ rows: a.batch.rows }, onProgress);
+    }
+    lsSet(`${this.ns}.approvals`, list.filter((x) => x.id !== id));
+  }
+
+  async rejectDisbursement(id: string): Promise<Approval[]> {
+    const list = lsGet<Approval[]>(`${this.ns}.approvals`, []);
+    const next = list.filter((x) => x.id !== id);
+    lsSet(`${this.ns}.approvals`, next);
     return next;
   }
 

@@ -4,6 +4,7 @@ import { useAsync } from "../lib/useAsync";
 import { Button, Card, Dots, Field, KeyValue, ScreenHead, Seg, SanctionsTag } from "../components/primitives";
 import { ProofConsole } from "../components/ProofConsole";
 import { toast } from "../lib/overlays";
+import { getApprovalThreshold } from "../lib/prefs";
 import type { Asset, BatchRow, PayrollSession, ProofStep } from "../lib/types";
 
 type Mode = "single" | "batch" | "recurring";
@@ -94,6 +95,20 @@ function SingleMode() {
   }
 
   async function pay() {
+    // maker-checker: amounts at/above the threshold need a second approver
+    if (amountNumber(amount) >= getApprovalThreshold()) {
+      setBusy(true);
+      try {
+        await api.requestApproval({ kind: "single", summary: recipient, amount: `${amount} ${asset}`, single: { recipient, amount, asset, memo } });
+        setLines([{ progress: 100, html: "<span class='ok'>submitted for dual approval — see <b>Approvals</b>.</span>" }]);
+        toast("Submitted for approval — needs a second approver", "info");
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "Could not submit", "error");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     setBusy(true);
     setProgress(0);
     setLines([{ progress: 0, html: "confirm received — proof was pre-warming…" }]);
@@ -293,6 +308,20 @@ function BatchMode() {
   }
 
   async function run() {
+    // maker-checker: batches at/above the threshold need a second approver
+    if (totalNum >= getApprovalThreshold()) {
+      setBusy(true);
+      try {
+        await api.requestApproval({ kind: "batch", summary: `${rows.length} recipients`, amount: total, chain: rows[0]?.chain, batch: { rows } });
+        setLines([{ progress: 100, html: "<span class='ok'>submitted for dual approval — see <b>Approvals</b>.</span>" }]);
+        toast("Batch submitted for approval — needs a second approver", "info");
+      } catch (e) {
+        toast(e instanceof Error ? e.message : "Could not submit", "error");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     setBusy(true);
     setProgress(0);
     setLines([{ progress: 0, html: "starting private batch…" }]);

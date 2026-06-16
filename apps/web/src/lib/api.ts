@@ -9,6 +9,8 @@
 
 import type {
   AnonymitySet,
+  Approval,
+  ApprovalRequest,
   AspStatus,
   Asset,
   Backend,
@@ -74,6 +76,12 @@ export interface CloisterApi {
   ): Promise<DisburseResult>;
   authorizePayrollSession(params: PayrollSessionParams): Promise<PayrollSession>;
   getPayrollSession(): Promise<PayrollSession>;
+
+  // ---------- Maker-checker (dual approval) ----------
+  requestApproval(req: ApprovalRequest): Promise<Approval[]>;
+  getApprovals(): Promise<Approval[]>;
+  approveDisbursement(id: string, onProgress?: ProgressCallback): Promise<void>;
+  rejectDisbursement(id: string): Promise<Approval[]>;
 
   // ---------- Directory / Ledger ----------
   getRecipients(): Promise<Recipient[]>;
