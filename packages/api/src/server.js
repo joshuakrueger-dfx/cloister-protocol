@@ -50,12 +50,34 @@ async function main() {
   const poolRelay = new Contract(poolAddr, abi, relayer);
   const poolAsp = new Contract(poolAddr, abi, deployer); // deployer == ASP
 
-  // Vor jeder Tx sicherstellen, dass die im Proof gebundene Association-Root on-chain
-  // als gültig registriert ist (idempotent). Der ASP-Good-Set wächst monoton.
-  async function ensureAspRoot(root) {
+  function badReq(msg) { const e = new Error(msg); e.shortMessage = msg; return e; }
+
+  // BN254 scalar field — every on-chain root/commitment/nullifier must be a valid element.
+  const FIELD = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+  function isFieldElement(x) {
+    try { const v = BigInt(x); return v >= 0n && v < FIELD; } catch { return false; }
+  }
+
+  // SERVER-BUILT txs only (shield / settle): DFX *is* the ASP and is legitimately advancing
+  // its OWN verified good-set from a transaction it constructed itself, so publishing a
+  // not-yet-known root is correct here. The good-set grows monotonically.
+  async function publishOwnAspRoot(root) {
     if (!ASP_ENFORCE || root == null) return;
+    if (!isFieldElement(root)) throw badReq("invalid associationRoot");
     if (await poolRead.knownAspRoot(root)) return;
     await (await poolAsp.publishAspRoot(root)).wait();
+  }
+
+  // CALLER-SUPPLIED txs (/v1/shielded/submit): the bound association root MUST already be a
+  // known good-set root the ASP published from its own verified set. We NEVER publish a
+  // caller-supplied root — auto-publishing let anyone legitimize a tree of non-vetted
+  // commitments and bypass the on-chain compliance gate (finding P1-10).
+  async function requireKnownAspRoot(root) {
+    if (!ASP_ENFORCE) return;
+    if (!isFieldElement(root)) throw badReq("invalid associationRoot");
+    if (!(await poolRead.knownAspRoot(root))) {
+      throw badReq("associationRoot not in the ASP good-set — payment rejected (compliance gate)");
+    }
   }
 
   const shieldAddrJson = { pubKey: dfxAddr.pubKey.toString(), encPubKey: dfxAddr.encPubKey };
@@ -118,7 +140,7 @@ async function main() {
       });
       await (await token.mint(deployerAddr, amount)).wait();
       await (await token.approve(poolAddr, amount)).wait();
-      await ensureAspRoot(shield.associationRoot);
+      await publishOwnAspRoot(shield.associationRoot);
       const tx = await poolAsp.transact(
         proofTuple(shield.proof),
         shield.root,
@@ -185,11 +207,20 @@ async function main() {
   app.post("/v1/shielded/submit", async (req, res) => {
     try {
       const { proof, root, newRoot, associationRoot, inputNullifiers, outputCommitments, extData, quoteId } = req.body;
-      await ensureAspRoot(associationRoot);
+      // Validate every caller-supplied field element BEFORE touching the chain.
+      if (!Array.isArray(inputNullifiers) || inputNullifiers.length !== 2 ||
+          !Array.isArray(outputCommitments) || outputCommitments.length !== 2 ||
+          ![root, newRoot, associationRoot, ...inputNullifiers, ...outputCommitments].every(isFieldElement)) {
+        return res.status(400).json({ error: "invalid transaction fields" });
+      }
+      // Compliance gate: reject unless the bound root is an ALREADY-KNOWN good-set root.
+      // Never auto-publish a caller-supplied root (P1-10).
+      await requireKnownAspRoot(associationRoot);
       const tx = await poolRelay.transact(proofTuple(proof), root, newRoot, associationRoot, inputNullifiers, outputCommitments, extTuple(extData));
       const rc = await tx.wait();
       await syncFromChain(poolRead, tree, [dfxWallet]);
-      for (const q of quotes.values()) if (q.quoteId === quoteId) q.status = "paid";
+      // Only settle a quote that actually exists and was pending — bind status to a real quote.
+      for (const q of quotes.values()) if (q.quoteId === quoteId && q.status === "pending") q.status = "paid";
       res.json({ status: "broadcast", txHash: rc.hash, dfxShieldedBalance: dfxWallet.balance().toString() });
     } catch (e) {
       res.status(400).json({ error: e.shortMessage || e.message });
@@ -209,7 +240,7 @@ async function main() {
         extAmount: -note.note.amount,
         recipient: merchant,
       });
-      await ensureAspRoot(settle.associationRoot);
+      await publishOwnAspRoot(settle.associationRoot);
       const tx = await poolRelay.transact(
         proofTuple(settle.proof),
         settle.root,
