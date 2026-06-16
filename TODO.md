@@ -16,13 +16,14 @@ Erledigtes ist unten unter „Bereits live" gelistet.
 - [ ] Echter On-Device-Prover-Pfad für die Web-App (heute Demo-Backend).
 
 ## 2) Maker-Checker — Tiefe
-> 4-Augen-Queue ab Schwelle live · **Team-Verwaltung + Rollen + optionale Zweit-Freigabe live** (Team-Screen: einladen/Rollen/entfernen; Settings-Toggle). Es fehlt das echte **Mehrnutzer-Backend**.
+> 4-Augen-Queue ab Schwelle live · **Team-Verwaltung + Rollen + ein-/zweistufige Freigabe live** (Team-Screen: einladen/Rollen/entfernen; Settings-Toggle + zwei Schwellen). Es fehlt das echte **Mehrnutzer-Backend**.
 
 - [x] **Team anlegen + Mitglieder per E-Mail einladen + Rollen** (Admin/Approver/Initiator/Viewer) — Team-Screen + api (mock+real).
 - [x] **Optionale Zweit-Freigabe** (Settings-Toggle „Zweit-Freigeber erforderlich" + Schwelle).
+- [x] **Mehrstufige Freigaben** (1 oder 2 Freigeber je nach Betrag — zwei konfigurierbare Schwellen, Fortschritts-Pips „1 von 2", Teil-Freigabe bleibt in der Queue).
 - [ ] **Echtes Mehrnutzer-Backend**: server-seitige Konten/Auth pro Mitglied, echte E-Mail-Einladungen, geräteübergreifende Freigabe (heute lokal/demo).
-- [ ] **Funktionstrennung erzwingen**: Approver ≠ Initiator (sobald echte Identitäten da sind).
-- [ ] **Freigabe-Audit-Trail** (wer/wann freigegeben/abgelehnt).
+- [ ] **Funktionstrennung erzwingen**: Approver ≠ Initiator (Datenmodell `approvedBy` vorhanden; echte Durchsetzung sobald echte Identitäten da sind).
+- [ ] **Freigabe-Audit-Trail** sichtbar machen (wer/wann freigegeben/abgelehnt — `approvedBy` wird bereits erfasst).
 - [ ] **Limits & Whitelist**: Tages-/Transaktionslimits, Empfänger-Whitelist, typ-/empfängerabhängige Regeln.
 
 ## 3) Recipients & Scheduling — Tiefe
@@ -31,6 +32,18 @@ Erledigtes ist unten unter „Bereits live" gelistet.
 - [ ] **Aus dem Adressbuch zahlen** — Einzel- & Sammelauszahlung aus gespeicherten Empfängern bauen (nicht nur CSV/Excel).
 - [ ] **Echter Payroll-Zeitplan** (nächster Lauf, Budget-Cap-Durchsetzung, wiederkehrende Ausführung) — heute nur UI-Mock.
 - [ ] **Aktivität**: Datumsbereich-Filter, Pro-Empfänger-Historie, Pagination.
+
+## 3b) Finance & Controlling (Konzern-tauglich)
+> Damit die App für eine Finanz-/Controlling-Abteilung „wie gewohnt" passt.
+
+- [x] **Kontierung** pro Zahlung: Kostenstelle · Sachkonto (GL) · Projekt/Innenauftrag · Buchungsdatum · Steuerschlüssel — Einzel- (Akkordeon mit Vorschlägen) + Sammel-Zahlung (CSV/Excel-Spalten `costcenter/glaccount/project/postingdate`), Anzeige als Coding-Spalte in der Aktivität.
+- [x] **Stammdaten-Screen**: Kostenstellen / Sachkonten / Projekte / Steuerschlüssel verwalten (anlegen/entfernen) — speist die Kontierungs-Vorschläge + Export-Zuordnung.
+- [x] **Buchhaltungs-Export**: DATEV-Buchungsstapel · SAP-/generische CSV · SEPA pain.001.001.09 (ISO 20022) — clientseitig aus dem entschlüsselten Hauptbuch.
+- [x] **Light-/Finance-Theme** (umschaltbar in Topbar + Einstellungen, token-basiert).
+- [x] **Tabellen-Power**: sortierbare Spalten + Summenzeile (pro Währung) + Pagination in der Aktivität.
+- [ ] **Lieferanten-Stammdaten** an Empfängern: USt-IdNr./Steuernummer, Zahlungsziel, Default-Kontierung (Kostenstelle/GL) — heute nur Label/Typ/Adresse.
+- [ ] **DATEV EXTF-Header** (echte, importfertige Header-Zeile statt reiner Spaltennamen) sobald gegen DATEV getestet.
+- [ ] **Rechnung↔Zahlung-Abgleich** (Reconciliation) + Belegnummern-Kreis.
 
 ## 4) UX-Politur — Rest
 - [ ] Einheitliche **Empty-States** (Icon + CTA) über alle Listen.
@@ -65,6 +78,9 @@ Live gehen ist jetzt **Konfiguration, kein Code** — siehe `GO_LIVE.md` + `apps
 - `VITE_DFX_API_URL` / `VITE_DFX_KYC_URL` → Prod (`api.dfx.swiss`) oder Sandbox (`dev.api.dfx.swiss`).
 - DFX-KYC-Flow vollständig verdrahtet (Connect → `/v2/kyc` Status → Continue/Hosted-Page → Session-Bindung).
 - Offene Blocker für echtes Geld: externe Audits, Trusted-Setup-Zeremonie, Backend-Deploy (Contracts/Relayer/Indexer), Mail-Backend.
+
+## Bereits live (Referenz, Finance-Welle)
+- Light-/Finance-Theme · Kontierung (Einzel + Batch) · Stammdaten-Screen · DATEV-/SAP-CSV-/SEPA-XML-Export · sortierbare Tabelle mit Summen + Pagination · mehrstufige Freigaben (1/2 Freigeber)
 
 ## Bereits live (Referenz)
 - DFX-AG-Branding entfernt (neutral) · Verify-Identity = E-Mail+Code, KYC im Dashboard · Website-Klartext/Fakten-Fixes · Coming-Soon + Website mobil optimiert
