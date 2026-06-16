@@ -102,6 +102,7 @@ export class MockApi implements CloisterApi {
   private session: Session = {
     authenticated: false,
     unlocked: false,
+    email: null,
     org: { name: "Your Treasury", kind: "Treasury · self-custody" },
     kyc: { status: "unverified", subjectType: null, jurisdiction: null, verifiedAt: null, level: null },
     dfxLinked: false,
@@ -177,6 +178,26 @@ export class MockApi implements CloisterApi {
       kind: payload.subjectType === "entity" ? "Treasury · self-custody" : "Individual · self-custody",
     };
     return structuredClone(this.session.kyc);
+  }
+
+  async confirmEmail(email: string): Promise<Session> {
+    await wait(220);
+    this.session.email = email;
+    this.session.authenticated = true;
+    return structuredClone(this.session);
+  }
+
+  async markVerifiedExternally(): Promise<Session> {
+    await wait(220);
+    this.session.kyc = {
+      status: "verified",
+      subjectType: "individual",
+      jurisdiction: "EU",
+      verifiedAt: new Date().toISOString(),
+      level: "L1",
+    };
+    this.session.dfxLinked = true;
+    return structuredClone(this.session);
   }
 
   // ---------- Treasury / Notes ----------

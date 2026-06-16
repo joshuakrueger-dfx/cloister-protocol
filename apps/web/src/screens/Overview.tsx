@@ -13,12 +13,14 @@ import {
 } from "../components/primitives";
 import { CHAINS } from "../lib/types";
 import { DisbursementTable } from "../components/DisbursementTable";
+import { KycVerify } from "../components/KycVerify";
 
 export function Overview() {
   const api = useApi();
   const nav = useNavigate();
   const { session } = useSession();
   const [revealed, setRevealed] = useState(false);
+  const [verifyOpen, setVerifyOpen] = useState(false);
   const orgName = session?.org.name && session.org.name !== "Your Treasury" ? session.org.name.split(" ")[0] : "there";
 
   const balance = useAsync(() => api.getBalance(), []);
@@ -35,6 +37,26 @@ export function Overview() {
         title={`Good morning, ${orgName}`}
         sub="Your shielded treasury is healthy and compliant. Disburse privately — every payment carries a proof of clean origin, and nothing links a payout to your wallet on-chain."
       />
+
+      {session && session.kyc.status !== "verified" ? (
+        <Card style={{ marginTop: 20 }}>
+          <div className="clab">IDENTITY — ACTION NEEDED</div>
+          <p className="sub" style={{ marginTop: 10 }}>
+            Your account is ready. To unlock funding and private payouts, verify your identity once
+            with a regulated account — connect an existing one or create a new one. It only takes a
+            few minutes.
+          </p>
+          {verifyOpen ? (
+            <KycVerify onDone={() => setVerifyOpen(false)} />
+          ) : (
+            <div className="actions">
+              <Button variant="solid" arrow onClick={() => setVerifyOpen(true)}>
+                Verify identity
+              </Button>
+            </div>
+          )}
+        </Card>
+      ) : null}
 
       <div className="grid g3" style={{ marginTop: 28 }}>
         <Card>

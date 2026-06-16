@@ -1,8 +1,7 @@
-// Onboarding/Auth-Flow (NEU, nicht im Prototyp).
-// 4 Schritte: (a) Seed erstellen/importieren, (b) Vault-Passwort,
-// (c) KYC (entity/individual, simulierte Verifikation → verified-Badge),
-// (d) optional "Continue with a funding account".
-// Reine UI + Mock-State. Nach Abschluss → Console.
+// Onboarding / Auth flow.
+// 3 steps: (a) create/import seed, (b) vault password, (c) verify email via a
+// one-time code. Full identity verification (KYC) now happens later in the
+// dashboard (account-based), so the entry barrier here is just a confirmed email.
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -10,11 +9,10 @@ import { useApi } from "../../lib/ApiProvider";
 import { useSession } from "../../lib/SessionProvider";
 import { Logo } from "../../components/icons";
 import { Dots } from "../../components/primitives";
-import { DfxConnect } from "../../components/DfxConnect";
 import { vaultExists, clearVault } from "../../lib/vault";
-import type { Jurisdiction, KycSubjectType, ProofStep, Wallet } from "../../lib/types";
+import type { Wallet } from "../../lib/types";
 
-type Step = 0 | 1 | 2 | 3;
+type Step = 0 | 1 | 2;
 
 export function Onboarding() {
   const api = useApi();
@@ -22,7 +20,7 @@ export function Onboarding() {
   const { setSession } = useSession();
   const [step, setStep] = useState<Step>(0);
 
-  // Wiederkehrender Nutzer: ein verschlüsselter Vault existiert auf diesem Gerät → entsperren.
+  // Returning user: an encrypted vault exists on this device → unlock.
   const [unlockMode, setUnlockMode] = useState(() => vaultExists());
   const [unlockPw, setUnlockPw] = useState("");
   const [unlockBusy, setUnlockBusy] = useState(false);
@@ -42,34 +40,25 @@ export function Onboarding() {
     }
   }
 
-  // Schritt 0 — Seed
+  // Step 0 — Seed
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [creatingSeed, setCreatingSeed] = useState(false);
   const [importMode, setImportMode] = useState(false);
   const [importText, setImportText] = useState("");
 
-  // Schritt 1 — Passwort
+  // Step 1 — Password
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [pwBusy, setPwBusy] = useState(false);
   const [pwError, setPwError] = useState<string | null>(null);
 
-  // Schritt 2 — KYC
-  const [subject, setSubject] = useState<KycSubjectType>("entity");
-  const [jurisdiction, setJurisdiction] = useState<Jurisdiction>("EU");
-  const [legalName, setLegalName] = useState("");
-  const [country, setCountry] = useState("");
-  const [idType, setIdType] = useState("passport");
-  const [idNumber, setIdNumber] = useState("");
-  const [dob, setDob] = useState("");
-  const [kycLines, setKycLines] = useState<ProofStep[]>([]);
-  const [kycProgress, setKycProgress] = useState(0);
-  const [kycBusy, setKycBusy] = useState(false);
-  const [kycDone, setKycDone] = useState(false);
-  const [kycError, setKycError] = useState<string | null>(null);
-
-  // Schritt 3 — DFX / Enter
-  const [showDfx, setShowDfx] = useState(false);
+  // Step 2 — Verify email (one-time code)
+  const [email, setEmail] = useState("");
+  const [sentCode, setSentCode] = useState<string | null>(null);
+  const [codeInput, setCodeInput] = useState("");
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailErr, setEmailErr] = useState<string | null>(null);
+  const [emailVerified, setEmailVerified] = useState(false);
 
   async function createSeed() {
     setCreatingSeed(true);
@@ -106,49 +95,40 @@ export function Onboarding() {
     }
   }
 
-  async function submitKyc() {
-    setKycBusy(true);
-    setKycLines([]);
-    setKycProgress(0);
-    setKycError(null);
+  // PoC: there is no email backend yet, so the one-time code is generated on the
+  // device and shown below. (When a mail service is wired in, only `sendCode`
+  // changes — the verify step stays the same.)
+  function sendCode() {
+    setEmailErr(null);
+    const e = email.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return setEmailErr("Enter a valid email address.");
+    setSentCode(String(Math.floor(100000 + Math.random() * 900000)));
+    setCodeInput("");
+  }
+
+  async function verifyCode() {
+    setEmailErr(null);
+    if (codeInput.trim() !== sentCode) return setEmailErr("That code doesn't match — check it and try again.");
+    setEmailBusy(true);
     try {
-      await api.submitKyc(
-        { subjectType: subject, jurisdiction, legalName, country, idType, idNumber, dateOfBirth: dob },
-        (s) => {
-          setKycProgress(s.progress);
-          setKycLines((p) => [...p, s]);
-        },
-      );
-      setKycDone(true);
+      setSession(await api.confirmEmail(email.trim()));
+      setEmailVerified(true);
     } catch (e) {
-      // Screening kann ablehnen (Embargo/Sanktionen/fehlende Felder) → Flow bricht ab.
-      setKycError(e instanceof Error ? e.message : "Verification failed.");
+      setEmailErr(e instanceof Error ? e.message : "Could not verify.");
     } finally {
-      setKycBusy(false);
+      setEmailBusy(false);
     }
   }
 
-  const COUNTRIES_EU = [
-    ["", "Select country"], ["CH", "Switzerland"], ["DE", "Germany"], ["FR", "France"], ["IT", "Italy"],
-    ["ES", "Spain"], ["NL", "Netherlands"], ["AT", "Austria"], ["PT", "Portugal"], ["IE", "Ireland"],
-    ["IR", "Iran (embargoed)"],
-  ];
-  const COUNTRIES_US = [
-    ["", "Select state/country"], ["US", "United States"], ["CA", "Canada"], ["KP", "North Korea (embargoed)"],
-  ];
-
   async function enterConsole() {
-    const session = await api.getSession();
-    setSession(session);
+    setSession(await api.getSession());
     nav("/overview");
   }
 
-  // DFX account linked (real api.dfx.swiss session lives in the DFX layer) —
-  // flag it on the local session and enter the console.
-  async function enterWithDfx() {
-    localStorage.setItem("cloister.dfx", "true");
-    await enterConsole();
-  }
+  const linkBtn: React.CSSProperties = {
+    background: "none", border: "none", color: "var(--white)", textDecoration: "underline",
+    cursor: "pointer", font: "inherit", padding: 0,
+  };
 
   return (
     <div className="auth-wrap">
@@ -205,7 +185,7 @@ export function Onboarding() {
         ) : (
         <>
         <div className="auth-steps">
-          {[0, 1, 2, 3].map((i) => (
+          {[0, 1, 2].map((i) => (
             <span className={`dot${i <= step ? " on" : ""}`} key={i} />
           ))}
         </div>
@@ -316,126 +296,79 @@ export function Onboarding() {
           </>
         ) : null}
 
-        {/* ---- Step 2: KYC ---- */}
+        {/* ---- Step 2: Verify email ---- */}
         {step === 2 ? (
           <>
-            <h2>Verify identity</h2>
+            <h2>Verify your email</h2>
             <p className="hint">
-              The one-time public touchpoint. Pick your regulatory home — the console then shows
-              only that jurisdiction's rules. KYC + sanctions screening run here so every later
-              payout proves clean origin without revealing history.
+              Confirm your email to finish creating your account — that's all you need to start.
+              Full identity verification (KYC) happens later in the dashboard, when you're ready to
+              move real funds.
             </p>
-            <div className="field">
-              <label>REGULATORY JURISDICTION</label>
-              <div className="seg">
-                <button type="button" className={jurisdiction === "EU" ? "on" : ""} onClick={() => { setJurisdiction("EU"); setCountry(""); }}>
-                  EU-based
-                </button>
-                <button type="button" className={jurisdiction === "US" ? "on" : ""} onClick={() => { setJurisdiction("US"); setCountry(""); }}>
-                  US-based
-                </button>
-              </div>
-            </div>
-            <div className="field">
-              <label>SUBJECT</label>
-              <div className="seg">
-                <button type="button" className={subject === "entity" ? "on" : ""} onClick={() => setSubject("entity")}>
-                  Entity / DAO
-                </button>
-                <button type="button" className={subject === "individual" ? "on" : ""} onClick={() => setSubject("individual")}>
-                  Individual
-                </button>
-              </div>
-            </div>
-            <div className="field">
-              <label>{subject === "entity" ? "LEGAL ENTITY NAME" : "FULL NAME"}</label>
-              <input className="input" value={legalName} onChange={(e) => setLegalName(e.target.value)} placeholder={subject === "entity" ? "e.g. Acme GmbH" : "e.g. Jane Doe"} />
-            </div>
-            <div className="grid g2">
-              <div className="field" style={{ marginTop: 0 }}>
-                <label>{jurisdiction === "EU" ? "COUNTRY" : "STATE / COUNTRY"}</label>
-                <select className="input" value={country} onChange={(e) => setCountry(e.target.value)}>
-                  {(jurisdiction === "EU" ? COUNTRIES_EU : COUNTRIES_US).map(([code, name]) => (
-                    <option key={code} value={code}>{name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="field" style={{ marginTop: 0 }}>
-                <label>ID TYPE</label>
-                <select className="input" value={idType} onChange={(e) => setIdType(e.target.value)}>
-                  {subject === "entity" ? <option value="registration">Company registration</option> : <option value="passport">Passport</option>}
-                  {subject === "entity" ? <option value="lei">LEI</option> : <option value="national_id">National ID</option>}
-                </select>
-              </div>
-            </div>
-            <div className="grid g2">
-              <div className="field" style={{ marginTop: 0 }}>
-                <label>{subject === "entity" ? "REGISTRATION NO." : "ID NUMBER"}</label>
-                <input className="input" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} placeholder="e.g. CHE-123.456.789" />
-              </div>
-              {subject === "individual" ? (
-                <div className="field" style={{ marginTop: 0 }}>
-                  <label>DATE OF BIRTH</label>
-                  <input className="input" type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
-                </div>
-              ) : <div />}
-            </div>
 
-            {kycError ? (
-              <p className="hint" style={{ color: "var(--bad)" }}>{kycError}</p>
-            ) : null}
-
-            {kycLines.length ? (
+            {!emailVerified ? (
               <>
-                <div className="progress kyc-progress">
-                  <i style={{ width: `${kycProgress}%` }} />
+                <div className="field">
+                  <label>EMAIL</label>
+                  <input
+                    className="input"
+                    type="email"
+                    value={email}
+                    disabled={!!sentCode}
+                    onChange={(e) => { setEmail(e.target.value); setSentCode(null); }}
+                    onKeyDown={(e) => e.key === "Enter" && !sentCode && sendCode()}
+                    placeholder="you@example.com"
+                    autoFocus
+                  />
                 </div>
-                <div className="console">
-                  {kycLines.map((l, i) => (
-                    <div key={i} dangerouslySetInnerHTML={{ __html: `cloister> ${l.html}` }} />
-                  ))}
-                </div>
-              </>
-            ) : null}
 
-            <div className="stack">
-              {kycDone ? (
-                <button className="btn btn-solid full" onClick={() => setStep(3)}>
-                  Verified — continue <span className="arr">→</span>
-                </button>
-              ) : (
-                <button className="btn btn-solid full" onClick={submitKyc} disabled={kycBusy}>
-                  {kycBusy ? <>Verifying<Dots /></> : "Submit for verification"}
-                </button>
-              )}
-            </div>
-          </>
-        ) : null}
+                {sentCode ? (
+                  <>
+                    <div className="field">
+                      <label>6-DIGIT CODE</label>
+                      <input
+                        className="input"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={codeInput}
+                        onChange={(e) => setCodeInput(e.target.value.replace(/\D/g, ""))}
+                        onKeyDown={(e) => e.key === "Enter" && verifyCode()}
+                        placeholder="123456"
+                        autoFocus
+                      />
+                    </div>
+                    <p className="hint" style={{ marginTop: 0 }}>
+                      We sent a code to <b>{email.trim()}</b>.{" "}
+                      <button type="button" style={linkBtn} onClick={() => setSentCode(null)}>change email</button>
+                      {" · "}
+                      <button type="button" style={linkBtn} onClick={sendCode}>resend</button>
+                    </p>
+                    <div className="note">For this preview, your code is <b>{sentCode}</b>.</div>
+                  </>
+                ) : null}
 
-        {/* ---- Step 3: Enter / DFX ---- */}
-        {step === 3 ? (
-          <>
-            <h2>You're set</h2>
-            <p className="hint">
-              Your vault is created, secured and your identity screening passed. Enter the console — or
-              link a funding account for fiat onramp (bank → USDC) straight into the shielded pool.
-            </p>
-            {showDfx ? (
-              <>
-                <DfxConnect mnemonic={wallet?.seedWords.join(" ")} onVerified={enterWithDfx} />
+                {emailErr ? <p className="hint" style={{ color: "var(--bad)" }}>{emailErr}</p> : null}
+
                 <div className="stack">
-                  <button className="btn full" onClick={enterWithDfx}>
-                    Enter console <span className="arr">→</span>
-                  </button>
+                  {!sentCode ? (
+                    <button className="btn btn-solid full" onClick={sendCode}>
+                      Send code <span className="arr">→</span>
+                    </button>
+                  ) : (
+                    <button className="btn btn-solid full" onClick={verifyCode} disabled={emailBusy || codeInput.length < 6}>
+                      {emailBusy ? <>Verifying<Dots /></> : <>Verify <span className="arr">→</span></>}
+                    </button>
+                  )}
                 </div>
               </>
             ) : (
               <div className="stack">
+                <div className="note">
+                  <span className="ok">✓</span> Email verified. You're all set — identity verification
+                  is waiting for you in the dashboard, whenever you want to move real funds.
+                </div>
                 <button className="btn btn-solid full" onClick={enterConsole}>
                   Enter console <span className="arr">→</span>
-                </button>
-                <button className="btn full" onClick={() => setShowDfx(true)}>
-                  Continue with a funding account
                 </button>
               </div>
             )}

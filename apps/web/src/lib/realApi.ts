@@ -166,7 +166,8 @@ export class RealApi implements CloisterApi {
     const kyc = lsGet<KycStatus>("cloister.kyc", { status: "unverified", subjectType: null, jurisdiction: null, verifiedAt: null, level: null });
     const dfxLinked = lsGet<boolean>("cloister.dfx", false);
     const org = lsGet("cloister.org", { name: "Your Treasury", kind: "Treasury · self-custody" });
-    return { authenticated: vaultExists() || dfxLinked || !!this.mnemonic, unlocked: !!this.mnemonic, org, kyc, dfxLinked };
+    const email = lsGet<string | null>("cloister.email", null);
+    return { authenticated: vaultExists() || dfxLinked || !!this.mnemonic || !!email, unlocked: !!this.mnemonic, email, org, kyc, dfxLinked };
   }
 
   async createWallet(seed?: string[]): Promise<Wallet> {
@@ -246,6 +247,23 @@ export class RealApi implements CloisterApi {
       kind: payload.subjectType === "entity" ? "Treasury · self-custody" : "Individual · self-custody",
     });
     return kyc;
+  }
+
+  async confirmEmail(email: string): Promise<Session> {
+    lsSet("cloister.email", email);
+    return this.getSession();
+  }
+
+  async markVerifiedExternally(): Promise<Session> {
+    lsSet("cloister.kyc", {
+      status: "verified",
+      subjectType: "individual",
+      jurisdiction: "EU",
+      verifiedAt: new Date().toISOString(),
+      level: "L1",
+    });
+    lsSet("cloister.dfx", true);
+    return this.getSession();
   }
 
   // ---------- Treasury / Notes ----------
