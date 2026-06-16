@@ -31,7 +31,7 @@ design-phase documents (and may reference the superseded circom design).
 
 ## TL;DR for engineers
 
-- Self-built ZK on **gnark** (Apache-2). No GPL anywhere (see `../LICENSES.md`).
+- Self-built ZK on **gnark** (Apache-2). Shipped product is GPL/LGPL-free; LGPL go-ethereum is confined to non-distributed dev CLIs (see `../LICENSES.md`).
 - **Groth16/BN254**, **Poseidon2**, 2-in/2-out, **50,481 constraints**.
 - Prove **~190–220 ms** (≈ 8× the old circom/snarkjs WebView path).
 - Proving is **on-device**; the relayer is **broadcast-only**; the witness never leaves the phone.

@@ -157,26 +157,26 @@ function SingleMode() {
           <div className="dz-s">{tr("PDF or image — we read the recipient, amount and reference. Or click to browse.", "PDF oder Bild — wir lesen Empfänger, Betrag und Referenz. Oder klicken zum Auswählen.")}</div>
         </div>
         {invMsg ? <div className="note" style={{ marginTop: 12 }}>{invMsg}</div> : null}
-        <Field label="RECIPIENT">
+        <Field label={tr("RECIPIENT", "EMPFÄNGER")}>
           <select className="input" value={recipientSel} onChange={(e) => setRecipientSel(e.target.value)}>
-            <option>{PASTE_RECIPIENT}</option>
+            <option value={PASTE_RECIPIENT}>{tr("Paste address / OCP quote", "Adresse einfügen / OCP-Quote")}</option>
             {(recipients ?? []).map((r) => (
               <option key={r.id}>{r.label} · {r.address}</option>
             ))}
           </select>
         </Field>
         {recipientSel === PASTE_RECIPIENT ? (
-          <Field label="RECIPIENT ADDRESS / OCP QUOTE">
+          <Field label={tr("RECIPIENT ADDRESS / OCP QUOTE", "EMPFÄNGERADRESSE / OCP-QUOTE")}>
             <input
               className="input"
               value={customRecipient}
               onChange={(e) => setCustomRecipient(e.target.value)}
-              placeholder="0x… or an OpenCryptoPay quote reference"
+              placeholder={tr("0x… or an OpenCryptoPay quote reference", "0x… oder eine OpenCryptoPay-Quote-Referenz")}
             />
           </Field>
         ) : null}
         <div className="grid g2">
-          <Field label="AMOUNT">
+          <Field label={tr("AMOUNT", "BETRAG")}>
             <input className="input" value={amount} onChange={(e) => setAmount(e.target.value)} />
           </Field>
           <Field label="ASSET">
@@ -186,33 +186,35 @@ function SingleMode() {
             </select>
           </Field>
         </div>
-        <Field label="MEMO (encrypted — viewing-key only)">
+        <Field label={tr("MEMO (encrypted — viewing-key only)", "MEMO (verschlüsselt — nur Viewing-Key)")}>
           <input className="input" value={memo} onChange={(e) => setMemo(e.target.value)} />
         </Field>
         <div className="actions">
           <Button variant="solid" arrow onClick={pay} disabled={busy || !recipient || !amount.trim()}>
-            {busy ? <>Proving<Dots /></> : "Confirm & pay"}
+            {busy ? <>{tr("Proving", "Beweise")}<Dots /></> : tr("Confirm & pay", "Bestätigen & zahlen")}
           </Button>
         </div>
         <ProofConsole
           lines={lines}
           progress={progress}
-          idle="ready. Proof pre-warms on confirm…"
+          idle={tr("ready. Proof pre-warms on confirm…", "bereit. Beweis wärmt beim Bestätigen vor…")}
         />
       </Card>
       <Card>
-        <div className="clab">ON-CHAIN OBSERVER SEES</div>
+        <div className="clab">{tr("ON-CHAIN OBSERVER SEES", "WAS EIN ON-CHAIN-BEOBACHTER SIEHT")}</div>
         <div style={{ marginTop: 14 }}>
-          <KeyValue k="tx.from" tone="priv">relayer (not you)</KeyValue>
-          <KeyValue k="Payer address" tone="priv">absent</KeyValue>
-          <KeyValue k="Recipient" tone="priv">absent on-chain</KeyValue>
-          <KeyValue k="Amount" tone="priv">absent on-chain</KeyValue>
-          <KeyValue k="Nullifier" tone="mono">published</KeyValue>
-          <KeyValue k="ASP inclusion" tone="pub">proven clean</KeyValue>
+          <KeyValue k="tx.from" tone="priv">{tr("relayer (not you)", "Relayer (nicht du)")}</KeyValue>
+          <KeyValue k={tr("Payer address", "Zahler-Adresse")} tone="priv">{tr("absent", "fehlt")}</KeyValue>
+          <KeyValue k={tr("Recipient", "Empfänger")} tone="priv">{tr("absent on-chain", "on-chain nicht vorhanden")}</KeyValue>
+          <KeyValue k={tr("Amount", "Betrag")} tone="priv">{tr("absent on-chain", "on-chain nicht vorhanden")}</KeyValue>
+          <KeyValue k="Nullifier" tone="mono">{tr("published", "veröffentlicht")}</KeyValue>
+          <KeyValue k={tr("ASP inclusion", "ASP-Zugehörigkeit")} tone="pub">{tr("proven clean", "sauber bewiesen")}</KeyValue>
         </div>
         <div className="note">
-          The recipient (e.g. a PSP / settlement address) receives a payment note. Amount +
-          counterparty are known only to the settlement broker — never to the chain.
+          {tr(
+            "The recipient (e.g. a PSP / settlement address) receives a payment note. Amount + counterparty are known only to the settlement broker — never to the chain.",
+            "Der Empfänger (z. B. eine PSP-/Settlement-Adresse) erhält eine Zahlungs-Notiz. Betrag + Gegenpartei kennt nur der Settlement-Broker — nie die Chain.",
+          )}
         </div>
       </Card>
     </div>
@@ -255,6 +257,7 @@ function amountNumber(a: string): number {
 
 function BatchMode() {
   const api = useApi();
+  const tr = useT();
   const [rows, setRows] = useState<BatchRow[]>([]);
   const [lines, setLines] = useState<ProofStep[]>([]);
   const [progress, setProgress] = useState<number | undefined>(undefined);
@@ -285,9 +288,9 @@ function BatchMode() {
         parsed = parseBatchCsv(await file.text());
       }
       if (parsed.length) { setRows(parsed); setScreened(null); }
-      else setImportErr("No rows found. Expected columns: address, role, amount, chain.");
+      else setImportErr(tr("No rows found. Expected columns: address, role, amount, chain.", "Keine Zeilen gefunden. Erwartete Spalten: address, role, amount, chain."));
     } catch {
-      setImportErr("Could not read that file. Use a CSV or .xlsx with columns: address, role, amount, chain.");
+      setImportErr(tr("Could not read that file. Use a CSV or .xlsx with columns: address, role, amount, chain.", "Datei konnte nicht gelesen werden. CSV oder .xlsx mit Spalten address, role, amount, chain verwenden."));
     }
   }
   function onImport(e: React.ChangeEvent<HTMLInputElement>) {
@@ -309,7 +312,10 @@ function BatchMode() {
   function screenAll() {
     const clear = rows.filter((r) => r.sanctions === "ok").length;
     const flagged = rows.length - clear;
-    setScreened(`${rows.length} recipients screened (PoC sanctions list) · ${clear} clear${flagged ? ` · ${flagged} flagged` : ""}`);
+    setScreened(tr(
+      `${rows.length} recipients screened (PoC sanctions list) · ${clear} clear${flagged ? ` · ${flagged} flagged` : ""}`,
+      `${rows.length} Empfänger geprüft (PoC-Sanktionsliste) · ${clear} sauber${flagged ? ` · ${flagged} markiert` : ""}`,
+    ));
   }
 
   async function run() {
@@ -317,11 +323,11 @@ function BatchMode() {
     if (totalNum >= getApprovalThreshold()) {
       setBusy(true);
       try {
-        await api.requestApproval({ kind: "batch", summary: `${rows.length} recipients`, amount: total, chain: rows[0]?.chain, batch: { rows } });
-        setLines([{ progress: 100, html: "<span class='ok'>submitted for dual approval — see <b>Approvals</b>.</span>" }]);
-        toast("Batch submitted for approval — needs a second approver", "info");
+        await api.requestApproval({ kind: "batch", summary: tr(`${rows.length} recipients`, `${rows.length} Empfänger`), amount: total, chain: rows[0]?.chain, batch: { rows } });
+        setLines([{ progress: 100, html: `<span class='ok'>${tr("submitted for dual approval — see <b>Approvals</b>.", "zur Zweit-Freigabe eingereicht — siehe <b>Freigaben</b>.")}</span>` }]);
+        toast(tr("Batch submitted for approval — needs a second approver", "Sammelauszahlung zur Freigabe eingereicht — braucht einen Zweit-Freigeber"), "info");
       } catch (e) {
-        toast(e instanceof Error ? e.message : "Could not submit", "error");
+        toast(e instanceof Error ? e.message : tr("Could not submit", "Konnte nicht einreichen"), "error");
       } finally {
         setBusy(false);
       }
@@ -335,9 +341,9 @@ function BatchMode() {
         setProgress(s.progress);
         setLines((prev) => [...prev, s]);
       });
-      toast(`Batch of ${rows.length} sent privately`, "success");
+      toast(tr(`Batch of ${rows.length} sent privately`, `Sammelauszahlung mit ${rows.length} privat gesendet`), "success");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Batch failed", "error");
+      toast(e instanceof Error ? e.message : tr("Batch failed", "Sammelauszahlung fehlgeschlagen"), "error");
     } finally {
       setBusy(false);
     }
@@ -353,11 +359,11 @@ function BatchMode() {
         onDrop={(e) => { e.preventDefault(); setDrag(false); importFile(e.dataTransfer.files?.[0]); }}
       >
         <div className="clab" style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-          BATCH PAYOUT
+          {tr("BATCH PAYOUT", "SAMMELAUSZAHLUNG")}
           {rows.length > 0 ? (
             <span style={{ display: "inline-flex", gap: 14 }}>
-              <button className="reveal-btn" onClick={downloadTemplate}>template</button>
-              <button className="reveal-btn" onClick={() => fileRef.current?.click()}>import another</button>
+              <button className="reveal-btn" onClick={downloadTemplate}>{tr("template", "Vorlage")}</button>
+              <button className="reveal-btn" onClick={() => fileRef.current?.click()}>{tr("import another", "weitere importieren")}</button>
             </span>
           ) : null}
         </div>
@@ -368,14 +374,14 @@ function BatchMode() {
           <div className="dropzone" onClick={() => fileRef.current?.click()} role="button" tabIndex={0}
             onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && fileRef.current?.click()}>
             <div className="dz-ic">{UPLOAD_ICON}</div>
-            <div className="dz-t">Drop a CSV or Excel file to build the batch</div>
+            <div className="dz-t">{tr("Drop a CSV or Excel file to build the batch", "CSV- oder Excel-Datei ablegen, um die Sammelauszahlung zu erstellen")}</div>
             <div className="dz-s">
-              Columns: <span className="mono">address, role, amount, chain</span> — ideal for payroll,
-              vendor &amp; contractor payouts, reimbursements and dividends.
+              {tr("Columns:", "Spalten:")} <span className="mono">address, role, amount, chain</span>{" "}
+              {tr("— ideal for payroll, vendor & contractor payouts, reimbursements and dividends.", "— ideal für Gehälter, Lieferanten- & Auftragnehmer-Zahlungen, Spesen und Dividenden.")}
             </div>
             <div className="dz-actions">
-              <Button sm variant="solid" onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}>Choose file</Button>
-              <button className="dz-link" onClick={(e) => { e.stopPropagation(); downloadTemplate(); }}>Download template</button>
+              <Button sm variant="solid" onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}>{tr("Choose file", "Datei wählen")}</Button>
+              <button className="dz-link" onClick={(e) => { e.stopPropagation(); downloadTemplate(); }}>{tr("Download template", "Vorlage herunterladen")}</button>
             </div>
           </div>
         ) : (
@@ -384,11 +390,11 @@ function BatchMode() {
               <table style={{ marginTop: 10 }}>
                 <thead>
                   <tr>
-                    <th>Recipient</th>
-                    <th>Role</th>
-                    <th>Amount</th>
-                    <th>Chain</th>
-                    <th>Sanctions</th>
+                    <th>{tr("Recipient", "Empfänger")}</th>
+                    <th>{tr("Role", "Rolle")}</th>
+                    <th>{tr("Amount", "Betrag")}</th>
+                    <th>{tr("Chain", "Chain")}</th>
+                    <th>{tr("Sanctions", "Sanktionen")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -405,14 +411,14 @@ function BatchMode() {
               </table>
             </div>
             <div className="grid g4" style={{ marginTop: 20 }}>
-              <div><div className="clab">RECIPIENTS</div><div className="big" style={{ fontSize: 24 }}>{rows.length}</div></div>
-              <div><div className="clab">TOTAL</div><div className="big" style={{ fontSize: 24 }}>{total}</div></div>
-              <div><div className="clab">SETTLEMENT</div><div className="big" style={{ fontSize: 24 }}>{rows.length} tx</div><div className="cfoot">independent lanes</div></div>
-              <div><div className="clab">PROOF</div><div className="big" style={{ fontSize: 24 }}>per-tx</div><div className="cfoot">background</div></div>
+              <div><div className="clab">{tr("RECIPIENTS", "EMPFÄNGER")}</div><div className="big" style={{ fontSize: 24 }}>{rows.length}</div></div>
+              <div><div className="clab">{tr("TOTAL", "GESAMT")}</div><div className="big" style={{ fontSize: 24 }}>{total}</div></div>
+              <div><div className="clab">{tr("SETTLEMENT", "ABWICKLUNG")}</div><div className="big" style={{ fontSize: 24 }}>{rows.length} tx</div><div className="cfoot">{tr("independent lanes", "unabhängige Lanes")}</div></div>
+              <div><div className="clab">{tr("PROOF", "BEWEIS")}</div><div className="big" style={{ fontSize: 24 }}>{tr("per-tx", "pro Tx")}</div><div className="cfoot">{tr("background", "im Hintergrund")}</div></div>
             </div>
             <div className="actions">
-              <Button variant="solid" arrow onClick={run} disabled={busy}>{busy ? "Running…" : "Run private batch"}</Button>
-              <Button onClick={screenAll}>Screen all recipients</Button>
+              <Button variant="solid" arrow onClick={run} disabled={busy}>{busy ? tr("Running…", "Läuft…") : tr("Run private batch", "Private Sammelauszahlung starten")}</Button>
+              <Button onClick={screenAll}>{tr("Screen all recipients", "Alle Empfänger prüfen")}</Button>
             </div>
             {screened ? <div className="note" style={{ color: "var(--ok)" }}>{screened}</div> : null}
             {lines.length ? <ProofConsole lines={lines} progress={progress} idle="" /> : null}
@@ -426,6 +432,7 @@ function BatchMode() {
 // ---------- Recurring ----------
 function RecurringMode() {
   const api = useApi();
+  const tr = useT();
   const session = useAsync<PayrollSession>(() => api.getPayrollSession(), []);
   const [schedule, setSchedule] = useState("Monthly · 1st");
   const [budgetCap, setBudgetCap] = useState("60,000 USDC");
@@ -446,57 +453,59 @@ function RecurringMode() {
   return (
     <div className="split" style={{ marginTop: 22 }}>
       <Card>
-        <div className="clab">PAYROLL — RECURRING</div>
+        <div className="clab">{tr("PAYROLL — RECURRING", "GEHALT — WIEDERKEHREND")}</div>
         <div className="grid g2">
-          <Field label="SCHEDULE">
+          <Field label={tr("SCHEDULE", "TURNUS")}>
             <select className="input" value={schedule} onChange={(e) => setSchedule(e.target.value)}>
-              <option>Monthly · 1st</option>
-              <option>Bi-weekly</option>
-              <option>Weekly</option>
+              <option>{tr("Monthly · 1st", "Monatlich · 1.")}</option>
+              <option>{tr("Bi-weekly", "Zweiwöchentlich")}</option>
+              <option>{tr("Weekly", "Wöchentlich")}</option>
             </select>
           </Field>
-          <Field label="BUDGET CAP">
+          <Field label={tr("BUDGET CAP", "BUDGET-OBERGRENZE")}>
             <input className="input" value={budgetCap} onChange={(e) => setBudgetCap(e.target.value)} />
           </Field>
         </div>
-        <Field label="SPENDING SESSION">
+        <Field label={tr("SPENDING SESSION", "AUSGABE-SESSION")}>
           <div className="gatebox">
             <div className="gate-row">
-              <b>Session key</b> · authorise up to the budget cap, re-confirm each period
+              <b>{tr("Session key", "Session-Key")}</b> · {tr("authorise up to the budget cap, re-confirm each period", "bis zur Budget-Obergrenze autorisieren, jede Periode neu bestätigen")}
             </div>
             <div className="gate-row">
-              <b>Recorded on device</b> · cap + schedule tracked locally (PoC) — circuit-bound enforcement on the roadmap
+              <b>{tr("Recorded on device", "Auf dem Gerät erfasst")}</b> · {tr("cap + schedule tracked locally (PoC) — circuit-bound enforcement on the roadmap", "Obergrenze + Turnus lokal gespeichert (PoC) — Circuit-gebundene Durchsetzung auf der Roadmap")}
             </div>
             <div className="gate-row">
-              <b>Near-instant</b> · subsequent payouts skip re-auth
+              <b>{tr("Near-instant", "Nahezu sofort")}</b> · {tr("subsequent payouts skip re-auth", "Folge-Auszahlungen ohne erneute Freigabe")}
             </div>
           </div>
         </Field>
         <div className="actions">
           <Button variant="solid" arrow onClick={authorize} disabled={busy || authorized}>
-            {authorized ? "Session authorised" : busy ? "Authorising…" : "Authorise payroll session"}
+            {authorized ? tr("Session authorised", "Session autorisiert") : busy ? tr("Authorising…", "Autorisiere…") : tr("Authorise payroll session", "Gehalts-Session autorisieren")}
           </Button>
         </div>
         <div className="note">
-          Programmatic/oracle payouts use the same session model via API — pre-authorised,
-          rate-limited, fully auditable.
+          {tr(
+            "Programmatic/oracle payouts use the same session model via API — pre-authorised, rate-limited, fully auditable.",
+            "Programmatische/Oracle-Auszahlungen nutzen dasselbe Session-Modell per API — vorautorisiert, ratenbegrenzt, vollständig prüfbar.",
+          )}
         </div>
       </Card>
       <Card>
-        <div className="clab">NEXT RUN</div>
+        <div className="clab">{tr("NEXT RUN", "NÄCHSTER LAUF")}</div>
         <div className="big" style={{ fontSize: 24, marginTop: 14 }}>
           {ps?.nextRun ?? "—"}
         </div>
         <div className="cfoot">
-          {ps ? `${ps.recipients} recipients · ${ps.amount}` : "—"}
+          {ps ? tr(`${ps.recipients} recipients · ${ps.amount}`, `${ps.recipients} Empfänger · ${ps.amount}`) : "—"}
         </div>
         <div className="kv" style={{ marginTop: 18 }}>
-          <span className="k">Last run</span>
+          <span className="k">{tr("Last run", "Letzter Lauf")}</span>
           <span className="v">{ps?.lastRun ?? "—"}</span>
         </div>
         <div className="kv">
-          <span className="k">Receipts</span>
-          <span className="v">auto-archived</span>
+          <span className="k">{tr("Receipts", "Belege")}</span>
+          <span className="v">{tr("auto-archived", "auto-archiviert")}</span>
         </div>
       </Card>
     </div>

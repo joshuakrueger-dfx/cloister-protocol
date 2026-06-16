@@ -6,24 +6,30 @@ import { Button, Card, ComplianceList, Field, ScreenHead } from "../components/p
 import { ProofConsole } from "../components/ProofConsole";
 import { KycVerify } from "../components/KycVerify";
 import { toast } from "../lib/overlays";
+import { useT } from "../lib/i18n";
 import type { Disclosure, ExportFormat, ProofStep, ReceiptScope } from "../lib/types";
 
 export function Compliance() {
   const { session } = useSession();
+  const tr = useT();
   return (
     <section className="view">
       <ScreenHead
-        eyebrow="THE DIFFERENTIATOR"
-        title="Compliance Center"
-        sub="Privacy you can prove. Generate clean-origin attestations and grant scoped, time-limited disclosure to banks, auditors and tax authorities — without ever exposing your full history."
+        eyebrow={tr("THE DIFFERENTIATOR", "DER UNTERSCHIED")}
+        title={tr("Compliance Center", "Compliance-Center")}
+        sub={tr(
+          "Privacy you can prove. Generate clean-origin attestations and grant scoped, time-limited disclosure to banks, auditors and tax authorities — without ever exposing your full history.",
+          "Privatsphäre, die du beweisen kannst. Erzeuge Belege sauberer Herkunft und gib Banken, Prüfern und Finanzämtern eine begrenzte, zeitlich befristete Einsicht — ohne je deine volle Historie offenzulegen.",
+        )}
       />
       {session && session.kyc.status !== "verified" ? (
         <Card style={{ marginTop: 26 }}>
-          <div className="clab">VERIFY IDENTITY — UNLOCK PAYOUTS</div>
+          <div className="clab">{tr("VERIFY IDENTITY — UNLOCK PAYOUTS", "IDENTITÄT VERIFIZIEREN — AUSZAHLUNGEN FREISCHALTEN")}</div>
           <p className="sub" style={{ marginTop: 10 }}>
-            Complete identity verification with a regulated account to enable funding and private
-            payouts. Connect an existing account or create one — your full history stays private; only
-            your clean-origin status is recorded.
+            {tr(
+              "Complete identity verification with a regulated account to enable funding and private payouts. Connect an existing account or create one — your full history stays private; only your clean-origin status is recorded.",
+              "Schließe die Identitätsprüfung mit einem regulierten Konto ab, um Einzahlung und private Auszahlungen freizuschalten. Verbinde ein bestehendes Konto oder lege eines an — deine volle Historie bleibt privat; nur dein Sauber-Herkunft-Status wird erfasst.",
+            )}
           </p>
           <KycVerify />
         </Card>
@@ -44,6 +50,7 @@ export function Compliance() {
 
 function ReceiptCard() {
   const api = useApi();
+  const tr = useT();
   const [scope, setScope] = useState<ReceiptScope>("single");
   const [periodMode, setPeriodMode] = useState("Q2 2026");
   const [period, setPeriod] = useState("Q2 2026");
@@ -55,12 +62,12 @@ function ReceiptCard() {
   async function generate() {
     setBusy(true);
     setStarted(true);
-    setLines([{ progress: 0, html: "assembling proof of innocence…" }]);
+    setLines([{ progress: 0, html: tr("assembling proof of innocence…", "stelle Proof of Innocence zusammen…") }]);
     try {
       await api.generateReceipt({ scope, period, format }, (s) => setLines((p) => [...p, s]));
-      toast(`Receipt downloaded · ${format.toUpperCase()}`, "success");
+      toast(tr(`Receipt downloaded · ${format.toUpperCase()}`, `Beleg heruntergeladen · ${format.toUpperCase()}`), "success");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Receipt failed", "error");
+      toast(e instanceof Error ? e.message : tr("Receipt failed", "Beleg fehlgeschlagen"), "error");
     } finally {
       setBusy(false);
     }
@@ -68,24 +75,26 @@ function ReceiptCard() {
 
   return (
     <Card>
-      <div className="clab">COMPLIANCE RECEIPT · PROOF OF INNOCENCE</div>
+      <div className="clab">{tr("COMPLIANCE RECEIPT · PROOF OF INNOCENCE", "COMPLIANCE-BELEG · PROOF OF INNOCENCE")}</div>
       <p className="sub" style={{ marginTop: 12 }}>
-        A signed attestation that selected funds belong to the ASP good-set and originate from a
-        KYC'd source — revealing nothing else.
+        {tr(
+          "A signed attestation that selected funds belong to the ASP good-set and originate from a KYC'd source — revealing nothing else.",
+          "Ein signierter Beleg, dass ausgewählte Mittel zum ASP-Good-Set gehören und aus einer KYC-geprüften Quelle stammen — ohne sonst etwas preiszugeben.",
+        )}
       </p>
       <div className="grid g2" style={{ marginTop: 14 }}>
-        <Field label="SCOPE">
+        <Field label={tr("SCOPE", "UMFANG")}>
           <select
             className="input"
             value={scope}
             onChange={(e) => setScope(e.target.value as ReceiptScope)}
           >
-            <option value="single">Single payment</option>
-            <option value="range">Date range</option>
-            <option value="counterparty">Counterparty</option>
+            <option value="single">{tr("Single payment", "Einzelzahlung")}</option>
+            <option value="range">{tr("Date range", "Zeitraum")}</option>
+            <option value="counterparty">{tr("Counterparty", "Gegenpartei")}</option>
           </select>
         </Field>
-        <Field label="PERIOD">
+        <Field label={tr("PERIOD", "PERIODE")}>
           <select
             className="input"
             value={periodMode}
@@ -101,25 +110,25 @@ function ReceiptCard() {
         </Field>
       </div>
       {periodMode === "Custom" ? (
-        <Field label="CUSTOM PERIOD">
+        <Field label={tr("CUSTOM PERIOD", "EIGENE PERIODE")}>
           <input
             className="input"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            placeholder="e.g. 1 Apr – 30 Jun 2026"
+            placeholder={tr("e.g. 1 Apr – 30 Jun 2026", "z. B. 1. Apr – 30. Jun 2026")}
           />
         </Field>
       ) : null}
-      <Field label="EXPORT FORMAT">
+      <Field label={tr("EXPORT FORMAT", "EXPORTFORMAT")}>
         <select className="input" value={format} onChange={(e) => setFormat(e.target.value as ExportFormat)}>
-          <option value="pdf">PDF document</option>
-          <option value="csv">Spreadsheet (CSV — Excel / Google Sheets)</option>
-          <option value="json">JSON (signed, machine-readable)</option>
+          <option value="pdf">{tr("PDF document", "PDF-Dokument")}</option>
+          <option value="csv">{tr("Spreadsheet (CSV — Excel / Google Sheets)", "Tabelle (CSV — Excel / Google Sheets)")}</option>
+          <option value="json">{tr("JSON (signed, machine-readable)", "JSON (signiert, maschinenlesbar)")}</option>
         </select>
       </Field>
       <div className="actions">
         <Button variant="solid" arrow onClick={generate} disabled={busy || !period.trim()}>
-          {busy ? "Generating…" : `Generate receipt · ${format.toUpperCase()}`}
+          {busy ? tr("Generating…", "Erstelle…") : tr(`Generate receipt · ${format.toUpperCase()}`, `Beleg erzeugen · ${format.toUpperCase()}`)}
         </Button>
       </div>
       {started ? <ProofConsole lines={lines} idle="" /> : null}
@@ -129,6 +138,7 @@ function ReceiptCard() {
 
 function DisclosureCard() {
   const api = useApi();
+  const tr = useT();
   const { data, loading, error, reload } = useAsync<Disclosure[]>(() => api.listDisclosures(), []);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -142,7 +152,7 @@ function DisclosureCard() {
     try {
       await api.revokeDisclosure(id);
       reload();
-      toast("Disclosure revoked", "info");
+      toast(tr("Disclosure revoked", "Offenlegung widerrufen"), "info");
     } finally {
       setBusyId(null);
     }
@@ -156,7 +166,7 @@ function DisclosureCard() {
       setGrantee("");
       setShowForm(false);
       reload();
-      toast("Read-only disclosure issued", "success");
+      toast(tr("Read-only disclosure issued", "Schreibgeschützte Offenlegung erteilt"), "success");
     } finally {
       setCreating(false);
     }
@@ -164,19 +174,21 @@ function DisclosureCard() {
 
   return (
     <Card style={{ marginTop: 18 }}>
-      <div className="clab">SCOPED VIEWING-KEY DISCLOSURE</div>
+      <div className="clab">{tr("SCOPED VIEWING-KEY DISCLOSURE", "BEGRENZTE VIEWING-KEY-OFFENLEGUNG")}</div>
       <p className="sub" style={{ marginTop: 12 }}>
-        Hand an auditor a read-only token limited by time and scope. They see exactly what you grant
-        — nothing more. Revoke anytime.
+        {tr(
+          "Hand an auditor a read-only token limited by time and scope. They see exactly what you grant — nothing more. Revoke anytime.",
+          "Gib einem Prüfer einen schreibgeschützten Token, begrenzt nach Zeit und Umfang. Er sieht genau das, was du gewährst — nicht mehr. Jederzeit widerrufbar.",
+        )}
       </p>
       {loading ? (
-        <div className="note">Loading disclosures…</div>
+        <div className="note">{tr("Loading disclosures…", "Lade Offenlegungen…")}</div>
       ) : error ? (
         <div className="note" style={{ color: "var(--bad)" }}>
           {error}
         </div>
       ) : (data?.length ?? 0) === 0 ? (
-        <div className="note">No active disclosures.</div>
+        <div className="note">{tr("No active disclosures.", "Keine aktiven Offenlegungen.")}</div>
       ) : (
         data!.map((d) => (
           <div className="disclosure-card" key={d.id}>
@@ -184,42 +196,42 @@ function DisclosureCard() {
             <div className="info">
               <b>{d.grantee}</b>
               <span>
-                {d.scope} · expires in {d.expiresIn} · {d.readOnly ? "read-only" : "read-write"}
+                {d.scope} · {tr("expires in", "läuft ab in")} {d.expiresIn} · {d.readOnly ? tr("read-only", "nur lesen") : tr("read-write", "lesen/schreiben")}
               </span>
             </div>
             <button className="reveal-btn" onClick={() => revoke(d.id)} disabled={busyId === d.id}>
-              {busyId === d.id ? "…" : "revoke"}
+              {busyId === d.id ? "…" : tr("revoke", "widerrufen")}
             </button>
           </div>
         ))
       )}
       {showForm ? (
         <div style={{ marginTop: 14 }}>
-          <Field label="GRANTEE (auditor / bank / tax authority)">
-            <input className="input" value={grantee} onChange={(e) => setGrantee(e.target.value)} placeholder="e.g. Tax authority — CH" />
+          <Field label={tr("GRANTEE (auditor / bank / tax authority)", "EMPFÄNGER (Prüfer / Bank / Finanzamt)")}>
+            <input className="input" value={grantee} onChange={(e) => setGrantee(e.target.value)} placeholder={tr("e.g. Tax authority — CH", "z. B. Finanzamt — CH")} />
           </Field>
           <div className="grid g2">
-            <Field label="SCOPE" style={{ marginTop: 0 }}>
+            <Field label={tr("SCOPE", "UMFANG")} style={{ marginTop: 0 }}>
               <select className="input" value={scope} onChange={(e) => setScope(e.target.value)}>
-                <option>Q2 2026</option>
-                <option>Payroll only</option>
-                <option>Full history</option>
+                <option value="Q2 2026">Q2 2026</option>
+                <option value="Payroll only">{tr("Payroll only", "Nur Gehälter")}</option>
+                <option value="Full history">{tr("Full history", "Volle Historie")}</option>
               </select>
             </Field>
-            <Field label="EXPIRES (DAYS)" style={{ marginTop: 0 }}>
+            <Field label={tr("EXPIRES (DAYS)", "LÄUFT AB (TAGE)")} style={{ marginTop: 0 }}>
               <input className="input" type="number" min={1} max={365} value={days} onChange={(e) => setDays(Number(e.target.value))} />
             </Field>
           </div>
           <div className="actions">
             <Button variant="solid" onClick={create} disabled={creating || !grantee.trim()}>
-              {creating ? "Issuing…" : "Issue read-only token"}
+              {creating ? tr("Issuing…", "Erstelle…") : tr("Issue read-only token", "Schreibgeschützten Token erstellen")}
             </Button>
-            <Button onClick={() => setShowForm(false)}>Cancel</Button>
+            <Button onClick={() => setShowForm(false)}>{tr("Cancel", "Abbrechen")}</Button>
           </div>
         </div>
       ) : (
         <div className="actions">
-          <Button onClick={() => setShowForm(true)}>+ New disclosure grant</Button>
+          <Button onClick={() => setShowForm(true)}>{tr("+ New disclosure grant", "+ Neue Offenlegung")}</Button>
         </div>
       )}
     </Card>
@@ -228,12 +240,13 @@ function DisclosureCard() {
 
 function AspCard() {
   const api = useApi();
+  const tr = useT();
   const { data, loading, error } = useAsync(() => api.getAspStatus(), []);
   return (
     <Card>
-      <div className="clab">ASP — ASSOCIATION SET</div>
+      <div className="clab">{tr("ASP — ASSOCIATION SET", "ASP — ASSOCIATION-SET")}</div>
       {loading ? (
-        <div className="note">Loading…</div>
+        <div className="note">{tr("Loading…", "Lädt…")}</div>
       ) : error ? (
         <div className="note" style={{ color: "var(--bad)" }}>
           {error}
