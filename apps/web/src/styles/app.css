@@ -1029,3 +1029,27 @@ textarea.input {
     min-width: 560px;
   }
 }
+
+/* ---------- drag & drop upload ---------- */
+.dropzone {
+  border: 1.5px dashed var(--line-2);
+  border-radius: 14px;
+  padding: 30px 22px;
+  margin-top: 12px;
+  text-align: center;
+  background: var(--glass);
+  cursor: pointer;
+  transition: border-color 0.25s, background 0.25s;
+}
+.dropzone:hover { border-color: rgba(255, 255, 255, 0.32); background: rgba(255, 255, 255, 0.05); }
+.dropzone.sm { padding: 18px 18px; }
+.dropzone .dz-ic { width: 34px; height: 34px; margin: 0 auto 10px; opacity: 0.85; }
+.dropzone .dz-ic svg { width: 100%; height: 100%; }
+.dropzone .dz-t { font-size: 15px; font-weight: 600; color: var(--white); }
+.dropzone .dz-s { font-size: 13px; color: var(--dim); margin-top: 6px; }
+.dropzone .dz-actions { display: inline-flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.dz-link { background: none; border: none; color: var(--dim); font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; padding: 0; }
+.dz-link:hover { color: var(--white); }
+/* the whole card is a drop target; highlight while a file is dragged over it */
+.card.drag { border-color: var(--ok); box-shadow: 0 0 0 1px var(--ok) inset; }
+.card.drag .dropzone { border-color: var(--ok); background: rgba(126, 224, 168, 0.08); }
