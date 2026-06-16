@@ -28,9 +28,12 @@ jobs:
           cache-dependency-path: packages/prover-gnark/go.sum
       - run: go vet ./...
       - run: go build ./...
-      # -race catches data races; the suite includes soundness negative tests (tampered
-      # witness MUST fail), a Poseidon2 known-answer vector, and the provenance gate
-      # (./provenance) which fails if Groth16Verifier.sol drifts from the committed vk.bin.
+      # -race catches data races. The suite now runs a REAL prove→verify on every run
+      # (ephemeral in-memory setup — no committed-key dependency, nothing skips): randomized
+      # completeness over 256 valid txs, an under-constrained hunt that mutates every witness
+      # signal (each MUST be rejected), a tampered-proof/-input groth16.Verify negative, a
+      # Poseidon2 KAT, and the provenance gate (verifier == committed vk.bin). Source-level
+      # mutation testing is a periodic manual gate: scripts/mutation-test.sh.
       - run: go test -race -timeout 600s ./...
 
   sdk:
