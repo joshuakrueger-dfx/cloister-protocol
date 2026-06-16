@@ -6,12 +6,17 @@ import { Button, Card, ScreenHead } from "../components/primitives";
 import { DisbursementTable } from "../components/DisbursementTable";
 import { toast } from "../lib/overlays";
 import { useT } from "../lib/i18n";
+import { useSession } from "../lib/SessionProvider";
+import { exportDatev, exportAccountingCsv, exportSepaXml } from "../lib/accountingExport";
 import type { ExportFormat } from "../lib/types";
+
+type AcctFmt = "datev" | "csv" | "sepa";
 
 export function Activity() {
   const api = useApi();
   const nav = useNavigate();
   const tr = useT();
+  const { session } = useSession();
   const { data, loading, error } = useAsync(() => api.getActivity(), []);
   const [showFilter, setShowFilter] = useState(false);
   const [query, setQuery] = useState("");
@@ -19,6 +24,7 @@ export function Activity() {
   const [stmtPeriod, setStmtPeriod] = useState("Q2 2026");
   const [stmtFmt, setStmtFmt] = useState<ExportFormat>("pdf");
   const [stmtBusy, setStmtBusy] = useState(false);
+  const [acctFmt, setAcctFmt] = useState<AcctFmt>("datev");
 
   const rows = useMemo(() => {
     const all = data ?? [];
@@ -46,6 +52,34 @@ export function Activity() {
       toast(tr(`Statement downloaded · ${stmtFmt.toUpperCase()}`, `Auszug heruntergeladen · ${stmtFmt.toUpperCase()}`), "success");
     } finally {
       setStmtBusy(false);
+    }
+  }
+
+  function exportAccounting() {
+    const list = rows.length ? rows : (data ?? []);
+    if (!list.length) return;
+    if (acctFmt === "datev") {
+      exportDatev(list, stmtPeriod);
+      toast(tr("Booking batch exported · DATEV", "Buchungsstapel exportiert · DATEV"), "success");
+    } else if (acctFmt === "csv") {
+      exportAccountingCsv(list, stmtPeriod);
+      toast(tr("Accounting export · CSV", "Buchhaltungs-Export · CSV"), "success");
+    } else {
+      const msgId = `CLOISTER-${stmtPeriod.replace(/[^A-Za-z0-9]/g, "")}-${session?.email?.split("@")[0] ?? "tx"}`;
+      const { included, skipped } = exportSepaXml(list, {
+        debtorName: session?.org.name || "Cloister account",
+        msgId,
+        createdAt: new Date().toISOString(),
+      }, stmtPeriod);
+      if (included === 0) {
+        toast(tr("No EUR payments to include in the SEPA file.", "Keine EUR-Zahlungen für die SEPA-Datei vorhanden."), "error");
+      } else {
+        toast(
+          tr(`SEPA file exported · ${included} payment(s)${skipped ? `, ${skipped} non-EUR skipped` : ""}`,
+             `SEPA-Datei exportiert · ${included} Zahlung(en)${skipped ? `, ${skipped} Nicht-EUR übersprungen` : ""}`),
+          "success",
+        );
+      }
     }
   }
 
@@ -82,6 +116,17 @@ export function Activity() {
         </select>
         <Button sm variant="solid" arrow onClick={exportStatement} disabled={stmtBusy}>
           {stmtBusy ? tr("Generating…", "Erstelle…") : tr("Download statement", "Auszug herunterladen")}
+        </Button>
+      </div>
+      <div className="actions" style={{ marginTop: 10, alignItems: "center", gap: 10 }}>
+        <span className="clab" style={{ marginRight: 2 }}>{tr("ACCOUNTING EXPORT", "BUCHHALTUNGS-EXPORT")}</span>
+        <select className="input" style={{ width: "auto" }} value={acctFmt} onChange={(e) => setAcctFmt(e.target.value as AcctFmt)} aria-label={tr("Accounting format", "Buchhaltungs-Format")}>
+          <option value="datev">{tr("DATEV (booking batch)", "DATEV (Buchungsstapel)")}</option>
+          <option value="csv">{tr("CSV (SAP / generic)", "CSV (SAP / generisch)")}</option>
+          <option value="sepa">{tr("SEPA pain.001 (XML)", "SEPA pain.001 (XML)")}</option>
+        </select>
+        <Button sm arrow onClick={exportAccounting} disabled={(data?.length ?? 0) === 0}>
+          {tr("Export for accounting", "Für Buchhaltung exportieren")}
         </Button>
       </div>
       {showFilter ? (
