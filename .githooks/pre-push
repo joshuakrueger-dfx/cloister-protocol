@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Copyright (c) 2026 DFX AG. Licensed under the MIT License (see LICENSE).
+#
+# Fast pre-push quality gate. Blocks a push if the cheap, high-signal checks fail, so a
+# red branch never even reaches the remote. This is a PRE-FILTER, not the authority: the
+# full suite (go test -race, the soundness/under-constrained hunt, hardhat, slither, the
+# provenance + constants gates) runs in CI on every push and is the source of truth.
+#
+# Install once:  scripts/install-hooks.sh   (sets core.hooksPath to .githooks)
+# Bypass (rare): git push --no-verify
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+echo "[pre-push] fast quality gates (CI is authoritative)…"
+
+fail=0
+step() { echo "  → $1"; }
+
+# 1) constants consistency — a FIELD_SIZE/MERKLE_LEVELS drift is a silent soundness bug.
+if command -v node >/dev/null; then
+  step "constants"
+  node scripts/check-constants.mjs || fail=1
+fi
+
+# 2) Go vet + build — catches the bulk of prover/circuit breakage in seconds.
+if command -v go >/dev/null; then
+  step "go vet + build"
+  ( cd packages/prover-gnark && go vet ./... && go build ./... ) || fail=1
+fi
+
+# 3) SDK cross-language extData KAT — the JS↔Go↔Solidity binding guard (fast).
+if command -v node >/dev/null && [ -d packages/sdk/node_modules ]; then
+  step "sdk KAT"
+  ( cd packages/sdk && node --test ) || fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo "[pre-push] BLOCKED — fix the above (or 'git push --no-verify' to override, CI will still gate)."
+  exit 1
+fi
+echo "[pre-push] OK — full race suite + contracts + slither + provenance run in CI."
