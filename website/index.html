@@ -415,7 +415,6 @@
               <a class="uc" href="https://docs.cloister-protocol.com/why-cloister.html"><span data-i18n="uc.2"></span><span class="arr">→</span></a>
               <a class="uc" href="https://docs.cloister-protocol.com/why-cloister.html"><span data-i18n="uc.3"></span><span class="arr">→</span></a>
               <a class="uc" href="https://docs.cloister-protocol.com/why-cloister.html"><span data-i18n="uc.4"></span><span class="arr">→</span></a>
-              <a class="uc" href="https://docs.cloister-protocol.com/how-it-works.html"><span data-i18n="uc.5"></span><span class="arr">→</span></a>
             </div>
           </div>
           <div class="reveal" id="developers">
@@ -558,7 +557,7 @@
           "s2.t":"Privat zahlen","s2.d":"Ein zk-SNARK-Beweis autorisiert die Zahlung, ein Relayer sendet sie und zahlt das Gas. Die Zahler-Adresse erscheint nie on-chain — die interne Zahlung ist eine verschlüsselte Notiz, kein Transfer.",
           "s3.t":"Off-chain-Einfügung","s3.d":"Der Contract rechnet keine einzige Hash-Operation on-chain; der Beweis selbst belegt das Merkle-Update. Ergebnis: ~350.000 statt 1,74 Mio. Gas — rund 5× weniger.",
           "s4.t":"Parallele Lanes","s4.d":"Mehrere unabhängige Lanes lassen Zahlungen parallel in denselben Block fließen (im PoC 6 von 6). View-Tags lassen Wallets ihre eigenen Notizen schnell finden — ohne fremde zu entschlüsseln.",
-          "uc.label":"ANWENDUNGSFÄLLE","uc.title":"Privatsphäre für echte Zahlungen.","uc.1":"Private Händlerzahlungen an der Kasse","uc.2":"Auszahlungen an DAO-Mitwirkende","uc.3":"B2B-Abwicklungen ohne offengelegte Gegenpartei","uc.4":"Gehaltsähnliche Überweisungen","uc.5":"Privater Cross-Chain-Checkout",
+          "uc.label":"ANWENDUNGSFÄLLE","uc.title":"Privatsphäre für echte Zahlungen.","uc.1":"Private Händlerzahlungen an der Kasse","uc.2":"Auszahlungen an DAO-Mitwirkende","uc.3":"B2B-Abwicklungen ohne offengelegte Gegenpartei","uc.4":"Gehaltsähnliche Überweisungen",
           "dev.label":"FÜR ENTWICKLER","dev.title":"Privatzahlungen in Minuten integrieren.","dev.sub":"Cloister ist als offener Standard konzipiert: Jedes Wallet und jeder Zahlungsanbieter kann es implementieren — ohne Erlaubnis oder Abhängigkeit, rückwärtskompatibel.","dev.cmt":"// jede EVM-Chain","dev.cta":"Dokumentation ansehen",
           "p.1":"zk-SNARKs · <b>Groth16</b> / BN254","p.2":"<b>Poseidon2</b>-Hashing","p.3":"<b>Curve-free</b> Keys · H(privKey)","p.4":"Encrypted-UTXO-Modell","p.5":"<b>50.481</b> Circuit-Constraints · Nullifier gegen Double-Spend",
           "tx.label":"ABGESCHIRMT BY DESIGN","tx.title":"Sensible Details lösen sich in Rauch auf.","tx.sub":"Fahre über ein Feld — am Handy: tippe — um zu sehen, was ein Beobachter erfährt und was nicht. Adressen und Beträge werden zu „Privat“; die Zahlung wird trotzdem on-chain abgerechnet.",
@@ -592,7 +591,7 @@
           "s2.t":"Pay privately","s2.d":"A zk-SNARK proof authorizes the payment; a relayer broadcasts it and pays the gas. The payer's address never appears on-chain — the internal payment is an encrypted note, not a transfer.",
           "s3.t":"Off-chain insertion","s3.d":"The contract computes zero hashes on-chain; the proof itself attests to the Merkle update. Result: ~350k instead of 1.74M gas — about 5× less.",
           "s4.t":"Parallel lanes","s4.d":"Multiple independent lanes let payments land in the same block in parallel (6 of 6 in the PoC). View tags let wallets find their own notes quickly — without decrypting anyone else's.",
-          "uc.label":"USE CASES","uc.title":"Privacy for real-world payments.","uc.1":"Private merchant payments at checkout","uc.2":"DAO contributor payouts","uc.3":"B2B settlements without an exposed counterparty","uc.4":"Payroll-style transfers","uc.5":"Cross-chain private checkout",
+          "uc.label":"USE CASES","uc.title":"Privacy for real-world payments.","uc.1":"Private merchant payments at checkout","uc.2":"DAO contributor payouts","uc.3":"B2B settlements without an exposed counterparty","uc.4":"Payroll-style transfers",
           "dev.label":"FOR DEVELOPERS","dev.title":"Integrate private payments in minutes.","dev.sub":"Cloister is designed as an open standard: any wallet and any payment provider can implement it — without permission or dependency, backward-compatible.","dev.cmt":"// any EVM chain","dev.cta":"View documentation",
           "p.1":"zk-SNARKs · <b>Groth16</b> / BN254","p.2":"<b>Poseidon2</b> hashing","p.3":"<b>Curve-free</b> keys · H(privKey)","p.4":"Encrypted-UTXO model","p.5":"<b>50,481</b> circuit constraints · nullifiers prevent double-spend",
           "tx.label":"SHIELDED BY DESIGN","tx.title":"Sensitive details vanish into smoke.","tx.sub":"Hover any field — or tap on mobile — to see what an observer can and cannot learn. Addresses and amounts dissolve to “Private”; the payment still settles on-chain.",
