@@ -358,7 +358,7 @@ export class MockApi implements CloisterApi {
     const fields = Object.entries(signed).map(([k, v]) => [k, String(v)] as [string, string]);
     if (params.format === "json") downloadJson(`${base}.json`, signed);
     else if (params.format === "csv") downloadCsv(`${base}.csv`, [["field", "value"], ...fields]);
-    else downloadPdf(`${base}.pdf`, { title: "Cloister — Proof of Innocence", subtitle: signed.statement, fields });
+    else downloadPdf(`${base}.pdf`, { title: "Proof of Innocence", subtitle: signed.statement, fields });
     onProgress?.({ progress: 100, html: `<span class='ok'>✓ receipt.${params.format} ready — downloaded</span>` });
     return { id: uid("rcpt"), scope: params.scope, period: params.period, files: [`receipt.${params.format}`], createdAt: new Date().toISOString() };
   }
@@ -370,7 +370,30 @@ export class MockApi implements CloisterApi {
     const rows = acts.map((a) => [a.date, a.recipient, a.purpose, a.amount, a.chain, a.compliance, a.status]);
     if (format === "json") downloadJson("cloister-audit-log.json", acts);
     else if (format === "csv") downloadCsv("cloister-audit-log.csv", [headers, ...rows]);
-    else downloadPdf("cloister-audit-log.pdf", { title: "Cloister — Audit Log", subtitle: `${acts.length} disbursement events`, table: { headers, rows } });
+    else downloadPdf("cloister-audit-log.pdf", { title: "Audit Log", subtitle: `${acts.length} disbursement events`, table: { headers, rows } });
+  }
+
+  async exportStatement(period: string, format: ExportFormat): Promise<void> {
+    const { downloadJson, downloadCsv, downloadPdf } = await import("./exporters");
+    const bal = await this.getBalance();
+    const acts = TX.map((t, i) => txToDisbursement(t, i, true));
+    const fields: [string, string][] = [
+      ["Account holder", this.session.org.name],
+      ["Account type", this.session.org.kind],
+      ["Statement period", period],
+      ["Jurisdiction", this.session.kyc.jurisdiction ?? "—"],
+      ["KYC status", this.session.kyc.status === "verified" ? `verified · ${this.session.kyc.level}` : this.session.kyc.status],
+      ["Shielded balance", `${bal.total.toLocaleString("en-US")} ${bal.asset}`],
+      ["Notes · chains", `${bal.notes} notes · ${bal.chains} chains`],
+    ];
+    const headers = ["Date", "Counterparty", "Purpose", "Amount", "Chain", "Status"];
+    const rows = acts.map((a) => [a.date, a.recipient, a.purpose, a.amount, a.chain, a.status]);
+    const base = `cloister-statement-${period.replace(/\s+/g, "_")}`;
+    const subtitle = "Private account statement — balance and settled activity for the period. Counterparties are visible to you, the account holder, only; on-chain the payments stay shielded.";
+    const footer = "Issued by Cloister Protocol. Reflects shielded-pool activity for the stated period. For an audit-grade clean-origin attestation, use a Compliance Receipt (proof of innocence).";
+    if (format === "json") downloadJson(`${base}.json`, { kind: "cloister.account-statement.v1", holder: this.session.org.name, period, balance: bal, transactions: acts });
+    else if (format === "csv") downloadCsv(`${base}.csv`, [["Cloister Account Statement", period], [], headers, ...rows]);
+    else downloadPdf(`${base}.pdf`, { title: "Account Statement", subtitle, fields, table: { headers, rows }, footer });
   }
 
   async createDisclosure(params: DisclosureParams): Promise<Disclosure> {
