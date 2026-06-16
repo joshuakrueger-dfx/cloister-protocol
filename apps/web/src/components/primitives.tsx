@@ -1,21 +1,17 @@
 // Wiederverwendbare UI-Primitives — Styles aus prototype.reference.html.
 // Bewusst dünn gehalten; die meiste Optik kommt aus app.css-Klassen.
 
-import type { ReactNode, ButtonHTMLAttributes, CSSProperties } from "react";
+import type { ReactNode, ButtonHTMLAttributes, CSSProperties, HTMLAttributes } from "react";
 import type { StatusLevel } from "../lib/types";
 
 // ---------- Card ----------
 export function Card({
   children,
   className = "",
-  style,
-}: {
-  children: ReactNode;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
+  ...rest
+}: { children: ReactNode; className?: string } & HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`card ${className}`} style={style}>
+    <div className={`card ${className}`} {...rest}>
       {children}
     </div>
   );

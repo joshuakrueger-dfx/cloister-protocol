@@ -7,6 +7,15 @@ import type { Asset, BatchRow, PayrollSession, ProofStep } from "../lib/types";
 
 type Mode = "single" | "batch" | "recurring";
 
+// upload glyph (arrow into a tray) for the drag & drop zones
+const UPLOAD_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 15.5V4" />
+    <path d="M8 8l4-4 4 4" />
+    <path d="M4 14v3.5A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5V14" />
+  </svg>
+);
+
 const MODES: { value: Mode; label: string }[] = [
   { value: "single", label: "Single payment" },
   { value: "batch", label: "Batch payout" },
@@ -48,13 +57,12 @@ function SingleMode() {
   const invoiceRef = useRef<HTMLInputElement>(null);
   const [invBusy, setInvBusy] = useState(false);
   const [invMsg, setInvMsg] = useState<string | null>(null);
+  const [drag, setDrag] = useState(false);
 
-  async function onInvoice(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
+  async function handleInvoice(file?: File) {
     if (!file) return;
     setInvBusy(true);
-    setInvMsg("reading invoice…");
+    setInvMsg("Reading invoice…");
     try {
       // lazy-load the extractor (pdf.js + OCR) only when an invoice is uploaded
       const { extractInvoice } = await import("../lib/invoice");
@@ -77,6 +85,11 @@ function SingleMode() {
     } finally {
       setInvBusy(false);
     }
+  }
+  function onInvoice(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    handleInvoice(f);
   }
 
   async function pay() {
@@ -106,15 +119,21 @@ function SingleMode() {
 
   return (
     <div className="split" style={{ marginTop: 22 }}>
-      <Card>
-        <div className="clab" style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-          SINGLE PAYMENT
-          <button className="reveal-btn" onClick={() => invoiceRef.current?.click()} disabled={invBusy}>
-            {invBusy ? "reading…" : "upload invoice"}
-          </button>
-        </div>
+      <Card
+        className={drag ? "drag" : ""}
+        onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+        onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }}
+        onDrop={(e) => { e.preventDefault(); setDrag(false); handleInvoice(e.dataTransfer.files?.[0]); }}
+      >
+        <div className="clab">SINGLE PAYMENT</div>
         <input ref={invoiceRef} type="file" accept=".pdf,application/pdf,image/*" onChange={onInvoice} style={{ display: "none" }} />
-        {invMsg ? <div className="note" style={{ marginTop: 0 }}>{invMsg}</div> : null}
+        <div className="dropzone sm" onClick={() => invoiceRef.current?.click()} role="button" tabIndex={0}
+          onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && invoiceRef.current?.click()}>
+          <div className="dz-ic">{UPLOAD_ICON}</div>
+          <div className="dz-t">{invBusy ? "Reading invoice…" : "Drop an invoice to auto-fill"}</div>
+          <div className="dz-s">PDF or image — we read the recipient, amount and reference. Or click to browse.</div>
+        </div>
+        {invMsg ? <div className="note" style={{ marginTop: 12 }}>{invMsg}</div> : null}
         <Field label="RECIPIENT">
           <select className="input" value={recipientSel} onChange={(e) => setRecipientSel(e.target.value)}>
             <option>{PASTE_RECIPIENT}</option>
@@ -219,15 +238,14 @@ function BatchMode() {
   const [busy, setBusy] = useState(false);
   const [screened, setScreened] = useState<string | null>(null);
   const [importErr, setImportErr] = useState<string | null>(null);
+  const [drag, setDrag] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const totalNum = rows.reduce((s, r) => s + amountNumber(r.amount), 0);
   const asset = rows[0]?.amount.split(" ")[1] || "USDC";
   const total = `${totalNum.toLocaleString("en-US")} ${asset}`;
 
-  async function onImport(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
+  async function importFile(file?: File) {
     if (!file) return;
     setImportErr(null);
     const name = file.name.toLowerCase();
@@ -248,6 +266,11 @@ function BatchMode() {
     } catch {
       setImportErr("Could not read that file. Use a CSV or .xlsx with columns: address, role, amount, chain.");
     }
+  }
+  function onImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    importFile(f);
   }
 
   async function downloadTemplate() {
@@ -282,84 +305,78 @@ function BatchMode() {
 
   return (
     <div className="split" style={{ marginTop: 22 }}>
-      <Card style={{ gridColumn: "1 / -1" }}>
+      <Card
+        style={{ gridColumn: "1 / -1" }}
+        className={drag ? "drag" : ""}
+        onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+        onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }}
+        onDrop={(e) => { e.preventDefault(); setDrag(false); importFile(e.dataTransfer.files?.[0]); }}
+      >
         <div className="clab" style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
           BATCH PAYOUT
-          <span style={{ display: "inline-flex", gap: 14 }}>
-            <button className="reveal-btn" onClick={downloadTemplate}>template</button>
-            <button className="reveal-btn" onClick={() => fileRef.current?.click()}>import CSV / Excel</button>
-          </span>
+          {rows.length > 0 ? (
+            <span style={{ display: "inline-flex", gap: 14 }}>
+              <button className="reveal-btn" onClick={downloadTemplate}>template</button>
+              <button className="reveal-btn" onClick={() => fileRef.current?.click()}>import another</button>
+            </span>
+          ) : null}
         </div>
         <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls,text/csv" onChange={onImport} style={{ display: "none" }} />
         {importErr ? <div className="note" style={{ color: "var(--bad)" }}>{importErr}</div> : null}
-        <div className="table-scroll">
-        <table style={{ marginTop: 10 }}>
-          <thead>
-            <tr>
-              <th>Recipient</th>
-              <th>Role</th>
-              <th>Amount</th>
-              <th>Chain</th>
-              <th>Sanctions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr className="loading-row">
-                <td colSpan={5}>No recipients yet — import a CSV or Excel file (columns: address, role, amount, chain), or download the template above.</td>
-              </tr>
-            ) : (
-              rows.map((r, i) => (
-                <tr key={`${r.address}-${i}`}>
-                  <td className="addr mono">{r.address}</td>
-                  <td>{r.role}</td>
-                  <td className="addr">{r.amount}</td>
-                  <td>{r.chain}</td>
-                  <td>
-                    <SanctionsTag level={r.sanctions} />
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        </div>
-        <div className="grid g4" style={{ marginTop: 20 }}>
-          <div>
-            <div className="clab">RECIPIENTS</div>
-            <div className="big" style={{ fontSize: 24 }}>{rows.length}</div>
+
+        {rows.length === 0 ? (
+          <div className="dropzone" onClick={() => fileRef.current?.click()} role="button" tabIndex={0}
+            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && fileRef.current?.click()}>
+            <div className="dz-ic">{UPLOAD_ICON}</div>
+            <div className="dz-t">Drop a CSV or Excel file to build the batch</div>
+            <div className="dz-s">
+              Columns: <span className="mono">address, role, amount, chain</span> — ideal for payroll,
+              vendor &amp; contractor payouts, reimbursements and dividends.
+            </div>
+            <div className="dz-actions">
+              <Button sm variant="solid" onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}>Choose file</Button>
+              <button className="dz-link" onClick={(e) => { e.stopPropagation(); downloadTemplate(); }}>Download template</button>
+            </div>
           </div>
-          <div>
-            <div className="clab">TOTAL</div>
-            <div className="big" style={{ fontSize: 24 }}>{total}</div>
-          </div>
-          <div>
-            <div className="clab">SETTLEMENT</div>
-            <div className="big" style={{ fontSize: 24 }}>{rows.length || "—"}{rows.length ? " tx" : ""}</div>
-            <div className="cfoot">independent lanes</div>
-          </div>
-          <div>
-            <div className="clab">PROOF</div>
-            <div className="big" style={{ fontSize: 24 }}>per-tx</div>
-            <div className="cfoot">background</div>
-          </div>
-        </div>
-        <div className="actions">
-          <Button variant="solid" arrow onClick={run} disabled={busy || rows.length === 0}>
-            {busy ? "Running…" : "Run private batch"}
-          </Button>
-          <Button onClick={screenAll} disabled={rows.length === 0}>Screen all recipients</Button>
-        </div>
-        {screened ? <div className="note" style={{ color: "var(--ok)" }}>{screened}</div> : null}
-        {lines.length ? (
-          <ProofConsole lines={lines} progress={progress} idle="" />
         ) : (
-          <div className="note">
-            Each recipient gets an <b>independent</b> shielded payment in its own lane — one relayer tx
-            per recipient, each unlinkable on-chain. Import a <b>CSV or Excel</b> file
-            (<span className="mono">address, role, amount, chain</span>) — ideal for <b>payroll, vendor
-            &amp; contractor payouts, reimbursements, grants/bounties and dividends</b>.
-          </div>
+          <>
+            <div className="table-scroll">
+              <table style={{ marginTop: 10 }}>
+                <thead>
+                  <tr>
+                    <th>Recipient</th>
+                    <th>Role</th>
+                    <th>Amount</th>
+                    <th>Chain</th>
+                    <th>Sanctions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => (
+                    <tr key={`${r.address}-${i}`}>
+                      <td className="addr mono">{r.address}</td>
+                      <td>{r.role}</td>
+                      <td className="addr">{r.amount}</td>
+                      <td>{r.chain}</td>
+                      <td><SanctionsTag level={r.sanctions} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="grid g4" style={{ marginTop: 20 }}>
+              <div><div className="clab">RECIPIENTS</div><div className="big" style={{ fontSize: 24 }}>{rows.length}</div></div>
+              <div><div className="clab">TOTAL</div><div className="big" style={{ fontSize: 24 }}>{total}</div></div>
+              <div><div className="clab">SETTLEMENT</div><div className="big" style={{ fontSize: 24 }}>{rows.length} tx</div><div className="cfoot">independent lanes</div></div>
+              <div><div className="clab">PROOF</div><div className="big" style={{ fontSize: 24 }}>per-tx</div><div className="cfoot">background</div></div>
+            </div>
+            <div className="actions">
+              <Button variant="solid" arrow onClick={run} disabled={busy}>{busy ? "Running…" : "Run private batch"}</Button>
+              <Button onClick={screenAll}>Screen all recipients</Button>
+            </div>
+            {screened ? <div className="note" style={{ color: "var(--ok)" }}>{screened}</div> : null}
+            {lines.length ? <ProofConsole lines={lines} progress={progress} idle="" /> : null}
+          </>
         )}
       </Card>
     </div>
