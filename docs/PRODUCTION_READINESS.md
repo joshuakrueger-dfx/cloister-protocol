@@ -10,6 +10,15 @@
 Legende: **[P0]** Show-Stopper vor jedem ernsthaften Gespräch · **[P1]** vor Produktion ·
 **[P2]** vor Skalierung auf Millionen.
 
+> **Stand-Update 2026-06-16 (Härtungs-Pass).** Mehrere Engineering-Punkte sind seit v0.1
+> umgesetzt — ohne Circuit-Änderung (Keys/Verifier/Deployment unverändert): Notfall-Kill-Switch
+> mit **nicht-erneuerbarem** Cooldown (nie dauerhaft einfrierbar) + Withdrawal-Cap; ASP-Root-
+> Revocation + 2-Step-Rollenübergabe; Verifier↔Key-Provenienz-Gate in CI + `SETUP_MANIFEST.md`;
+> Cross-Language-extData-KAT (SDK == Go == Solidity); Slither-Hard-Fail auf High; Deploy
+> safe-by-default je Chain; go-ethereum (LGPL) vom Geräte-Binary entfernt. Die **P0-Launch-Gates
+> unten bleiben offen** (MPC-Ceremony, unabhängige Audits, Regulatorik, Skalierungsmodell) — das
+> ist der bewusste Testnet-Pilot-Zustand, kein Code-Defekt.
+
 ---
 
 ## 1. Regulatorik — wahrscheinlichster Dealbreaker (Base/Coinbase)
@@ -28,10 +37,11 @@ Bei einem US-börsennotierten Konzern ist das Punkt 1, nicht die Kryptografie.
 - **[P0] Multi-Party Trusted-Setup-Ceremony** statt lokalem Single-Contributor (sonst kann
   jemand Geld aus dem Nichts prägen).
 - **[P0] Zwei unabhängige ZK-Audits** (Circuits + Contracts), je ~$100–500k, Monate Vorlauf.
-- **[P1] Schlüsselmodell:** Owner-Pubkey ist jetzt echter BabyJubJub (privKey·Base8) ✔.
-  Nullifier bewusst Poseidon-PRF (deterministisch/nicht-malleable) statt EdDSA-Signatur — eine
-  EdDSA-Signatur im Nullifier wäre malleable (Double-Spend). Offen: volle Key-Hierarchie
-  (separate Spend-/View-/Nullifier-Keys), in-circuit Konsistenz-Checks, formales Review.
+- **[P1] Schlüsselmodell:** Owner-Pubkey ist **kurvenfrei** `pubKey = H(priv)` (Poseidon), kein
+  BabyJubJub mehr — das eliminiert strukturell die Skalar-Self-Double-Spend-Klasse (`s` vs
+  `s+order`). Nullifier bewusst Poseidon-PRF (deterministisch/nicht-malleable) statt EdDSA-
+  Signatur — eine EdDSA-Signatur im Nullifier wäre malleable (Double-Spend). Offen: volle
+  Key-Hierarchie (separate Spend-/View-/Nullifier-Keys), in-circuit Konsistenz-Checks, formales Review.
 - **[P1] Formale Constraint-Reviews** (Under-constrained-Bugs sind die häufigste ZK-Lücke).
 
 ## 3. Skalierung — die konkreten technischen Engpässe

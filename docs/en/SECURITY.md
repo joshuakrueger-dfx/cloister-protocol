@@ -21,8 +21,8 @@ in `VALIDATION.md`.
 | Cross-tx / cross-lane double-spend | global `nullifierSpent` set |
 | Stale / forked root | `oldRoot == laneRoot[lane]` |
 | Lane overflow | explicit `laneNextIndex + 2 <= 2^levels` ("lane full") guard |
-| Funds frozen by operator | guardian can pause **deposits only**; withdrawals are never blockable |
-| Compliance bypass | `asp == 0` (dev) **or** `knownAspRoot[associationRoot]`; the circuit proves real inputs ∈ that root |
+| Funds frozen by operator | guardian can pause **deposits**; a time-boxed `emergencyPause` can halt all tx for incident response but is **non-renewable** (a `PAUSE_COOLDOWN` guarantees an open withdrawal window between pauses) → funds can never be permanently frozen |
+| Compliance bypass | `asp == 0` (dev) **or** `knownAspRoot[associationRoot]`; the circuit proves real inputs ∈ that root; the ASP can **revoke** a root (`revokeAspRoot`) if it later proves to contain illicit notes |
 | Public-input range | the gnark verifier rejects any public input `≥ p` (`checkField`) |
 | Forged value | circuit range-checks all amounts to 248 bits + conservation in-field |
 | Redirected withdrawal / fee | recipient, relayer, fee, encrypted outputs are bound via `ExtDataHash` (a public input) |

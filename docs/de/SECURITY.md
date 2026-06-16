@@ -23,8 +23,8 @@ zur Validierung finden sich in `VALIDATION.md`.
 | Cross-Tx- / Cross-Lane-Double-Spend | globales `nullifierSpent`-Set |
 | Veraltete / geforkte Root | `oldRoot == laneRoot[lane]` |
 | Lane-Overflow | expliziter Guard `laneNextIndex + 2 <= 2^levels` ("lane full") |
-| Durch den Operator eingefrorene Mittel | der Guardian kann **nur Deposits** pausieren; Withdrawals lassen sich niemals blockieren |
-| Compliance-Umgehung | `asp == 0` (Dev) **oder** `knownAspRoot[associationRoot]`; der Circuit beweist, dass die realen Inputs ∈ dieser Root liegen |
+| Durch den Operator eingefrorene Mittel | der Guardian kann **Deposits** pausieren; ein zeitlich begrenzter `emergencyPause` kann für Incident-Response alle Tx stoppen, ist aber **nicht erneuerbar** (ein `PAUSE_COOLDOWN` garantiert ein offenes Withdrawal-Fenster zwischen Pausen) → Mittel können nie dauerhaft eingefroren werden |
+| Compliance-Umgehung | `asp == 0` (Dev) **oder** `knownAspRoot[associationRoot]`; der Circuit beweist, dass die realen Inputs ∈ dieser Root liegen; die ASP kann eine Root per `revokeAspRoot` **widerrufen**, falls sie später illegitime Notes enthält |
 | Wertebereich der Public Inputs | der gnark-Verifier weist jeden Public Input `≥ p` zurück (`checkField`) |
 | Gefälschter Wert | der Circuit range-checkt alle Beträge auf 248 Bit + Erhaltung innerhalb des Felds |
 | Umgeleitetes Withdrawal / Fee | Recipient, Relayer, Fee und Encrypted Outputs werden über `ExtDataHash` (ein Public Input) gebunden |
