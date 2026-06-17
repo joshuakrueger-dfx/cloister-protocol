@@ -40,7 +40,7 @@ unabhängig vom Zahlungs-Rail.
 
 ## Komponenten
 
-### `packages/prover-gnark` (Go; Apache-2-Abhängigkeiten; proprietärer Code)
+### `packages/prover-gnark` (Go; Apache-2-Abhängigkeiten; MIT-Code)
 Die gesamte Zero-Knowledge-Schicht, selbst gebaut auf Basis von **gnark / gnark-crypto**:
 - `zk/` — Poseidon2-Hash (nativ == in-circuit, nachgewiesen durch `hash_test`), das kurvenfreie
   Note-Schema (`pubKey = H(privKey)`), der Merkle-Baum mit fester Tiefe (2²⁰) sowie der
