@@ -7,7 +7,13 @@ Jede Schicht ist durch einen automatisierten Test abgedeckt; das Protokoll wird 
 
 | Suite | Was sie beweist | Ergebnis |
 |-------|----------------|--------|
-| `prover-gnark go test ./...` | Poseidon2 nativ == im Circuit; Note/Nullifier/Merkle; Circuit löst auf; Prover-Roundtrip; Mobile-Schnittstelle | ✅ bestanden |
+| `prover-gnark go test ./...` | Poseidon2 nativ == im Circuit (differenziell + Known-Answer); Note/Nullifier/Merkle; Circuit löst auf; Prover-Roundtrip; Mobile-Schnittstelle | ✅ bestanden |
+| **Circuit-Adversarial** (`TestTxCircuitBoundaryAndAdversarial`) | auf *Circuit*-Ebene: doppelte Input-Nullifier, Wert nicht erhalten (Minting), Zero-Value-Output (gültiger Grenzfall), Betrag außerhalb des Bereichs `2²⁴⁸` (Overflow) — jeweils nicht erfüllbar | ✅ bestanden |
+| **keine unter-constrainten Signale** (`TestTxCircuitNoUnderConstrainedSignals`) | jedes Signal ist constrained — schließt die ZK-Fälschungsklasse Nr. 1 (ein freies Signal = fälschbarer Proof) | ✅ bestanden |
+| **Ablehnung manipulierter Witness/Proofs** (`Test*RejectsTamperedWitness`, `TestGroth16RejectsTamperedProofAndInput`) | ein Bit in Witness / Proof / Public Input kippen → nicht erfüllbar oder Pairing schlägt fehl | ✅ bestanden |
+| **randomisierte Vollständigkeit** (`TestTxCircuitCompletenessRandomized`) | viele zufällige *gültige* Witnesses beweisen alle (keine False Negatives) | ✅ bestanden |
+| **deployter Verifier == committete Keys** (`TestDeployedVerifierMatchesCommittedKeys`) | der On-Chain-Solidity-Verifier entspricht den committeten Proving/Verifying-Keys — kein Key/Verifier-Drift | ✅ bestanden |
+| **Ceremony-Roundtrip** (`TestCeremonyRoundtrip`) | ein MPC-Phase-2-Beitrag + Verifikation laufen round-trip (Trusted-Setup-Tooling) | ✅ bestanden |
 | Circuit-Constraints | `TxCircuit`-Größe | **50.481** (inkl. ASP-Compliance) |
 | Prove-Benchmark | Prove-Zeit im eingeschwungenen Zustand | **~190–220 ms** (≈ 8× ggü. 1,78 s circom/snarkjs) |
 | `contracts hardhat test` | Guards (Reentrancy, Fee-on-Transfer, SafeERC20, Dup-Nullifier, Pause, Constructor), Verifier Accept/Reject, **Real-Proof-Deposit-E2E**, Replay | ✅ 12/12 |
