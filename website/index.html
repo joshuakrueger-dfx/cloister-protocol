@@ -49,7 +49,12 @@
       :root {
         --black:#050506; --grey-1:#0e0f12; --grey-2:#16181c;
         --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.16);
-        --white:#f4f5f7; --dim:rgba(244,245,247,.62); --faint:rgba(244,245,247,.4);
+        /* Legibility: body text lifted to .76 (was .62) and the former .4 "faint" raised to
+           .56 — anything textual now clears WCAG-AA on the near-black background. */
+        --white:#f4f5f7; --dim:rgba(244,245,247,.76); --faint:rgba(244,245,247,.56);
+        /* Cloister brand accent — a calm, "shielded" cool blue that nods to DFX trust without
+           the dev-UI saturation. Used SPARINGLY (the shield, link underlines, focus, one glow). */
+        --accent:#6e9bff; --accent-soft:rgba(110,155,255,.16); --accent-line:rgba(110,155,255,.45);
         --glass:rgba(255,255,255,.035); --max:1240px; --ease:cubic-bezier(.22,1,.36,1);
       }
       *{box-sizing:border-box;margin:0;padding:0}
@@ -76,10 +81,20 @@
       .navlinks{display:flex;gap:30px;font-size:14px}
       .navlinks a{color:var(--dim);text-decoration:none;transition:color .3s var(--ease)}
       .navlinks a:hover{color:var(--white)}
+      /* Mobile burger + dropdown (shown only <=940px via the media query below). */
+      .nav-burger{display:none;width:42px;height:42px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.02);cursor:pointer;align-items:center;justify-content:center;flex-direction:column;gap:5px;padding:0}
+      .nav-burger span{width:16px;height:1.5px;background:var(--white);transition:transform .3s var(--ease),opacity .3s var(--ease)}
+      .nav-burger.open span:nth-child(1){transform:translateY(3.25px) rotate(45deg)}
+      .nav-burger.open span:nth-child(2){transform:translateY(-3.25px) rotate(-45deg)}
+      .nav-mobile{display:none;flex-direction:column;padding:4px 28px 20px;max-width:var(--max);margin:0 auto;border-bottom:1px solid var(--line)}
+      .nav-mobile a{color:var(--dim);text-decoration:none;font-size:16px;padding:14px 2px;border-top:1px solid var(--line);transition:color .3s var(--ease)}
+      .nav-mobile a:active,.nav-mobile a:hover{color:var(--white)}
+      .nav-mobile .nav-mobile-cta{margin-top:14px;color:var(--white);border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:11px;text-align:center;padding:14px;font-weight:600}
+      .nav-mobile.open{display:flex}
       .nav-right{display:flex;align-items:center;gap:18px;flex:0 0 auto}
       .lang{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;font-size:12px}
       .lang button{background:none;border:none;color:var(--dim);padding:8px 11px;cursor:pointer;font:inherit;font-size:12px;letter-spacing:.04em;transition:background .3s,color .3s}
-      .lang button.on{background:rgba(255,255,255,.1);color:var(--white)}
+      .lang button.on{background:rgba(255,255,255,.12);color:var(--white)}
       .btn{display:inline-flex;align-items:center;gap:9px;padding:12px 20px;border-radius:11px;font-size:14px;font-weight:500;text-decoration:none;color:var(--white);border:1px solid var(--line-2);background:rgba(255,255,255,.02);position:relative;overflow:hidden;transition:border-color .4s var(--ease),background .4s var(--ease);cursor:pointer}
       .btn .arr{transition:transform .4s var(--ease)}
       .btn:hover .arr{transform:translateX(4px)}
@@ -89,7 +104,7 @@
       .link{color:var(--white);text-decoration:none;font-size:14px;position:relative;display:inline-flex;align-items:center;gap:8px;padding-bottom:3px}
       .link .arr{transition:transform .4s var(--ease)}
       .link:hover .arr{transform:translateX(4px)}
-      .link::after{content:"";position:absolute;left:0;bottom:0;height:1px;width:100%;background:linear-gradient(90deg,var(--white),transparent);transform:scaleX(0);transform-origin:left;transition:transform .45s var(--ease)}
+      .link::after{content:"";position:absolute;left:0;bottom:0;height:1px;width:100%;background:linear-gradient(90deg,var(--accent),transparent);transform:scaleX(0);transform-origin:left;transition:transform .45s var(--ease)}
       .link:hover::after{transform:scaleX(1)}
 
       /* Scroll-reveal only when JS is active (progressive enhancement). */
@@ -102,8 +117,9 @@
 
       .hero{display:grid;grid-template-columns:1.05fr 1fr;gap:56px;align-items:center;padding:64px 0 70px}
       .eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:11px;letter-spacing:.2em;color:var(--dim);margin-bottom:28px}
-      .eyebrow .dot{width:8px;height:8px;background:var(--white);display:inline-block}
-      h1.hero-title{font-size:clamp(40px,5.4vw,76px);line-height:1;letter-spacing:-.03em;font-weight:600}
+      .eyebrow .dot{width:8px;height:8px;background:var(--accent);display:inline-block;box-shadow:0 0 10px var(--accent-line)}
+      /* text-wrap:balance evens the line lengths so the headline never drops a lone orphan word. */
+      h1.hero-title{font-size:clamp(40px,5.4vw,76px);line-height:1;letter-spacing:-.03em;font-weight:600;text-wrap:balance}
       .hero p.lede{color:var(--dim);font-size:17px;max-width:460px;margin:26px 0 36px;line-height:1.6}
       .hero-cta{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
 
@@ -116,8 +132,11 @@
       .flow{display:flex;align-items:center;justify-content:space-between;gap:8px}
       .node{display:flex;flex-direction:column;align-items:center;gap:13px;flex:0 0 auto}
       .node .ic{width:60px;height:60px;border-radius:15px;border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.02)}
-      .node.shield .ic{width:74px;height:74px;border-radius:50%;box-shadow:0 0 40px -8px rgba(255,255,255,.25);position:relative}
-      .node.shield .ic::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:1px solid rgba(255,255,255,.12);animation:pulse 3.4s var(--ease) infinite}
+      .node.shield .ic{width:74px;height:74px;border-radius:50%;border-color:var(--accent-line);box-shadow:0 0 46px -6px var(--accent-soft),0 0 0 1px var(--accent-soft);position:relative;color:var(--accent);transition:box-shadow .55s var(--ease),transform .55s var(--ease),border-color .55s var(--ease)}
+      .node.shield .ic::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:1px solid var(--accent-line);animation:pulse 3.4s var(--ease) infinite;transition:inset .55s var(--ease),border-color .55s var(--ease)}
+      .node.shield{cursor:pointer}
+      .node.shield:hover .ic{transform:scale(1.05);box-shadow:0 0 80px -2px var(--accent-soft),0 0 0 1px var(--accent-line);border-color:var(--accent)}
+      .node.shield:hover .ic::after{border-color:var(--accent);inset:-9px}
       @keyframes pulse{0%,100%{transform:scale(1);opacity:.6}50%{transform:scale(1.08);opacity:.15}}
       .node label{font-size:12px;color:var(--dim)}
       .dots{flex:1;height:1px;background-image:radial-gradient(circle,rgba(255,255,255,.5) 1px,transparent 1.4px);background-size:9px 1px;background-repeat:repeat-x;opacity:.5}
@@ -139,7 +158,7 @@
       .feat{border-left:1px solid var(--line);padding-left:22px}
       .feat .ic{width:46px;height:46px;border-radius:12px;border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;margin-bottom:18px;background:rgba(255,255,255,.02)}
       .feat h3{font-size:16px;font-weight:600;margin-bottom:8px}
-      .feat p{font-size:14px;color:var(--dim);line-height:1.55}
+      .feat p{font-size:15px;color:var(--dim);line-height:1.6}
 
       .section{padding:66px 0;border-top:1px solid var(--line)}
       .sec-label{font-size:11px;letter-spacing:.2em;color:var(--faint);margin-bottom:24px;display:flex;align-items:center;gap:10px}
@@ -154,7 +173,9 @@
       .steps{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:40px}
       .step{position:relative;border:1px solid var(--line);border-radius:16px;padding:26px 24px;background:rgba(255,255,255,.015);transition:border-color .5s var(--ease),background .5s var(--ease)}
       .step:hover{border-color:var(--line-2);background:rgba(255,255,255,.03)}
-      .step .num{font-size:12px;color:var(--faint);letter-spacing:.16em;margin-bottom:14px}
+      .step-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+      .step .num{font-size:11px;font-weight:600;letter-spacing:.14em;color:var(--accent);border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:7px;padding:5px 9px}
+      .step-ic{color:var(--dim);display:inline-flex;opacity:.85}
       .step h3{font-size:18px;font-weight:600;margin-bottom:10px}
       .step p{font-size:14px;color:var(--dim);line-height:1.6}
 
@@ -244,6 +265,7 @@
       @media (max-width:940px){
         .hero,.two{grid-template-columns:1fr;gap:44px}
         .navlinks{display:none}
+        .nav-burger{display:inline-flex}
         .metrics{grid-template-columns:repeat(3,1fr)}
         .metric{border-left:1px solid var(--line);border-top:1px solid var(--line)}
         .metric:nth-child(3n+1){border-left:none}
@@ -253,6 +275,9 @@
       }
       /* Large phone */
       @media (max-width:700px){
+        /* phones: drop the nav CTA (the hero CTA + the burger menu carry it) so the lang
+           toggle + burger never overflow the narrow header. */
+        .nav-right .btn-solid{display:none}
         .steps,.seccols,.cmp{grid-template-columns:1fr}
         .metrics{grid-template-columns:repeat(2,1fr)}
         .metric{border-left:1px solid var(--line);border-top:1px solid var(--line)}
@@ -313,8 +338,18 @@
       <div class="nav-right">
         <div class="lang"><button data-lang="de">DE</button><button data-lang="en">EN</button></div>
         <a class="btn btn-solid" href="https://app.cloister-protocol.com"><span data-i18n="btn.launch"></span><span class="arr">→</span></a>
+        <button class="nav-burger" id="navburger" aria-label="Menu" aria-controls="navmobile" aria-expanded="false"><span></span><span></span></button>
       </div>
     </nav>
+    <!-- Mobile section nav: the desktop links collapse below 940px, so they reappear here behind
+         the burger (otherwise the sections are unreachable on a phone). -->
+    <div class="nav-mobile" id="navmobile">
+      <a href="#how" data-i18n="nav.how"></a><a href="#usecases" data-i18n="nav.uc"></a>
+      <a href="#developers" data-i18n="nav.dev"></a><a href="#security" data-i18n="nav.sec"></a>
+      <a href="#faq" data-i18n="faq.label"></a>
+      <a href="https://docs.cloister-protocol.com" data-i18n="nav.docs"></a>
+      <a class="nav-mobile-cta" href="https://app.cloister-protocol.com" data-i18n="btn.launch"></a>
+    </div>
 
     <main class="wrap">
       <section class="hero" id="top">
@@ -397,10 +432,10 @@
           <p class="sec-sub" data-i18n="how.sub"></p>
         </div>
         <div class="steps">
-          <div class="step reveal"><div class="num">01</div><h3 data-i18n="s1.t"></h3><p data-i18n="s1.d"></p></div>
-          <div class="step reveal"><div class="num">02</div><h3 data-i18n="s2.t"></h3><p data-i18n="s2.d"></p></div>
-          <div class="step reveal"><div class="num">03</div><h3 data-i18n="s3.t"></h3><p data-i18n="s3.d"></p></div>
-          <div class="step reveal"><div class="num">04</div><h3 data-i18n="s4.t"></h3><p data-i18n="s4.d"></p></div>
+          <div class="step reveal"><div class="step-head"><span class="num">01</span><span class="step-ic">__DEPOSIT__</span></div><h3 data-i18n="s1.t"></h3><p data-i18n="s1.d"></p></div>
+          <div class="step reveal"><div class="step-head"><span class="num">02</span><span class="step-ic">__SHIELD2__</span></div><h3 data-i18n="s2.t"></h3><p data-i18n="s2.d"></p></div>
+          <div class="step reveal"><div class="step-head"><span class="num">03</span><span class="step-ic">__COIN__</span></div><h3 data-i18n="s3.t"></h3><p data-i18n="s3.d"></p></div>
+          <div class="step reveal"><div class="step-head"><span class="num">04</span><span class="step-ic">__BOLT__</span></div><h3 data-i18n="s4.t"></h3><p data-i18n="s4.d"></p></div>
         </div>
       </section>
 
@@ -552,11 +587,11 @@
           "v2.t":"Jede EVM-Chain","v2.d":"Identische Contracts, einmal kompilierte Circuits — deploybar auf jede EVM-L2; im Fokus Polygon, Base und Arbitrum.",
           "v3.t":"Gebaut für Entwickler","v3.d":"Offene, additive Erweiterung mit HTTP-API und SDK: Jedes Wallet und jeder Anbieter kann integrieren — ohne Lock-in.",
           "v4.t":"Compliance-bewusst","v4.d":"Kein anonymer Mixer, sondern ein Pool, der für Association-Sets und Viewing-Keys ausgelegt ist.",
-          "how.label":"SO FUNKTIONIERT ES","how.title":"Vier Schritte zu einer privaten Zahlung","how.sub":"Ein abgeschirmter, verschlüsselter Pool — abheben, privat zahlen, on-chain abrechnen, ohne die Identität des Zahlers preiszugeben.",
-          "s1.t":"Abschirmen","s1.d":"Du lädst einmalig Guthaben in den Pool. Das ist der einzige öffentliche Berührungspunkt; danach liegt dein Guthaben als verschlüsseltes Commitment im Pool.",
-          "s2.t":"Privat zahlen","s2.d":"Ein zk-SNARK-Beweis autorisiert die Zahlung, ein Relayer sendet sie und zahlt das Gas. Die Zahler-Adresse erscheint nie on-chain — die interne Zahlung ist eine verschlüsselte Notiz, kein Transfer.",
-          "s3.t":"Off-chain-Einfügung","s3.d":"Der Contract rechnet keine einzige Hash-Operation on-chain; der Beweis selbst belegt das Merkle-Update. Ergebnis: ~350.000 statt 1,74 Mio. Gas — rund 5× weniger.",
-          "s4.t":"Parallele Lanes","s4.d":"Mehrere unabhängige Lanes lassen Zahlungen parallel in denselben Block fließen (im PoC 6 von 6). View-Tags lassen Wallets ihre eigenen Notizen schnell finden — ohne fremde zu entschlüsseln.",
+          "how.label":"SO FUNKTIONIERT ES","how.title":"Vier Schritte zu einer privaten Zahlung","how.sub":"Ein geschützter Pool, in dem dein Guthaben verborgen liegt: einzahlen, privat zahlen, abrechnen — ohne zu zeigen, wer an wen wie viel zahlt.",
+          "s1.t":"Einzahlen","s1.d":"Du lädst einmal Guthaben in den geschützten Pool. Das ist der einzige Schritt, den die Blockchain öffentlich sieht — danach ist dein Guthaben verborgen.",
+          "s2.t":"Privat zahlen","s2.d":"Beim Zahlen weist deine App im Hintergrund nach, dass das Geld dir gehört und aus geprüfter Quelle stammt — ohne deine Adresse oder den Betrag offenzulegen.",
+          "s3.t":"Günstig","s3.d":"Die private Zahlung ist so gebaut, dass sie kaum mehr Netzwerkgebühren kostet als eine ganz normale Überweisung.",
+          "s4.t":"Schnell & skalierbar","s4.d":"Viele private Zahlungen passen gleichzeitig in einen Block — das System bleibt schnell, auch wenn viele Menschen es nutzen.",
           "uc.label":"ANWENDUNGSFÄLLE","uc.title":"Privatsphäre für echte Zahlungen","uc.1":"Private Händlerzahlungen an der Kasse","uc.2":"Auszahlungen an DAO-Mitwirkende","uc.3":"B2B-Abwicklungen ohne offengelegte Gegenpartei","uc.4":"Gehaltsähnliche Überweisungen",
           "dev.label":"FÜR ENTWICKLER","dev.title":"Privatzahlungen in Minuten integrieren","dev.sub":"Cloister ist als offener Standard konzipiert: Jedes Wallet und jeder Zahlungsanbieter kann es implementieren — ohne Erlaubnis oder Abhängigkeit, rückwärtskompatibel.","dev.cmt":"// jede EVM-Chain","dev.cta":"Dokumentation ansehen",
           "p.1":"zk-SNARKs · <b>Groth16</b> / BN254","p.2":"<b>Poseidon2</b>-Hashing","p.3":"<b>Curve-free</b> Keys · H(privKey)","p.4":"Encrypted-UTXO-Modell","p.5":"<b>50.481</b> Circuit-Constraints · Nullifier gegen Double-Spend",
@@ -586,11 +621,11 @@
           "v2.t":"Any EVM chain","v2.d":"Identical contracts, once-compiled circuits — deployable to any EVM L2; focused on Polygon, Base and Arbitrum.",
           "v3.t":"Built for builders","v3.d":"An open, additive extension with HTTP API and SDK: any wallet and any provider can integrate — with no lock-in.",
           "v4.t":"Compliance-aware","v4.d":"Not an anonymous mixer, but a pool designed for association sets and viewing keys.",
-          "how.label":"HOW IT WORKS","how.title":"Four steps to a private payment","how.sub":"A shielded, encrypted pool — deposit, pay privately, settle on-chain, without revealing the payer's identity.",
-          "s1.t":"Shield","s1.d":"You load funds into the pool once. This is the only public touchpoint; from then on your balance lives in the pool as an encrypted commitment.",
-          "s2.t":"Pay privately","s2.d":"A zk-SNARK proof authorizes the payment; a relayer broadcasts it and pays the gas. The payer's address never appears on-chain — the internal payment is an encrypted note, not a transfer.",
-          "s3.t":"Off-chain insertion","s3.d":"The contract computes zero hashes on-chain; the proof itself attests to the Merkle update. Result: ~350k instead of 1.74M gas — about 5× less.",
-          "s4.t":"Parallel lanes","s4.d":"Multiple independent lanes let payments land in the same block in parallel (6 of 6 in the PoC). View tags let wallets find their own notes quickly — without decrypting anyone else's.",
+          "how.label":"HOW IT WORKS","how.title":"Four steps to a private payment","how.sub":"A protected pool where your balance stays hidden: deposit, pay privately, settle — without revealing who pays whom, or how much.",
+          "s1.t":"Deposit","s1.d":"You load funds into the protected pool once. It's the only step the blockchain sees publicly — after that, your balance is hidden.",
+          "s2.t":"Pay privately","s2.d":"When you pay, your app quietly proves the money is yours and from a screened source — without revealing your address or the amount.",
+          "s3.t":"Low cost","s3.d":"A private payment is built to cost barely more in network fees than an ordinary transfer.",
+          "s4.t":"Fast & scalable","s4.d":"Many private payments fit into one block at once — so it stays fast even when lots of people use it.",
           "uc.label":"USE CASES","uc.title":"Privacy for real-world payments","uc.1":"Private merchant payments at checkout","uc.2":"DAO contributor payouts","uc.3":"B2B settlements without an exposed counterparty","uc.4":"Payroll-style transfers",
           "dev.label":"FOR DEVELOPERS","dev.title":"Integrate private payments in minutes","dev.sub":"Cloister is designed as an open standard: any wallet and any payment provider can implement it — without permission or dependency, backward-compatible.","dev.cmt":"// any EVM chain","dev.cta":"View documentation",
           "p.1":"zk-SNARKs · <b>Groth16</b> / BN254","p.2":"<b>Poseidon2</b> hashing","p.3":"<b>Curve-free</b> keys · H(privKey)","p.4":"Encrypted-UTXO model","p.5":"<b>50,481</b> circuit constraints · nullifiers prevent double-spend",
@@ -628,6 +663,9 @@
         __XMARK__:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7a7d85" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>',
         __ARROW__:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9aa" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M9 13l3 3 3-3"/></svg>',
         __LOGO__:'<svg class="logomark" width="56" height="16" viewBox="0 0 120 32" fill="none" aria-label="Cloister"><circle cx="13" cy="16" r="9" fill="#f4f5f7"/><rect x="27" y="14.4" width="16" height="3.2" rx="1.6" fill="#f4f5f7"/><circle cx="60" cy="16" r="8.5" stroke="#f4f5f7" stroke-width="3"/><rect x="77" y="14.4" width="16" height="3.2" rx="1.6" fill="#f4f5f7"/><circle cx="107" cy="16" r="9" fill="#f4f5f7"/></svg>',
+        __DEPOSIT__:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f4f5f7" stroke-width="1.4"><path d="M12 3v10M8.5 9.5L12 13l3.5-3.5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg>',
+        __COIN__:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f4f5f7" stroke-width="1.4"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v9M9.6 9.4a2.4 2 0 0 1 4.8 0c0 2.4-4.8 1.6-4.8 4 a2.4 2 0 0 0 4.8 0"/></svg>',
+        __BOLT__:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f4f5f7" stroke-width="1.4" stroke-linejoin="round"><path d="M13 3L5 13h6l-1 8 8-10h-6z"/></svg>',
       };
       document.body.innerHTML = document.body.innerHTML.replace(/__[A-Z0-9_]+__/g, (m) => I[m] || m);
 
@@ -678,29 +716,44 @@
       const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: 0.12 });
       document.querySelectorAll(".reveal").forEach((el, i) => { el.style.transitionDelay = (i % 4) * 70 + "ms"; io.observe(el); });
 
-      // ---------- shield logo: wrap in smoke on hover (does NOT disappear) ----------
-      function puffAround(node, big) {
+      // ---------- shield logo: wisps of smoke curl around it on hover (glyph stays crisp) ----------
+      const _reduceShield = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      function puffAround(node, n) {
         const r = node.getBoundingClientRect();
         const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-        for (let i = 0; i < 3; i++) {
-          const ang = Math.random() * 6.28, rad = (big ? 28 : 12) + Math.random() * (big ? 34 : 20);
-          const x = cx + Math.cos(ang) * rad, y = cy + Math.sin(ang) * rad;
-          const sz = big ? 70 + Math.random() * 60 : 40;
+        const ring = r.width / 2;                                   // spawn on the shield's perimeter
+        for (let i = 0; i < (n || 4); i++) {
+          const ang = Math.random() * 6.28, spread = 0.7 + Math.random() * 0.7;   // some spawn beyond the rim → fuller cloud
+          const x = cx + Math.cos(ang) * ring * spread, y = cy + Math.sin(ang) * ring * 0.85 * spread;
+          const sz = 38 + Math.random() * 72;                       // bigger billows
+          const accent = Math.random() < 0.34;                      // ~1/3 carry the shield's cool-blue aura
+          const tint = accent ? "rgba(110,155,255," : "rgba(214,220,230,";
+          const peak = accent ? 0.52 : 0.42;
           const p = document.createElement("div");
-          p.style.cssText = "position:fixed;left:" + x + "px;top:" + y + "px;width:" + sz + "px;height:" + sz + "px;border-radius:50%;pointer-events:none;z-index:50;transform:translate(-50%,-50%) scale(.5);background:radial-gradient(circle,rgba(220,224,232,.45),rgba(220,224,232,0) 70%);filter:blur(9px);opacity:0;transition:all 1.3s cubic-bezier(.22,1,.36,1)";
+          p.style.cssText = "position:fixed;left:" + x.toFixed(1) + "px;top:" + y.toFixed(1) + "px;width:" + sz.toFixed(0) + "px;height:" + sz.toFixed(0) +
+            "px;border-radius:50%;pointer-events:none;z-index:40;will-change:transform,opacity;filter:blur(10px);" +
+            "background:radial-gradient(circle," + tint + "0.55)," + tint + "0) 70%)";
           document.body.appendChild(p);
-          requestAnimationFrame(() => { p.style.opacity = ".56"; p.style.transform = "translate(-50%," + (-58 - Math.random() * 30) + "%) scale(1.7)"; });
-          setTimeout(() => { p.style.opacity = "0"; }, 600);
-          setTimeout(() => p.remove(), 1600);
+          const driftX = Math.cos(ang) * 30 + (Math.random() - 0.5) * 40;   // billow outward + sway, not just straight up
+          const riseY = -82 - Math.random() * 90;
+          const rot = (Math.random() - 0.5) * 50;
+          const dur = 1900 + Math.random() * 1000;
+          p.animate([
+            { transform: "translate(-50%,-50%) scale(.4) rotate(0deg)", opacity: 0 },
+            { opacity: peak, offset: 0.26 },
+            { transform: "translate(calc(-50% + " + driftX.toFixed(0) + "px),calc(-50% + " + riseY.toFixed(0) + "px)) scale(2.3) rotate(" + rot.toFixed(0) + "deg)", opacity: 0 }
+          ], { duration: dur, easing: "cubic-bezier(.22,1,.36,1)" }).onfinish = () => p.remove();
+          setTimeout(() => p.remove(), dur + 200);                  // leak guard: never linger if onfinish is missed (hidden tab, cancel)
         }
       }
       const shieldNode = document.getElementById("shieldnode");
-      if (shieldNode) {
+      if (shieldNode && !_reduceShield) {
         let on = false, tmr;
         const ic = document.getElementById("shieldic");
         shieldNode.addEventListener("mouseenter", () => {
-          on = true; if (ic) { ic.style.transition = "filter .6s var(--ease)"; ic.style.filter = "blur(1.1px) brightness(1.22)"; }
-          (function emit() { if (!on) return; puffAround(shieldNode, true); tmr = setTimeout(emit, 320); })();
+          on = true; if (ic) { ic.style.transition = "filter .55s var(--ease)"; ic.style.filter = "brightness(1.12)"; }  // crisp glyph, just a touch brighter
+          puffAround(shieldNode, 8);                                // instant burst so it reads immediately
+          (function emit() { if (!on) return; puffAround(shieldNode, 3); tmr = setTimeout(emit, 200); })();   // sustained rate bounded (~15/s) → lush but not GPU-heavy
         });
         shieldNode.addEventListener("mouseleave", () => { on = false; clearTimeout(tmr); if (ic) ic.style.filter = "none"; });
       }
@@ -855,6 +908,21 @@
         // re-translate live when the visitor toggles the site language
         document.querySelectorAll(".lang button").forEach(function(b){b.addEventListener("click",function(){setTimeout(apply,0);});});
         setTimeout(show,5000);
+      })();
+    </script>
+    <script>
+      // Mobile burger: toggle the section-nav dropdown; close it after a link tap.
+      (function () {
+        var burger = document.getElementById("navburger");
+        var menu = document.getElementById("navmobile");
+        if (!burger || !menu) return;
+        function setOpen(open) {
+          menu.classList.toggle("open", open);
+          burger.classList.toggle("open", open);
+          burger.setAttribute("aria-expanded", open ? "true" : "false");
+        }
+        burger.addEventListener("click", function () { setOpen(!menu.classList.contains("open")); });
+        menu.querySelectorAll("a").forEach(function (a) { a.addEventListener("click", function () { setOpen(false); }); });
       })();
     </script>
   </body>
