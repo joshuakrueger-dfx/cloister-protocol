@@ -7,7 +7,13 @@ Every layer is covered by an automated test; the protocol is then stress-tested 
 
 | Suite | What it proves | Result |
 |-------|----------------|--------|
-| `prover-gnark go test ./...` | Poseidon2 native == in-circuit; note/nullifier/Merkle; circuit solves; prover roundtrip; mobile surface | ✅ pass |
+| `prover-gnark go test ./...` | Poseidon2 native == in-circuit (differential + known-answer); note/nullifier/Merkle; circuit solves; prover roundtrip; mobile surface | ✅ pass |
+| **circuit adversarial** (`TestTxCircuitBoundaryAndAdversarial`) | at the *circuit* level: duplicate input nullifiers, value-not-conserved (mint), zero-value output (valid edge), out-of-range amount `2²⁴⁸` (overflow) — each unsatisfiable | ✅ pass |
+| **no under-constrained signals** (`TestTxCircuitNoUnderConstrainedSignals`) | every signal is constrained — closes the #1 ZK forge class (a free signal = forgeable proof) | ✅ pass |
+| **tampered witness/proof rejection** (`Test*RejectsTamperedWitness`, `TestGroth16RejectsTamperedProofAndInput`) | flip one bit in witness / proof / public input → unsatisfiable or pairing fails | ✅ pass |
+| **randomized completeness** (`TestTxCircuitCompletenessRandomized`) | many random *valid* witnesses all prove (no false negatives) | ✅ pass |
+| **deployed verifier == committed keys** (`TestDeployedVerifierMatchesCommittedKeys`) | the on-chain Solidity verifier corresponds to the committed proving/verifying keys — no key/verifier drift | ✅ pass |
+| **ceremony roundtrip** (`TestCeremonyRoundtrip`) | an MPC Phase-2 contribution + verification round-trips (trusted-setup tooling) | ✅ pass |
 | circuit constraints | `TxCircuit` size | **50,481** (incl. ASP compliance) |
 | prove benchmark | steady-state prove time | **~190–220 ms** (≈ 8× vs 1.78 s circom/snarkjs) |
 | `contracts hardhat test` | guards (reentrancy, fee-on-transfer, SafeERC20, dup-nullifier, pause, constructor), verifier accept/reject, **real-proof deposit E2E**, replay | ✅ 12/12 |

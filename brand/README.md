@@ -28,4 +28,4 @@ White = for dark backgrounds (preferred). Dark = for light backgrounds. SVG is t
 
 ## Palette
 
-Strictly monochrome — deep black `#050506`, ink `#07070A`, white `#F4F5F7`, and translucent greys. No accent colors. Full tokens in [BRAND.md](BRAND.md).
+Dark-first and near-monochrome — deep black `#050506`, ink `#07070A`, white `#F4F5F7`, and translucent greys — with **one disciplined cool-blue accent** `#6e9bff` used sparingly as the Cloister signature (the shield, eyebrow dot, link underlines, step badges, focus rings). Never on body text, headings or the primary CTA. Full tokens + accent discipline in [BRAND.md](BRAND.md).
