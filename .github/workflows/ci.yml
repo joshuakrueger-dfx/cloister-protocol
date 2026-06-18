@@ -71,7 +71,48 @@ jobs:
       - run: node scripts/check-constants.mjs
       # asserts the SDK's extData hash matches the gnark/Solidity-verified golden — the
       # independent JS↔Go↔Solidity binding surface (recipient/amount malleability guard).
+      # The live-proverd e2e test self-skips here (no service) and runs for real in `e2e`.
       - run: pnpm --filter @cloister/sdk test
+
+  e2e:
+    name: SDK ↔ proverd end-to-end (native crypto)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: packages/prover-gnark/go.mod
+          cache-dependency-path: packages/prover-gnark/go.sum
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # pk.bin/circuit.r1cs are gitignored (large/derived); regenerate a self-consistent
+      # proving+verifying+R1CS triple here (~3min, ephemeral — not committed).
+      - name: Generate proving keys (trusted setup)
+        working-directory: packages/prover-gnark
+        run: go run ./cmd/setup .
+      # Boot proverd in the background and wait for it to answer /health.
+      - name: Start proverd
+        working-directory: packages/prover-gnark
+        run: |
+          go build -o "$RUNNER_TEMP/proverd" ./cmd/proverd
+          "$RUNNER_TEMP/proverd" ./keys 127.0.0.1:8799 &
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8799/health >/dev/null; then echo "proverd up"; exit 0; fi
+            sleep 1
+          done
+          echo "proverd failed to come up within 30s"; exit 1
+      # Real prove→verify through the rewired SDK against the live gnark prover: proves the
+      # SDK crypto (curve-free pubKey, Poseidon2, zero=0) satisfies the circuit EXACTLY.
+      - name: SDK end-to-end against proverd
+        env:
+          PROVERD_URL: http://127.0.0.1:8799
+        run: node --test packages/sdk/test/e2e-native.mjs
 
   contracts:
     name: Solidity contracts (Hardhat)
@@ -106,5 +147,9 @@ jobs:
       - uses: crytic/slither-action@v0.4.0
         with:
           target: packages/contracts
+          # The contracts are a pnpm workspace member (`@cloister/sdk: workspace:*`), which the
+          # action's default `npm i` cannot resolve. We already ran `pnpm install` + Hardhat
+          # compile above, so point Slither at the existing artifacts instead of recompiling.
+          ignore-compile: true
           fail-on: high # hard-fail on High findings; Medium/Low/Info are reported, not blocking
           slither-args: --exclude-dependencies --filter-paths "node_modules"
