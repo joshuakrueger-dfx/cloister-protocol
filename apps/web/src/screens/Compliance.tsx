@@ -5,6 +5,7 @@ import { useAsync } from "../lib/useAsync";
 import { Button, Card, ComplianceList, Field, ScreenHead } from "../components/primitives";
 import { ProofConsole } from "../components/ProofConsole";
 import { KycVerify } from "../components/KycVerify";
+import { fundingRequiresKyc } from "../lib/backends";
 import { toast } from "../lib/overlays";
 import { useT } from "../lib/i18n";
 import type { Disclosure, ExportFormat, ProofStep, ReceiptScope } from "../lib/types";
@@ -12,6 +13,8 @@ import type { Disclosure, ExportFormat, ProofStep, ReceiptScope } from "../lib/t
 export function Compliance() {
   const { session } = useSession();
   const tr = useT();
+  // Only real backends gate payouts on verification; Demo has no gate, so no prompt.
+  const needsKyc = fundingRequiresKyc() && !!session && session.kyc.status !== "verified";
   return (
     <section className="view">
       <ScreenHead
@@ -22,7 +25,7 @@ export function Compliance() {
           "Privatsphäre, die du beweisen kannst. Erzeuge Belege sauberer Herkunft und gib Banken, Prüfern und Finanzämtern eine begrenzte, zeitlich befristete Einsicht — ohne je deine volle Historie offenzulegen.",
         )}
       />
-      {session && session.kyc.status !== "verified" ? (
+      {needsKyc ? (
         <Card style={{ marginTop: 26 }}>
           <div className="clab">{tr("VERIFY IDENTITY — UNLOCK PAYOUTS", "IDENTITÄT VERIFIZIEREN — AUSZAHLUNGEN FREISCHALTEN")}</div>
           <p className="sub" style={{ marginTop: 10 }}>
@@ -78,8 +81,8 @@ function ReceiptCard() {
       <div className="clab">{tr("COMPLIANCE RECEIPT · PROOF OF INNOCENCE", "COMPLIANCE-BELEG · PROOF OF INNOCENCE")}</div>
       <p className="sub" style={{ marginTop: 12 }}>
         {tr(
-          "A signed attestation that selected funds belong to the ASP good-set and originate from a KYC'd source — revealing nothing else.",
-          "Ein signierter Beleg, dass ausgewählte Mittel zum ASP-Good-Set gehören und aus einer KYC-geprüften Quelle stammen — ohne sonst etwas preiszugeben.",
+          "A signed attestation that selected funds belong to the ASP good-set and carry a proof of clean origin — revealing nothing else.",
+          "Ein signierter Beleg, dass ausgewählte Mittel zum ASP-Good-Set gehören und einen Beweis sauberer Herkunft tragen — ohne sonst etwas preiszugeben.",
         )}
       </p>
       <div className="grid g2" style={{ marginTop: 14 }}>

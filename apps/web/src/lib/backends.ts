@@ -48,6 +48,14 @@ export function getBackendConfig(id: string): BackendConfig {
   return b;
 }
 
+// Real backends fund through RealApi.shield, which rejects funding from an
+// unverified account (compliance gate). The mock Demo backend has no such gate,
+// so funding is open there. Screens use this to gate the Fund flow upfront
+// instead of letting a deposit fail after submit.
+export function fundingRequiresKyc(): boolean {
+  return getBackendConfig(getActiveBackendId()).kind === "real";
+}
+
 export function backendsView(): Backend[] {
   const active = getActiveBackendId();
   return BACKENDS.map((b) => ({ id: b.id, label: b.label, meta: b.meta, active: b.id === active }));

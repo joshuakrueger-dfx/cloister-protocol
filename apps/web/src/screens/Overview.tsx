@@ -14,6 +14,7 @@ import {
 import { CHAINS } from "../lib/types";
 import { DisbursementTable } from "../components/DisbursementTable";
 import { KycVerify } from "../components/KycVerify";
+import { fundingRequiresKyc } from "../lib/backends";
 import { useT } from "../lib/i18n";
 
 export function Overview() {
@@ -26,6 +27,8 @@ export function Overview() {
   });
   const [verifyOpen, setVerifyOpen] = useState(false);
   const orgName = session?.org.name && session.org.name !== "Your Treasury" ? session.org.name.split(" ")[0] : "there";
+  // Only real backends gate funding on verification; Demo has no gate, so no prompt.
+  const needsKyc = fundingRequiresKyc() && !!session && session.kyc.status !== "verified";
 
   const balance = useAsync(() => api.getBalance(), []);
   const anon = useAsync(() => api.getAnonymitySet(), []);
@@ -45,7 +48,7 @@ export function Overview() {
         )}
       />
 
-      {session && session.kyc.status !== "verified" ? (
+      {needsKyc ? (
         <Card style={{ marginTop: 20 }}>
           <div className="clab">{tr("IDENTITY — ACTION NEEDED", "IDENTITÄT — AKTION ERFORDERLICH")}</div>
           <p className="sub" style={{ marginTop: 10 }}>

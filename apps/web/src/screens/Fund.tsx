@@ -4,14 +4,12 @@ import { useSession } from "../lib/SessionProvider";
 import { Button, Card, Dots, Field, KeyValue, ScreenHead, Seg } from "../components/primitives";
 import { DfxOnramp } from "../components/DfxOnramp";
 import { KycVerify } from "../components/KycVerify";
-import { getActiveBackendId } from "../lib/backends";
+import { fundingRequiresKyc, getActiveBackendId } from "../lib/backends";
 import { toast } from "../lib/overlays";
 import { useT } from "../lib/i18n";
 import { CHAINS } from "../lib/types";
 import type { Asset, ChainId } from "../lib/types";
 
-// Funding is only ever from a verified account: a DFX account (bank/card → USDC)
-// or a connected wallet (USDC you already hold). No anonymous / faucet entry.
 const DFX_SOURCE = "DFX account (bank / card → USDC)";
 const WALLET_SOURCE = "Connected wallet (USDC you hold)";
 
@@ -20,12 +18,14 @@ export function Fund() {
   const tr = useT();
   const { session } = useSession();
   const isDemo = getActiveBackendId() === "demo";
-  const verified = session?.kyc?.status === "verified";
+  // Real backends reject funding from an unverified account; gate the flow upfront
+  // there. Demo (mock) funds without a gate, so it stays open.
+  const gated = fundingRequiresKyc() && session?.kyc?.status !== "verified";
 
   const [chain, setChain] = useState<ChainId>("base");
   const [amount, setAmount] = useState("1,000");
   const [asset] = useState<Asset>("USDC");
-  const [source, setSource] = useState(DFX_SOURCE);
+  const [source, setSource] = useState(WALLET_SOURCE);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,18 +57,13 @@ export function Fund() {
       <ScreenHead
         eyebrow={tr("PUBLIC TOUCHPOINT", "ÖFFENTLICHER BERÜHRUNGSPUNKT")}
         title={tr("Fund the shielded pool", "Den abgeschirmten Pool einzahlen")}
-        sub={
-          <>
-            {tr(
-              "This is the only public step. Funding is available after identity verification, and only from a DFX account or a connected wallet. After funding, every payout is private — the link to this deposit is cryptographically broken.",
-              "Das ist der einzige öffentliche Schritt. Einzahlen ist nach der Identitätsprüfung möglich, und nur über ein DFX-Konto oder ein verbundenes Wallet. Nach der Einzahlung ist jede Auszahlung privat — die Verbindung zu dieser Einzahlung ist kryptografisch gebrochen.",
-            )}
-          </>
-        }
+        sub={tr(
+          "This is the only public step. Fund from a DFX account or a connected wallet. After funding, every payout is private — the link to this deposit is cryptographically broken.",
+          "Das ist der einzige öffentliche Schritt. Zahle über ein DFX-Konto oder ein verbundenes Wallet ein. Nach der Einzahlung ist jede Auszahlung privat — die Verbindung zu dieser Einzahlung ist kryptografisch gebrochen.",
+        )}
       />
 
-      {!verified ? (
-        // ---- gate: must verify identity before any funding ----
+      {gated ? (
         <div className="split" style={{ marginTop: 26 }}>
           <Card>
             <div className="clab">{tr("VERIFY IDENTITY TO FUND", "ZUM EINZAHLEN IDENTITÄT VERIFIZIEREN")}</div>
@@ -88,8 +83,8 @@ export function Fund() {
             <div className="clab">{tr("FUND", "EINZAHLEN")}</div>
             <Field label={tr("SOURCE", "QUELLE")}>
               <select className="input" value={source} onChange={(e) => setSource(e.target.value)}>
-                <option value={DFX_SOURCE}>{tr("DFX account (bank / card → USDC)", "DFX-Konto (Bank / Karte → USDC)")}</option>
                 <option value={WALLET_SOURCE}>{tr("Connected wallet (USDC you hold)", "Verbundenes Wallet (USDC, das du hältst)")}</option>
+                <option value={DFX_SOURCE}>{tr("DFX account (bank / card → USDC)", "DFX-Konto (Bank / Karte → USDC)")}</option>
               </select>
             </Field>
             <Field label="CHAIN">
