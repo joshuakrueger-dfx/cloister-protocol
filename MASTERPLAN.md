@@ -17,22 +17,24 @@ Status key: ☐ todo · ◐ in progress · ☑ done. Update the checkbox in this
 > - ☑ **WP-A2** landed. Cap now shares the emergency-pause duty cycle (auto-expiry + cooldown), so
 >   `setMaxWithdrawal(dust)` can't permanently freeze. Verified: offline `solc 0.8.26` compile
 >   clean (Hardhat's own solc download is egress-blocked, so the full guards suite runs in CI).
-> - ☑ **WP-A1** landed, with one **design refinement**: the domain binds **chainId + lane** (not
->   `address(this)`). Binding the pool address would couple the *static* real-proof E2E fixture to
->   a deterministic deploy address and break the multi-pool negative tests (they share one fixture
->   proof across pools at different addresses). chainId + lane closes the two vectors the review
->   cared about operationally — cross-chain replay and the lane front-run griefing. Cross-pool
->   same-chain replay (pool-address binding) is deferred to the pre-ceremony re-key window, where
->   the verifier is redeployed and the fixture is rebuilt with a deterministic address anyway.
->   Verified: **SDK==Go byte-exact** for the new preimage (direct parity test), KAT re-anchored +
->   domain cases green, contract compiles clean, `provefromleaves` builds. **JS==Solidity** follows
->   from identical ABI encoding (same basis as the pre-WP-A1 golden).
->   - **One follow-up needed in a keys+solc environment:** regenerate the committed E2E fixture so
->     its bound `extDataHash` uses the new formula —
->     `REGEN_FIXTURE=1 FIXTURE_CHAIN_ID=31337 node test/gen-transact-fixture.js` (needs `keys/`).
->     Until then the contracts job's positive "deposits via transact" case is red (old un-domained
->     hash); the negative cases (incl. the new lane-replay test) already hold. This is the only
->     red item and it is a one-command operator step, not a code fix.
+> - ☑ **WP-A1** landed + **fully greened**, with one **design refinement**: the domain binds
+>   **chainId + lane** (not `address(this)`). Binding the pool address would couple the *static*
+>   real-proof E2E fixture to a deterministic deploy address and break the multi-pool negative
+>   tests (they share one fixture proof across pools at different addresses). chainId + lane closes
+>   the two vectors the review cared about operationally — cross-chain replay and the lane
+>   front-run griefing. Cross-pool same-chain replay (pool-address binding) is deferred to the
+>   pre-ceremony re-key window. Verified: **SDK==Go byte-exact** for the new preimage, KAT
+>   re-anchored + domain cases green, full contract set compiles clean (offline solc), fixture
+>   `extDataHash` parity with the contract recompute confirmed.
+> - ☑ **Re-key to green the contracts fixtures.** The WP-A1 formula change invalidated the static
+>   real-proof fixtures, so the testnet key triple was regenerated together (`go run ./cmd/setup`):
+>   new `keys/vk.bin` + `Groth16Verifier.sol` (provenance gate green) + regenerated
+>   `testdata/{transact,proof,scenario}.json` (each native-verified against the new vk). Manifest
+>   hashes updated. **Consequence (documented in SETUP_MANIFEST.md):** the deployed Base Sepolia
+>   verifier `0x9202…` no longer matches — the testnet must be redeployed, which the WP-A1 contract
+>   change already required. Single-party testnet keys only; mainnet still gated on the MPC ceremony.
+>   All Go tests (zk/provenance/prover) green; SDK green; every contract compiles offline. The
+>   Hardhat suite itself runs in CI (local solc egress is blocked) and is now expected green.
 
 ---
 
@@ -70,7 +72,7 @@ Status key: ☐ todo · ◐ in progress · ☑ done. Update the checkbox in this
 
 ## 1. Track A — ship-now work packages
 
-### WP-A1 ◐ — Domain + lane binding via `extDataHash` (closes contract M-1 cross-pool/chain replay + lane-replay griefing)
+### WP-A1 ☑ — Domain + lane binding via `extDataHash` (closes contract M-1 cross-pool/chain replay + lane-replay griefing)
 
 **Findings:** Contract review M-1 (`ShieldedPool.sol:246`, `:252-263`) — no `chainId`/pool-address
 in the proof, so a proof replays on any pool sharing `(lane, oldRoot)` with unspent nullifiers.
@@ -364,7 +366,7 @@ now fails because a Track-B item leaked in, revert that item — Track B does no
 
 ## 5. Definition of done (whole plan)
 
-- ◐ WP-A1 domain+lane binding landed; SDK==Go==Solidity KAT byte-exact; lane-replay & cross-pool
+- ☑ WP-A1 domain+lane binding landed; SDK==Go==Solidity KAT byte-exact; lane-replay & cross-pool
    replay attacks fail; fixture + golden regenerated.
 - ☑ WP-A2 cap can throttle but never permanently freeze; auto-expiry + cooldown tested.
 - ☑ WP-A3 leaf-gap and odd-length both fail fast; tested.
