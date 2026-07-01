@@ -161,10 +161,13 @@ func main() {
 	}
 	fmt.Printf("complete leaf set: %d; on-chain laneRoot(0)=%s…\n", len(leafStrs), onchainRoot.String()[:16])
 
-	// extData + extDataHash (identical to the contract's keccak%FIELD)
+	// extData + extDataHash (identical to the contract's keccak%FIELD). WP-A1: domain-separate
+	// by chainId + lane (deposits use transact → lane 0), matching ShieldedPool._transact's
+	// keccak256(abi.encode(extData, block.chainid, lane)).
 	ext := extDataT{Recipient: common.Address{}, ExtAmount: mustBig(amount), Relayer: common.Address{}, Fee: big.NewInt(0), EncryptedOutput1: []byte{}, EncryptedOutput2: []byte{}}
 	extArg := poolABI.Methods["transact"].Inputs[6]
-	encoded, _ := abi.Arguments{{Type: extArg.Type}}.Pack(ext)
+	uint256T, _ := abi.NewType("uint256", "", nil)
+	encoded, _ := abi.Arguments{{Type: extArg.Type}, {Type: uint256T}, {Type: uint256T}}.Pack(ext, chainID, big.NewInt(0))
 	extDataHash := new(big.Int).Mod(new(big.Int).SetBytes(crypto.Keccak256(encoded)), fr.Modulus())
 
 	// >>> the function under test: native prove from leaves <<<

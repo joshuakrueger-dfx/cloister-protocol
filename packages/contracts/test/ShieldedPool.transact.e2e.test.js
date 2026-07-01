@@ -7,6 +7,13 @@ const path = require("path");
 // The proof, roots, nullifiers, commitments and extData all come from the gnark
 // prover (test/gen-transact-fixture.js); the pool is deployed with the Poseidon2
 // empty-tree root as its initial root so oldRoot matches.
+//
+// WP-A1 domain separation: the contract now recomputes extDataHash as
+//   keccak256(abi.encode(extData, block.chainid, lane)) % FIELD_SIZE.
+// The committed fixture must therefore be regenerated so its bound hash uses chainId 31337
+// (Hardhat) + lane 0 — run `REGEN_FIXTURE=1 node test/gen-transact-fixture.js` with the prover
+// keys present. Until regenerated, the positive "deposits via transact" case fails on
+// "invalid proof" (old, un-domained hash); the negative cases below still hold.
 const fx = JSON.parse(fs.readFileSync(path.join(__dirname, "testdata", "transact.json"), "utf8"));
 
 const LEVELS = 20;
@@ -97,6 +104,35 @@ describe("ShieldedPool — real-proof deposit (gnark E2E)", function () {
         extData,
       ),
     ).to.be.reverted; // stale root / spent nullifier
+  });
+
+  it("rejects replaying a lane-0 proof into another lane (WP-A1 lane binding)", async function () {
+    // The fixture proof is a lane-0 deposit; its extDataHash binds lane 0. Submitting the SAME
+    // proof via transactLane(1) makes the contract recompute keccak(abi.encode(extData, chainid,
+    // 1)) — a different public input than the proof bound → verifyProof rejects it. This closes
+    // the lane front-run griefing vector (a valid proof for one lane cannot be pushed into
+    // another lane sharing the same genesis root).
+    const verifier = await (await ethers.getContractFactory("TransactionVerifier")).deploy();
+    const tok = await (await ethers.getContractFactory("MockERC20")).deploy("USD Coin", "USDC", 6);
+    const Pool = await ethers.getContractFactory("ShieldedPool");
+    const p = await Pool.deploy(
+      LEVELS, LANES, BigInt(fx.oldRoot), await verifier.getAddress(), await tok.getAddress(),
+      owner.address, ethers.ZeroAddress, 0n,
+    );
+    await tok.mint(owner.address, BigInt(fx.amount));
+    await tok.approve(await p.getAddress(), BigInt(fx.amount));
+
+    const proof = { a: fx.a, b: fx.b, c: fx.c };
+    const ed = fx.extData;
+    const extData = [ed.recipient, ed.extAmount, ed.relayer, ed.fee, ed.encryptedOutput1, ed.encryptedOutput2];
+    await expect(
+      p.transactLane(
+        1n, proof, BigInt(fx.oldRoot), BigInt(fx.newRoot), BigInt(fx.associationRoot),
+        [BigInt(fx.nullifiers[0]), BigInt(fx.nullifiers[1])],
+        [BigInt(fx.commitments[0]), BigInt(fx.commitments[1])],
+        extData,
+      ),
+    ).to.be.revertedWith("invalid proof");
   });
 });
 
