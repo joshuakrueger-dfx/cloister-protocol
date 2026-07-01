@@ -133,12 +133,14 @@ app.get("/v1/deposit/prepare", async (req, res) => {
     const pairIndex = Math.floor(memTree.leaves.length / 2);
     const { pathElements } = await memTree.pairPath(pairIndex);
     const ext = depositExtData(amount.toString());
+    // WP-A1: deposits use transact (lane 0); bind the extData hash to this chain + lane.
+    const domain = { chainId: dep.chainId, lane: 0 };
     res.json({
       root: rootVal,
       pairIndex,
       pairPathEls: pathElements.map((x) => x.toString()),
       extData: ext,
-      extDataHash: encodeExtData(ext).toString(),
+      extDataHash: encodeExtData(ext, domain).toString(),
     });
   } catch (e) {
     res.status(503).json({ error: e.shortMessage || e.message });
