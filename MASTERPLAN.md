@@ -11,6 +11,22 @@
 
 Status key: ☐ todo · ◐ in progress · ☑ done. Update the checkbox in this file as you land each WP.
 
+> **Execution log (2026-07-01, this sandbox).**
+> - ☑ **WP-A3** landed + verified locally (`pnpm --filter @cloister/sdk test` green, 4 new tests).
+> - ☑ **WP-A4** landed + verified locally (`go test -race ./zk/` green, 3 new test groups).
+> - ◐ **WP-A2 / WP-A1 — blocked in this environment, not committed.** The Solidity toolchain
+>   cannot run here: Hardhat's solc download hits the org egress policy
+>   (`binaries.soliditylang.org` → 403, must not be routed around), so no contract can be
+>   compiled or tested. **WP-A1 additionally cannot be completed anywhere without key material
+>   that is not in the repo:** changing the `extDataHash` preimage invalidates the committed
+>   real-proof fixture `packages/contracts/test/testdata/transact.json`, and regenerating it needs
+>   `keys/pk.bin` (gitignored) — and `cmd/setup` uses fresh random toxic waste (non-deterministic),
+>   so a fresh setup would not match the committed `Groth16Verifier.sol`. WP-A1 therefore belongs
+>   in a solc-capable dev/CI environment that holds the testnet keys, and is a natural fit for the
+>   pre-ceremony re-key window. Both WPs remain fully specified below; run them where solc egress
+>   and the proving keys exist. **Do not commit WP-A1 without regenerating + re-verifying the
+>   fixture** — it is a guaranteed-red contracts job otherwise.
+
 ---
 
 ## 0. Ground rules (read before touching anything)
@@ -196,7 +212,7 @@ to reflect the cap now shares the pause duty-cycle guarantee.
 
 ---
 
-### WP-A3 ☐ — SDK Merkle-sync integrity guards (SDK Medium ×2)
+### WP-A3 ☑ — SDK Merkle-sync integrity guards (SDK Medium ×2)
 
 **Findings:** SDK review #1 (`packages/sdk/src/sync.js:13-14`, `:36-37`) — the sync loop never
 asserts leaf **contiguity**; one missing leaf from a buggy/malicious indexer shifts every later
@@ -246,7 +262,7 @@ green; existing SDK KAT + e2e still green.
 
 ---
 
-### WP-A4 ☐ — Circuit soundness test hardening (circuit review §1 — test rigor, **no circuit change**)
+### WP-A4 ☑ — Circuit soundness test hardening (circuit review §1 — test rigor, **no circuit change**)
 
 **Finding:** Circuit review §1 — the under-constrained hunt and negative tests have blind spots on
 the highest-value properties. This WP adds tests only; it does **not** modify `circuit.go` (that
@@ -344,8 +360,8 @@ now fails because a Track-B item leaked in, revert that item — Track B does no
 - ☐ WP-A1 domain+lane binding landed; SDK==Go==Solidity KAT byte-exact; lane-replay & cross-pool
    replay attacks fail; fixture + golden regenerated.
 - ☐ WP-A2 cap can throttle but never permanently freeze; auto-expiry + cooldown tested.
-- ☐ WP-A3 leaf-gap and odd-length both fail fast; tested.
-- ☐ WP-A4 non-member / non-good-set / isReal-dummy / arity-KAT soundness tests all present & green.
+- ☑ WP-A3 leaf-gap and odd-length both fail fast; tested.
+- ☑ WP-A4 non-member / non-good-set / isReal-dummy / arity-KAT soundness tests all present & green.
 - ☐ Full global matrix green; branch pushed to `claude/goal-optimization-review-20p4w3`.
 - ☐ `docs/en/SECURITY.md` (and `docs/de/SECURITY.md` if present) updated: M-1/lane replay closed
    via extData domain binding, cap now shares the no-permanent-freeze guarantee, SDK sync hardened.
