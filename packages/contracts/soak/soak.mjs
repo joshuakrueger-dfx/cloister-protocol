@@ -92,6 +92,8 @@ async function main() {
     const out1 = new Note({ amount: 0n, pubKey: owner.kp.publicKey, blinding: randomField() });
     const built = await buildTransaction({
       tree,
+      chainId: 31337, // Hardhat devnet
+      lane: 0,
       inputs: [],
       outputs: [
         { note: out0, encPubKey: owner.kp.address().encPubKey },
@@ -119,6 +121,8 @@ async function main() {
     const outChange = new Note({ amount: changeAmt, pubKey: owner.publicKey, blinding: randomField() });
     const built = await buildTransaction({
       tree,
+      chainId: 31337, // Hardhat devnet
+      lane: 0,
       inputs: [{ note: src.note, privateKey: src.priv, index: src.index }],
       outputs: [
         { note: outSend, encPubKey: dest.kp.address().encPubKey },
@@ -144,6 +148,8 @@ async function main() {
     const outZero = new Note({ amount: 0n, pubKey: owner.publicKey, blinding: randomField() });
     const built = await buildTransaction({
       tree,
+      chainId: 31337, // Hardhat devnet
+      lane: 0,
       inputs: [{ note: src.note, privateKey: src.priv, index: src.index }],
       outputs: [
         { note: outChange, encPubKey: owner.address().encPubKey },

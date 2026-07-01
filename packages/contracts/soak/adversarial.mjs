@@ -50,6 +50,8 @@ async function main() {
   const out1 = new Note({ amount: 0n, pubKey: alice.publicKey, blinding: randomField() });
   const dep = await buildTransaction({
     tree,
+    chainId: 31337, // Hardhat devnet
+    lane: 0,
     inputs: [],
     outputs: [
       { note: out0, encPubKey: alice.address().encPubKey },
@@ -93,6 +95,8 @@ async function main() {
   tree.insert(dep.outputCommitments[1]);
   const spend = await buildTransaction({
     tree,
+    chainId: 31337, // Hardhat devnet
+    lane: 0,
     inputs: [{ note: out0, privateKey: alice.privateKey, index: 0 }],
     outputs: [
       { note: new Note({ amount: 40000n, pubKey: alice.publicKey, blinding: randomField() }), encPubKey: alice.address().encPubKey },

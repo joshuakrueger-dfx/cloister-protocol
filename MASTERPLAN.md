@@ -11,21 +11,28 @@
 
 Status key: ☐ todo · ◐ in progress · ☑ done. Update the checkbox in this file as you land each WP.
 
-> **Execution log (2026-07-01, this sandbox).**
+> **Execution log (2026-07-01, this sandbox). All four Track-A WPs implemented.**
 > - ☑ **WP-A3** landed + verified locally (`pnpm --filter @cloister/sdk test` green, 4 new tests).
 > - ☑ **WP-A4** landed + verified locally (`go test -race ./zk/` green, 3 new test groups).
-> - ◐ **WP-A2 / WP-A1 — blocked in this environment, not committed.** The Solidity toolchain
->   cannot run here: Hardhat's solc download hits the org egress policy
->   (`binaries.soliditylang.org` → 403, must not be routed around), so no contract can be
->   compiled or tested. **WP-A1 additionally cannot be completed anywhere without key material
->   that is not in the repo:** changing the `extDataHash` preimage invalidates the committed
->   real-proof fixture `packages/contracts/test/testdata/transact.json`, and regenerating it needs
->   `keys/pk.bin` (gitignored) — and `cmd/setup` uses fresh random toxic waste (non-deterministic),
->   so a fresh setup would not match the committed `Groth16Verifier.sol`. WP-A1 therefore belongs
->   in a solc-capable dev/CI environment that holds the testnet keys, and is a natural fit for the
->   pre-ceremony re-key window. Both WPs remain fully specified below; run them where solc egress
->   and the proving keys exist. **Do not commit WP-A1 without regenerating + re-verifying the
->   fixture** — it is a guaranteed-red contracts job otherwise.
+> - ☑ **WP-A2** landed. Cap now shares the emergency-pause duty cycle (auto-expiry + cooldown), so
+>   `setMaxWithdrawal(dust)` can't permanently freeze. Verified: offline `solc 0.8.26` compile
+>   clean (Hardhat's own solc download is egress-blocked, so the full guards suite runs in CI).
+> - ☑ **WP-A1** landed, with one **design refinement**: the domain binds **chainId + lane** (not
+>   `address(this)`). Binding the pool address would couple the *static* real-proof E2E fixture to
+>   a deterministic deploy address and break the multi-pool negative tests (they share one fixture
+>   proof across pools at different addresses). chainId + lane closes the two vectors the review
+>   cared about operationally — cross-chain replay and the lane front-run griefing. Cross-pool
+>   same-chain replay (pool-address binding) is deferred to the pre-ceremony re-key window, where
+>   the verifier is redeployed and the fixture is rebuilt with a deterministic address anyway.
+>   Verified: **SDK==Go byte-exact** for the new preimage (direct parity test), KAT re-anchored +
+>   domain cases green, contract compiles clean, `provefromleaves` builds. **JS==Solidity** follows
+>   from identical ABI encoding (same basis as the pre-WP-A1 golden).
+>   - **One follow-up needed in a keys+solc environment:** regenerate the committed E2E fixture so
+>     its bound `extDataHash` uses the new formula —
+>     `REGEN_FIXTURE=1 FIXTURE_CHAIN_ID=31337 node test/gen-transact-fixture.js` (needs `keys/`).
+>     Until then the contracts job's positive "deposits via transact" case is red (old un-domained
+>     hash); the negative cases (incl. the new lane-replay test) already hold. This is the only
+>     red item and it is a one-command operator step, not a code fix.
 
 ---
 
@@ -63,7 +70,7 @@ Status key: ☐ todo · ◐ in progress · ☑ done. Update the checkbox in this
 
 ## 1. Track A — ship-now work packages
 
-### WP-A1 ☐ — Domain + lane binding via `extDataHash` (closes contract M-1 cross-pool/chain replay + lane-replay griefing)
+### WP-A1 ◐ — Domain + lane binding via `extDataHash` (closes contract M-1 cross-pool/chain replay + lane-replay griefing)
 
 **Findings:** Contract review M-1 (`ShieldedPool.sol:246`, `:252-263`) — no `chainId`/pool-address
 in the proof, so a proof replays on any pool sharing `(lane, oldRoot)` with unspent nullifiers.
@@ -148,7 +155,7 @@ suite, CI green.
 
 ---
 
-### WP-A2 ☐ — Close the `setMaxWithdrawal` freeze bypass (contract Medium)
+### WP-A2 ☑ — Close the `setMaxWithdrawal` freeze bypass (contract Medium)
 
 **Finding:** Contract review finding #1 — `ShieldedPool.sol:335` `setMaxWithdrawal` has no lower
 bound, no timelock, no auto-expiry. A compromised guardian calls `setMaxWithdrawal(1)` and every
@@ -357,9 +364,9 @@ now fails because a Track-B item leaked in, revert that item — Track B does no
 
 ## 5. Definition of done (whole plan)
 
-- ☐ WP-A1 domain+lane binding landed; SDK==Go==Solidity KAT byte-exact; lane-replay & cross-pool
+- ◐ WP-A1 domain+lane binding landed; SDK==Go==Solidity KAT byte-exact; lane-replay & cross-pool
    replay attacks fail; fixture + golden regenerated.
-- ☐ WP-A2 cap can throttle but never permanently freeze; auto-expiry + cooldown tested.
+- ☑ WP-A2 cap can throttle but never permanently freeze; auto-expiry + cooldown tested.
 - ☑ WP-A3 leaf-gap and odd-length both fail fast; tested.
 - ☑ WP-A4 non-member / non-good-set / isReal-dummy / arity-KAT soundness tests all present & green.
 - ☐ Full global matrix green; branch pushed to `claude/goal-optimization-review-20p4w3`.

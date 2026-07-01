@@ -54,6 +54,10 @@ test(
 
     const tx = await buildTransaction({
       tree,
+      // WP-A1: domain is required by encodeExtData; this test only proves+shape-checks (no
+      // on-chain submit), so fixed placeholder values are fine.
+      chainId: 31337n,
+      lane: 0n,
       inputs: [{ note: inNote, privateKey: 111n, index: 0 }],
       outputs: [
         { note: out0, encPubKey: B.address().encPubKey },

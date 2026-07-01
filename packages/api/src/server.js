@@ -135,6 +135,8 @@ async function main() {
       const note = new Note({ amount: amt, pubKey: BigInt(ownerPubKey) });
       const shield = await buildTransaction({
         tree,
+        chainId,
+        lane: 0,
         inputs: [],
         outputs: [{ note, encPubKey }],
         extAmount: amt,
@@ -236,6 +238,8 @@ async function main() {
       if (!note) return res.status(400).json({ error: "no DFX note to settle" });
       const settle = await buildTransaction({
         tree,
+        chainId,
+        lane: 0,
         inputs: [{ note: note.note, privateKey: dfx.privateKey, index: note.index }],
         outputs: [],
         extAmount: -note.note.amount,
