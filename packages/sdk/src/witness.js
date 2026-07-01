@@ -58,6 +58,13 @@ export async function buildWitness({
   aspTree = null,
   associationRoot = null,
 }) {
+  // The 2-out insertion proof lands the outputs on an aligned pair boundary (pairIndex =
+  // leaves.length / 2). On-chain this holds because laneNextIndex always grows by 2, but the
+  // SDK never enforced it: an odd leaf count makes pairIndex fractional → a malformed,
+  // unverifiable witness. Fail fast with a clear error instead.
+  if (tree.leaves.length % 2 !== 0)
+    throw new Error(`buildWitness requires an even leaf count, got ${tree.leaves.length}`);
+
   const root = await tree.root();
   const asp = aspTree || tree;
   const aspRootValue = associationRoot != null ? BigInt(associationRoot) : await asp.root();
