@@ -6,11 +6,18 @@ import { Note } from "./note.js";
 export async function syncFromIndexer(indexerUrl, tree, wallets = []) {
   const url = `${indexerUrl.replace(/\/$/, "")}/commitments?from=${tree.leaves.length}`;
   const { commitments } = await (await fetch(url)).json();
-  commitments.sort((a, b) => a.leafIndex - b.leafIndex);
+  commitments.sort((a, b) => Number(a.leafIndex) - Number(b.leafIndex));
 
   const stats = { scanned: 0, tagMatched: 0, decrypted: 0 };
   for (const e of commitments) {
-    if (e.leafIndex < tree.leaves.length) continue;
+    const idx = Number(e.leafIndex);
+    if (idx < tree.leaves.length) continue; // already synced
+    // Contiguity guard: a gap (buggy/malicious indexer, or a scan that skipped earlier
+    // commitments) would shift every later leaf's tree position and silently desync the
+    // local root. Refuse instead of corrupting the tree — the caller's fallback picks another
+    // source. Funds stay safe (commitment is recomputed + the on-chain root check backstops).
+    if (idx !== tree.leaves.length)
+      throw new Error(`leaf gap: expected index ${tree.leaves.length}, got ${idx}`);
     tree.insert(e.commitment);
     if (!e.encryptedOutput || e.encryptedOutput === "0x") continue;
     for (const w of wallets) {
@@ -34,6 +41,9 @@ export async function syncFromChain(pool, tree, wallets = [], fromBlock = 0) {
   let added = 0;
   for (const e of events) {
     if (e.leafIndex < tree.leaves.length) continue; // bereits synchronisiert
+    // Contiguity guard (see syncFromIndexer): a gap would silently desync the tree.
+    if (e.leafIndex !== tree.leaves.length)
+      throw new Error(`leaf gap: expected index ${tree.leaves.length}, got ${e.leafIndex}`);
     tree.insert(e.commitment);
     for (const w of wallets) await w.tryAdd(e.commitment, e.leafIndex, e.enc);
     added++;
