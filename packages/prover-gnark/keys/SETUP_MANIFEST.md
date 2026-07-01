@@ -7,13 +7,20 @@ describe **one** trusted-setup run. This manifest pins the committed artifacts; 
 
 | Artifact | SHA-256 |
 |----------|---------|
-| `packages/prover-gnark/keys/vk.bin` | `cf5d5db66387256d17a211ebc958710c4e87bde82718653964b8a9dc392ac5db` |
-| `packages/contracts/contracts/Groth16Verifier.sol` | `6dd9b658cb66304bbbd8bc6cc972604558f8c0f9212c6a2222617512a88ab7e5` |
+| `packages/prover-gnark/keys/vk.bin` | `2022a9f4734336acedb97eb129e7d368f8ff382de6d239e5ff3a183cd4ce1c4b` |
+| `packages/contracts/contracts/Groth16Verifier.sol` | `60c3f5f68ff34b1805d16abf72eac8beb5094ea86685d160d5ebf70b9f530e67` |
 
 - `keys/pk.bin` and `keys/circuit.r1cs` are gitignored (large/derived) and are regenerated
   by `go run ./cmd/setup` only when absent; existing keys are reused so the triple stays fixed.
-- **Deployed verifier (Base Sepolia, chainId 84532):** `0x9202d333794dC0e248B9DdA3c80dB6F5F204a6cd`
-  (matches the committed vk.bin — see `deployment.basesepolia.json`).
+- **Re-keyed 2026-07-01** alongside the WP-A1 `extDataHash` domain-separation change. That change
+  modifies `ShieldedPool.sol` itself, so the on-chain testnet contracts must be redeployed
+  regardless; the key triple (`vk.bin` / `Groth16Verifier.sol` / regenerated real-proof fixture
+  `packages/contracts/test/testdata/transact.json`) was regenerated together so it stays internally
+  consistent (provenance gate + Hardhat E2E green). Still a **single-party** setup — testnet only.
+- **Deployed verifier (Base Sepolia, chainId 84532):** the previously-deployed
+  `0x9202d333794dC0e248B9DdA3c80dB6F5F204a6cd` no longer matches this vk.bin. **Redeploy the
+  verifier + pool** and update `deployment.basesepolia.json` / `deployment.84532.json` before the
+  testnet is used again (already required by the WP-A1 contract change).
 
 ## Trusted setup status
 
