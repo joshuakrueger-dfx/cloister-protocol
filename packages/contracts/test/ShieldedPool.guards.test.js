@@ -307,5 +307,48 @@ describe("ShieldedPool — security hardening", () => {
         pool.transact(PROOF, 200n, 300n, 0n, [60n, 61n], [62n, 63n], extData(ethers.ZeroAddress, ethers.parseEther("10"), ethers.ZeroAddress, 0n)),
       ).to.not.be.reverted;
     });
+
+    // WP-A2: a lowered cap cannot become a permanent freeze — it shares the emergency-pause
+    // duty cycle (auto-expiry + cooldown), so setMaxWithdrawal(dust) can never lock withdrawals.
+    it("a lowered cap auto-expires after MAX_EMERGENCY_PAUSE (no permanent freeze)", async () => {
+      const tok = await (await ethers.getContractFactory("ReentrantToken")).deploy();
+      const pool = await deployPool(await tok.getAddress(), await verifier.getAddress(), owner.address);
+      await tok.approve(await pool.getAddress(), ethers.parseEther("2000"));
+      await pool.transact(PROOF, INITIAL_ROOT, 100n, 0n, [1n, 2n], [3n, 4n], extData(ethers.ZeroAddress, ethers.parseEther("1000"), ethers.ZeroAddress, 0n));
+
+      // de-facto freeze attempt: cap withdrawals at 1 wei
+      await pool.setMaxWithdrawal(1n);
+      expect(await pool.effectiveMaxWithdrawal()).to.equal(1n);
+      await expect(
+        pool.transact(PROOF, 100n, 200n, 0n, [40n, 41n], [42n, 43n], extData(attacker.address, -ethers.parseEther("100"), ethers.ZeroAddress, 0n)),
+      ).to.be.revertedWith("withdrawal over cap");
+
+      // after MAX_EMERGENCY_PAUSE the lowered cap auto-expires → withdrawals resume
+      await ethers.provider.send("evm_increaseTime", [72 * 3600 + 1]);
+      await ethers.provider.send("evm_mine", []);
+      expect(await pool.effectiveMaxWithdrawal()).to.equal(0n);
+      await expect(
+        pool.transact(PROOF, 100n, 200n, 0n, [40n, 41n], [42n, 43n], extData(attacker.address, -ethers.parseEther("100"), ethers.ZeroAddress, 0n)),
+      ).to.not.be.reverted;
+    });
+
+    it("re-lowering the cap is on cooldown; raising/removing is instant", async () => {
+      const tok = await (await ethers.getContractFactory("ReentrantToken")).deploy();
+      const pool = await deployPool(await tok.getAddress(), await verifier.getAddress(), owner.address);
+
+      await pool.setMaxWithdrawal(ethers.parseEther("50")); // lower (from unlimited) → arms cooldown
+      // auto-expire the lowered cap, opening a guaranteed unlimited window
+      await ethers.provider.send("evm_increaseTime", [72 * 3600 + 1]);
+      await ethers.provider.send("evm_mine", []);
+      // a guardian cannot immediately re-lower during the cooldown
+      await expect(pool.setMaxWithdrawal(ethers.parseEther("10"))).to.be.revertedWith("cap on cooldown");
+      // raising / removing is always allowed and permanent (no auto-revert)
+      await expect(pool.setMaxWithdrawal(0n)).to.not.be.reverted;
+      expect(await pool.maxWithdrawalUntil()).to.equal(0n);
+      // after the full cooldown, lowering is possible again
+      await ethers.provider.send("evm_increaseTime", [72 * 3600 + 1]);
+      await ethers.provider.send("evm_mine", []);
+      await expect(pool.setMaxWithdrawal(ethers.parseEther("10"))).to.not.be.reverted;
+    });
   });
 });

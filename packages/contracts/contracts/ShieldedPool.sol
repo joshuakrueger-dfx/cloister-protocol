@@ -57,7 +57,16 @@ contract ShieldedPool is ReentrancyGuard {
     uint256 public pauseCooldownEnds;
 
     /// Defense-in-depth: optionaler Auszahlungs-Cap pro Transaktion (0 = aus).
+    /// Ein GESENKTER Cap teilt dieselbe Anti-Freeze-Garantie wie emergencyPause: er läuft nach
+    /// MAX_EMERGENCY_PAUSE automatisch aus (→ wieder unbegrenzt) und ein erneutes Senken ist erst
+    /// nach PAUSE_COOLDOWN wieder möglich. Dadurch kann ein (kompromittierter) Guardian den Pool
+    /// nicht per setMaxWithdrawal(dust) faktisch dauerhaft einfrieren. Anheben/Entfernen des Caps
+    /// (weniger restriktiv) wirkt sofort und dauerhaft.
     uint256 public maxWithdrawal;
+    /// Ablaufzeitpunkt eines gesenkten Caps (0 = dauerhaft; nur bei Anheben/Entfernen gesetzt).
+    uint256 public maxWithdrawalUntil;
+    /// Frühester Zeitpunkt, zu dem ein Cap erneut GESENKT werden darf (Anti-Renewal, wie Pause).
+    uint256 public capCooldownEnds;
 
     /// ASP (Association-Set-Provider, z.B. DFX): veröffentlicht die Roots des Good-Sets.
     /// Compliance-Schicht: jede Zahlung bindet im Proof eine `associationRoot`; der Pool
@@ -239,8 +248,9 @@ contract ShieldedPool is ReentrancyGuard {
 
         require(block.timestamp >= emergencyPausedUntil, "emergency paused");
         if (extData.extAmount > 0) require(!depositsPaused, "deposits paused");
-        if (extData.extAmount < 0 && maxWithdrawal != 0) {
-            require(uint256(-extData.extAmount) <= maxWithdrawal, "withdrawal over cap");
+        if (extData.extAmount < 0) {
+            uint256 cap = _effectiveCap();
+            if (cap != 0) require(uint256(-extData.extAmount) <= cap, "withdrawal over cap");
         }
 
         uint256 extDataHash = uint256(keccak256(abi.encode(extData))) % FIELD_SIZE;
@@ -331,8 +341,36 @@ contract ShieldedPool is ReentrancyGuard {
         emit EmergencyPaused(0);
     }
 
+    /// The cap in force right now: a *lowered* cap auto-expires after MAX_EMERGENCY_PAUSE (lazy,
+    /// no cron — read here) so it can never become a permanent freeze. 0 = no cap (unlimited).
+    function _effectiveCap() internal view returns (uint256) {
+        if (maxWithdrawal != 0 && maxWithdrawalUntil != 0 && block.timestamp >= maxWithdrawalUntil) {
+            return 0; // lowered cap expired → unlimited again
+        }
+        return maxWithdrawal;
+    }
+
+    /// Read the cap currently enforced (accounts for auto-expiry of a lowered cap).
+    function effectiveMaxWithdrawal() external view returns (uint256) {
+        return _effectiveCap();
+    }
+
     /// 0 = no cap. Defense-in-depth against a verifier/circuit soundness surprise.
+    ///
+    /// LOWERING the cap (more restrictive — including setting one where none existed) applies
+    /// immediately for incident response, but auto-expires after MAX_EMERGENCY_PAUSE and cannot be
+    /// re-armed until PAUSE_COOLDOWN has elapsed — the SAME duty-cycle that stops emergencyPause
+    /// from permanently freezing the pool. RAISING or REMOVING the cap (less restrictive) applies
+    /// immediately and permanently. This closes the setMaxWithdrawal(dust) de-facto-freeze bypass.
     function setMaxWithdrawal(uint256 cap) external onlyGuardian {
+        bool lowering = cap != 0 && (maxWithdrawal == 0 || cap < _effectiveCap());
+        if (lowering) {
+            require(block.timestamp >= capCooldownEnds, "cap on cooldown");
+            maxWithdrawalUntil = block.timestamp + MAX_EMERGENCY_PAUSE;
+            capCooldownEnds = maxWithdrawalUntil + PAUSE_COOLDOWN;
+        } else {
+            maxWithdrawalUntil = 0; // raise / removal is permanent (no auto-revert)
+        }
         maxWithdrawal = cap;
         emit MaxWithdrawalSet(cap);
     }
