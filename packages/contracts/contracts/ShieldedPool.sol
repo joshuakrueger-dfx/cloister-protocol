@@ -373,7 +373,10 @@ contract ShieldedPool is ReentrancyGuard {
     /// from permanently freezing the pool. RAISING or REMOVING the cap (less restrictive) applies
     /// immediately and permanently. This closes the setMaxWithdrawal(dust) de-facto-freeze bypass.
     function setMaxWithdrawal(uint256 cap) external onlyGuardian {
-        bool lowering = cap != 0 && (maxWithdrawal == 0 || cap < _effectiveCap());
+        // "0" means UNLIMITED (least restrictive), so compare against the *effective* cap with
+        // that semantics: any finite cap is more restrictive than an unlimited (0) effective cap.
+        uint256 eff = _effectiveCap();
+        bool lowering = cap != 0 && (eff == 0 || cap < eff);
         if (lowering) {
             require(block.timestamp >= capCooldownEnds, "cap on cooldown");
             maxWithdrawalUntil = block.timestamp + MAX_EMERGENCY_PAUSE;
