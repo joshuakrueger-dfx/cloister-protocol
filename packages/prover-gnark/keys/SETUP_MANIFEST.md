@@ -19,8 +19,8 @@ describe **one** trusted-setup run. This manifest pins the committed artifacts; 
   consistent (provenance gate + Hardhat E2E green). Still a **single-party** setup — testnet only.
 - **Deployed verifier (Base Sepolia, chainId 84532):** the previously-deployed
   `0x9202d333794dC0e248B9DdA3c80dB6F5F204a6cd` no longer matches this vk.bin. **Redeploy the
-  verifier + pool** and update `deployment.basesepolia.json` / `deployment.84532.json` before the
-  testnet is used again (already required by the WP-A1 contract change).
+  verifier + pool** and update the deployment descriptor before the testnet is used again (already
+  required by the WP-A1 contract change). Step-by-step: `docs/en/REDEPLOY_TESTNET.md`.
 
 ## Trusted setup status
 
