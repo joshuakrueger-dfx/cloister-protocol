@@ -110,6 +110,18 @@ func (c *TxCircuit) Define(api frontend.API) error {
 	// value conservation: sumIn + publicAmount == sumOut (in the field)
 	api.AssertIsEqual(api.Add(sumIn, c.PublicAmount), sumOut)
 
+	// #8 (defense-in-depth): explicitly bound the SIGNED magnitude of PublicAmount to < 2^248, so
+	// the public signal is self-evidently a valid signed amount for ANY consumer of the proof —
+	// not just this deployment's contract, which separately clamps extAmount/fee to < 2^248 in
+	// ShieldedPool._publicAmount. PublicAmount == sumOut - sumIn (constrained just above); we bound
+	// |sumOut - sumIn| < 2^248. Without this, the circuit only implies < 2^249 (each side is a sum
+	// of two 248-bit amounts), leaving one bit of slack vs. the on-chain clamp — harmless here
+	// (nowhere near the mid-field wrap band) but a latent footgun for a bridge/L2/second contract
+	// that trusts PublicAmount without recomputing it. A mid-field value satisfies neither branch.
+	isWithdraw := api.IsZero(api.Add(api.Cmp(sumOut, sumIn), 1)) // 1 iff sumOut < sumIn (Cmp == -1)
+	magnitude := api.Select(isWithdraw, api.Sub(sumIn, sumOut), api.Sub(sumOut, sumIn))
+	api.ToBinary(magnitude, amountBits) // asserts |PublicAmount| < 2^248
+
 	// ExtDataHash is a declared public input, so Groth16 binds it cryptographically into the
 	// proof — a verifier cannot drop or alter it without invalidating the proof. It is
 	// deliberately NOT relation-constrained inside the circuit: the binding of the hash to the
