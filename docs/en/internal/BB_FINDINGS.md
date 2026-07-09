@@ -2,7 +2,7 @@
 
 ## What Big Brother did
 
-Ran the local Ultra Test-Agent ("Big Brother", `~/TestAgentSystem`, provider=claude,
+Ran the local Ultra Test-Agent ("Big Brother", `~/TestAgentSystem`,
 REAL-RUN) against a **clean git worktree of `main`** (non-invasive; the working tree had
 the user's concurrent web/KYC WIP, which was left untouched).
 
