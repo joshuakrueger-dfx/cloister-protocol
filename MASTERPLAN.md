@@ -40,9 +40,9 @@ Status key: ☐ todo · ◐ in progress · ☑ done. Update the checkbox in this
 
 ## 0. Ground rules (read before touching anything)
 
-1. **Branch.** All work lands on `claude/goal-optimization-review-20p4w3`. Create it from the
+1. **Branch.** All work lands on `wp/goal-optimization-review-20p4w3`. Create it from the
    latest default branch if needed. Commit per work package with a descriptive message. Push with
-   `git push -u origin claude/goal-optimization-review-20p4w3`. Do **not** open a PR unless asked.
+   `git push -u origin wp/goal-optimization-review-20p4w3`. Do **not** open a PR unless asked.
 2. **CI must stay green.** The gate is `.github/workflows/ci.yml` (Go prover+circuit race tests,
    ceremony roundtrip, SDK KAT + constants, SDK↔proverd e2e, Hardhat contracts, Slither-high).
    Run the relevant suite locally after every WP; never commit a red tree.
@@ -371,7 +371,7 @@ now fails because a Track-B item leaked in, revert that item — Track B does no
 - ☑ WP-A2 cap can throttle but never permanently freeze; auto-expiry + cooldown tested.
 - ☑ WP-A3 leaf-gap and odd-length both fail fast; tested.
 - ☑ WP-A4 non-member / non-good-set / isReal-dummy / arity-KAT soundness tests all present & green.
-- ☐ Full global matrix green; branch pushed to `claude/goal-optimization-review-20p4w3`.
+- ☐ Full global matrix green; branch pushed to `wp/goal-optimization-review-20p4w3`.
 - ☐ `docs/en/SECURITY.md` (and `docs/de/SECURITY.md` if present) updated: M-1/lane replay closed
    via extData domain binding, cap now shares the no-permanent-freeze guarantee, SDK sync hardened.
 - ☐ Track B captured here as a frozen bundle; **not** executed. No circuit/key/verifier change in

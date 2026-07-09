@@ -63,7 +63,7 @@ linkability (entropy / set-size) vs. volume, output the minimum volume for "real
 **Checkpoint:** sim runs, produces a min-volume number, written into `ANONYMITY_SET.md`.
 
 ### CP4 — Big Brother: update + run over the whole codebase ☐
-Per the documented procedure (BB on the Studio, provider=claude): update BB, point it at
+Per the documented procedure (BB on the Studio): update BB, point it at
 the cloister-protocol repo (+ the dfx-wallet cloister module), run the orchestrator/tester
 so it independently finds problems. Capture its findings report.
 **Checkpoint:** BB run completed; findings list captured to `docs/en/BB_FINDINGS.md`.
