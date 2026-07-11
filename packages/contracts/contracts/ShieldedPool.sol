@@ -254,14 +254,8 @@ contract ShieldedPool is ReentrancyGuard {
         }
 
         // Domain separation: fold chainId and the lane into the extData hash the proof binds. A
-        // proof is thereby pinned to ONE chain and ONE lane — replaying it on another chain, or
-        // re-submitting it into a different lane that happens to share the same root (the lane
-        // front-run griefing vector), makes the recomputed hash differ from the proof's bound
-        // public input, so verifyProof rejects it. The circuit does not change (it binds
-        // ExtDataHash as-is); SDK/Go must recompute the identical preimage (see
-        // packages/sdk/src/witness.js + extdata.kat.test.mjs). NOTE: binding address(this) too
-        // (cross-pool same-chain replay) is a deferred hardening — it would couple the static
-        // real-proof E2E fixture to a deterministic deploy address.
+        // proof is pinned to ONE chain and ONE lane. Pool-address binding is deliberately deferred
+        // until the next ceremony/re-key cycle because the current committed fixture is static.
         uint256 extDataHash =
             uint256(keccak256(abi.encode(extData, block.chainid, lane))) % FIELD_SIZE;
         uint256 publicAmount = _publicAmount(extData.extAmount, extData.fee);

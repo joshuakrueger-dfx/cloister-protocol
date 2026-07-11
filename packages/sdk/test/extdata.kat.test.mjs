@@ -10,8 +10,8 @@ import { encodeExtData } from "../src/witness.js";
 // the gnark prover binds this exact value as public signal pub[2], and ShieldedPool._transact
 // recomputes it on-chain in Solidity (keccak256(abi.encode(extData, block.chainid, lane)) %
 // FIELD_SIZE) before verifyProof. Folding chainId + lane in pins a proof to one chain and one
-// lane — replaying it on another chain or into another lane makes the recomputed hash differ and
-// the verifier reject it. (Go == JS parity for this exact vector is checked in the prover-gnark
+// lane — replaying it elsewhere makes the recomputed hash differ and the verifier reject it.
+// (Go == JS parity for this exact vector is checked in the prover-gnark
 // suite; JS == Solidity follows from identical ABI encoding, as for the pre-WP-A1 golden.)
 //
 // GOLDEN below pins the SDK's independent computation of the domain-bound formula for a fixed
@@ -50,7 +50,7 @@ test("encodeExtData is binding: any extData field change moves the hash (no mall
   assert.notEqual(otherFee, base);
 });
 
-test("encodeExtData is domain-bound: chainId / lane each move the hash (no cross-chain / cross-lane replay)", () => {
+test("encodeExtData is domain-bound: chainId / lane each move the hash", () => {
   const base = encodeExtData(FIXTURE_EXTDATA, FIXTURE_DOMAIN);
   const otherChain = encodeExtData(FIXTURE_EXTDATA, { ...FIXTURE_DOMAIN, chainId: 1n });
   const otherLane = encodeExtData(FIXTURE_EXTDATA, { ...FIXTURE_DOMAIN, lane: 1n });

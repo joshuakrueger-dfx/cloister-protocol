@@ -73,6 +73,7 @@ async function main() {
   log("\n[1] SHIELD: Alice zahlt 1000 USDC in den Pool (öffentlich)…");
   const shield = await buildTransaction({
     tree,
+    chainId: 31337,
     inputs: [],
     outputs: [{ note: new Note({ amount: 1000n, pubKey: alice.publicKey }), encPubKey: alice.address().encPubKey }],
     extAmount: 1000n,
@@ -88,6 +89,7 @@ async function main() {
   const aliceNote = aliceW.spendable()[0];
   const pay = await buildTransaction({
     tree,
+    chainId: 31337,
     inputs: [{ note: aliceNote.note, privateKey: alice.privateKey, index: aliceNote.index }],
     outputs: [
       { note: new Note({ amount: 250n, pubKey: dfx.publicKey }), encPubKey: dfx.address().encPubKey },
@@ -117,6 +119,7 @@ async function main() {
   const dfxNote = dfxW.spendable()[0];
   const settle = await buildTransaction({
     tree,
+    chainId: 31337,
     inputs: [{ note: dfxNote.note, privateKey: dfx.privateKey, index: dfxNote.index }],
     outputs: [],
     extAmount: -250n,

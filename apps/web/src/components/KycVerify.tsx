@@ -6,6 +6,7 @@
 import { DfxConnect } from "./DfxConnect";
 import { useApi } from "../lib/ApiProvider";
 import { useSession } from "../lib/SessionProvider";
+import { dfxAccessToken } from "../lib/dfx";
 
 export function KycVerify({ onDone }: { onDone?: () => void }) {
   const api = useApi();
@@ -13,7 +14,7 @@ export function KycVerify({ onDone }: { onDone?: () => void }) {
 
   async function done(level?: "L1" | "L2" | "L3") {
     // record the real DFX KYC tier on the session
-    setSession(await api.markVerifiedExternally({ level }));
+    setSession(await api.markVerifiedExternally({ level, providerToken: dfxAccessToken() }));
     onDone?.();
   }
 

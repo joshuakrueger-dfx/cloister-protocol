@@ -4,6 +4,13 @@
   "private": true,
   "description": "Privacy layer for OpenCryptoPay — compliant encrypted-UTXO shielded pool (PoC)",
   "license": "MIT",
+  "packageManager": "pnpm@9.15.9",
+  "pnpm": {
+    "overrides": {
+      "dompurify": "3.4.11",
+      "uuid": "11.1.1"
+    }
+  },
   "scripts": {
     "compile:contracts": "pnpm --filter @cloister/contracts compile",
     "node": "pnpm --filter @cloister/contracts node",

@@ -67,6 +67,7 @@ await (await token.approve(dep.pool, AMOUNT)).wait();
 console.log("Shield", AMOUNT.toString(), "an App…");
 const shield = await buildTransaction({
   tree, inputs: [],
+  chainId: dep.chainId,
   outputs: [{ note: new Note({ amount: AMOUNT, pubKey: app.publicKey }), encPubKey: app.address().encPubKey }],
   extAmount: AMOUNT, wasmPath, zkeyPath,
 });

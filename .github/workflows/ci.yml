@@ -9,6 +9,9 @@ on:
   push: # every push to ANY branch — code is gated on every push, not just main/feat
     branches: ['**']
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -60,7 +63,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 9.15.9
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -74,6 +77,31 @@ jobs:
       # The live-proverd e2e test self-skips here (no service) and runs for real in `e2e`.
       - run: pnpm --filter @cloister/sdk test
 
+  web:
+    name: Web production build + source hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm --filter @cloister/web build
+      - name: Reject removed proving/licensing stacks and vulnerable direct parser
+        run: |
+          ! rg -n 'circomlibjs|snarkjs|ffjavascript|xlsx' --glob 'package.json' --glob 'pnpm-lock.yaml' .
+          ! rg -n '^  packages/circuits:' pnpm-lock.yaml
+      - name: Parse service entrypoints
+        run: |
+          node --check packages/api/src/server.js
+          node --check packages/api/src/prepare-server.mjs
+          node --check packages/api/src/deposit-relayer.mjs
+          node --check packages/indexer/src/server.js
+
   e2e:
     name: SDK ↔ proverd end-to-end (native crypto)
     runs-on: ubuntu-latest
@@ -85,7 +113,7 @@ jobs:
           cache-dependency-path: packages/prover-gnark/go.sum
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 9.15.9
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -121,7 +149,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 9.15.9
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -137,7 +165,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 9.15.9
       - uses: actions/setup-node@v4
         with:
           node-version: 22

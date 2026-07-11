@@ -48,7 +48,9 @@ async function renderPdfPages(file: File, max: number): Promise<Blob[]> {
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d");
     if (!ctx) continue;
-    await page.render({ canvasContext: ctx, viewport }).promise;
+    // pdfjs-dist 6 requires the canvas object alongside its 2D context. Keeping both
+    // explicit avoids the legacy render-parameter shape and works in strict TS builds.
+    await page.render({ canvas, canvasContext: ctx, viewport }).promise;
     const blob = await new Promise<Blob | null>((res) => canvas.toBlob((b) => res(b), "image/png"));
     if (blob) out.push(blob);
   }

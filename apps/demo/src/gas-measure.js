@@ -35,7 +35,7 @@ async function main() {
 
   // SHIELD (2 Inserts, Dummy-Inputs)
   const shield = await buildTransaction({
-    tree, inputs: [], outputs: [{ note: new Note({ amount: 1000n, pubKey: alice.publicKey }), encPubKey: alice.address().encPubKey }],
+    tree, chainId: 31337, inputs: [], outputs: [{ note: new Note({ amount: 1000n, pubKey: alice.publicKey }), encPubKey: alice.address().encPubKey }],
     extAmount: 1000n, wasmPath, zkeyPath,
   });
   const shTx = await pool.connect(deployer).transact(proofTuple(shield.proof), shield.root, shield.newRoot, shield.associationRoot, shield.inputNullifiers, shield.outputCommitments, extTuple(shield.extData));
@@ -45,7 +45,7 @@ async function main() {
   // PAY (1 Input, 2 Inserts)
   const n = aliceW.spendable()[0];
   const pay = await buildTransaction({
-    tree, inputs: [{ note: n.note, privateKey: alice.privateKey, index: n.index }],
+    tree, chainId: 31337, inputs: [{ note: n.note, privateKey: alice.privateKey, index: n.index }],
     outputs: [
       { note: new Note({ amount: 250n, pubKey: alice.publicKey }), encPubKey: alice.address().encPubKey },
       { note: new Note({ amount: 750n, pubKey: alice.publicKey }), encPubKey: alice.address().encPubKey },

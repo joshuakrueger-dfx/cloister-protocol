@@ -62,7 +62,7 @@ async function main() {
 
   // SHIELD (öffentlich, von Alice)
   log("[2] SHIELD 1000 (öffentlich)…");
-  const shield = await buildTransaction({ tree, inputs: [], outputs: [{ note: new Note({ amount: 1000n, pubKey: aliceKp.publicKey }), encPubKey: aliceKp.address().encPubKey }], extAmount: 1000n, wasmPath, zkeyPath });
+  const shield = await buildTransaction({ tree, chainId: dep.chainId, inputs: [], outputs: [{ note: new Note({ amount: 1000n, pubKey: aliceKp.publicKey }), encPubKey: aliceKp.address().encPubKey }], extAmount: 1000n, wasmPath, zkeyPath });
   const shRc = await send(pool, alice, shield);
   await applyTx(shRc, pool, tree, [aliceW, dfxW]);
   log("    shield tx:", SCAN + shRc.hash);
@@ -72,6 +72,7 @@ async function main() {
   const n = aliceW.spendable()[0];
   const pay = await buildTransaction({
     tree,
+    chainId: dep.chainId,
     inputs: [{ note: n.note, privateKey: aliceKp.privateKey, index: n.index }],
     outputs: [
       { note: new Note({ amount: 250n, pubKey: dfxKp.publicKey }), encPubKey: dfxKp.address().encPubKey },
@@ -87,7 +88,7 @@ async function main() {
   // SETTLE (DFX → Händler)
   log("[4] SETTLE 250 an Händler…");
   const dn = dfxW.spendable()[0];
-  const settle = await buildTransaction({ tree, inputs: [{ note: dn.note, privateKey: dfxKp.privateKey, index: dn.index }], outputs: [], extAmount: -250n, recipient: merchant, wasmPath, zkeyPath });
+  const settle = await buildTransaction({ tree, chainId: dep.chainId, inputs: [{ note: dn.note, privateKey: dfxKp.privateKey, index: dn.index }], outputs: [], extAmount: -250n, recipient: merchant, wasmPath, zkeyPath });
   const seRc = await send(pool, relayer, settle);
   log("    settle tx:", SCAN + seRc.hash);
 

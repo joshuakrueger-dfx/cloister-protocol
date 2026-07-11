@@ -1,0 +1,6 @@
+# Security-sensitive changes require the protocol owner plus an independent reviewer.
+* @joshuakrueger-dfx
+/packages/contracts/ @joshuakrueger-dfx
+/packages/prover-gnark/ @joshuakrueger-dfx
+/packages/sdk/ @joshuakrueger-dfx
+/.github/ @joshuakrueger-dfx

@@ -18,8 +18,8 @@ export function Compliance() {
         eyebrow={tr("THE DIFFERENTIATOR", "DER UNTERSCHIED")}
         title={tr("Compliance Center", "Compliance-Center")}
         sub={tr(
-          "Privacy you can prove. Generate clean-origin attestations and grant scoped, time-limited disclosure to banks, auditors and tax authorities — without ever exposing your full history.",
-          "Privatsphäre, die du beweisen kannst. Erzeuge Belege sauberer Herkunft und gib Banken, Prüfern und Finanzämtern eine begrenzte, zeitlich befristete Einsicht — ohne je deine volle Historie offenzulegen.",
+          "Privacy you can prove. Review operational activity and grant scoped, time-limited disclosure to banks, auditors and tax authorities — without ever exposing your full history. Audit-grade origin attestations remain unavailable until the production ASP service is deployed.",
+          "Privatsphäre, die du beweisen kannst. Prüfe operative Aktivitäten und gib Banken, Prüfern und Finanzämtern eine begrenzte, zeitlich befristete Einsicht — ohne je deine volle Historie offenzulegen. Prüfbare Herkunftsattestierungen sind erst verfügbar, wenn der produktive ASP-Service bereitsteht.",
         )}
       />
       {session && session.kyc.status !== "verified" ? (
@@ -27,8 +27,8 @@ export function Compliance() {
           <div className="clab">{tr("VERIFY IDENTITY — UNLOCK PAYOUTS", "IDENTITÄT VERIFIZIEREN — AUSZAHLUNGEN FREISCHALTEN")}</div>
           <p className="sub" style={{ marginTop: 10 }}>
             {tr(
-              "Complete identity verification with a regulated account to enable funding and private payouts. Connect an existing account or create one — your full history stays private; only your clean-origin status is recorded.",
-              "Schließe die Identitätsprüfung mit einem regulierten Konto ab, um Einzahlung und private Auszahlungen freizuschalten. Verbinde ein bestehendes Konto oder lege eines an — deine volle Historie bleibt privat; nur dein Sauber-Herkunft-Status wird erfasst.",
+              "Complete identity verification with a regulated account to enable funding and private payouts. Connect an existing account or create one — your full history stays private; only the provider verification status is recorded.",
+              "Schließe die Identitätsprüfung mit einem regulierten Konto ab, um Einzahlung und private Auszahlungen freizuschalten. Verbinde ein bestehendes Konto oder lege eines an — deine volle Historie bleibt privat; nur der Verifizierungsstatus des Providers wird erfasst.",
             )}
           </p>
           <KycVerify />
@@ -62,10 +62,10 @@ function ReceiptCard() {
   async function generate() {
     setBusy(true);
     setStarted(true);
-    setLines([{ progress: 0, html: tr("assembling proof of innocence…", "stelle Proof of Innocence zusammen…") }]);
+    setLines([{ progress: 0, html: tr("checking production receipt service…", "prüfe produktiven Beleg-Service…") }]);
     try {
       await api.generateReceipt({ scope, period, format }, (s) => setLines((p) => [...p, s]));
-      toast(tr(`Receipt downloaded · ${format.toUpperCase()}`, `Beleg heruntergeladen · ${format.toUpperCase()}`), "success");
+      toast(tr(`Operational export downloaded · ${format.toUpperCase()}`, `Operativer Export heruntergeladen · ${format.toUpperCase()}`), "success");
     } catch (e) {
       toast(e instanceof Error ? e.message : tr("Receipt failed", "Beleg fehlgeschlagen"), "error");
     } finally {
@@ -75,11 +75,11 @@ function ReceiptCard() {
 
   return (
     <Card>
-      <div className="clab">{tr("COMPLIANCE RECEIPT · PROOF OF INNOCENCE", "COMPLIANCE-BELEG · PROOF OF INNOCENCE")}</div>
+      <div className="clab">{tr("COMPLIANCE RECEIPT · PRODUCTION GATE", "COMPLIANCE-BELEG · PRODUKTIONS-GATE")}</div>
       <p className="sub" style={{ marginTop: 12 }}>
         {tr(
-          "A signed attestation that selected funds belong to the ASP good-set and originate from a KYC'd source — revealing nothing else.",
-          "Ein signierter Beleg, dass ausgewählte Mittel zum ASP-Good-Set gehören und aus einer KYC-geprüften Quelle stammen — ohne sonst etwas preiszugeben.",
+          "Audit-grade proof-of-innocence receipts are disabled in this build. The production ASP root, identity binding and receipt signer must be deployed and independently audited before this control can be enabled.",
+          "Prüfbare Proof-of-Innocence-Belege sind in diesem Build deaktiviert. Produktiver ASP-Root, Identitätsbindung und Belegsignatur müssen vor Aktivierung bereitgestellt und unabhängig auditiert werden.",
         )}
       </p>
       <div className="grid g2" style={{ marginTop: 14 }}>

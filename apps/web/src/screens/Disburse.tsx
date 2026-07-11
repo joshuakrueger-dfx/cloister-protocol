@@ -361,11 +361,20 @@ function BatchMode() {
     try {
       let parsed: BatchRow[] = [];
       if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
-        // Excel → first sheet → matrix (lazy-load the parser; keeps it out of the main bundle)
-        const XLSX = await import("xlsx");
-        const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const matrix = XLSX.utils.sheet_to_json<(string | number)[]>(ws, { header: 1, blankrows: false, raw: false });
+        // Excel → first sheet → matrix. ExcelJS is MIT-licensed and maintained; the former
+        // xlsx dependency had unresolved prototype-pollution and ReDoS advisories.
+        const ExcelJS = await import("exceljs");
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(await file.arrayBuffer());
+        const ws = wb.worksheets[0];
+        const matrix = ws
+          ? ws.getSheetValues().slice(1).map((row) => (Array.isArray(row) ? row.slice(1).map((cell) => {
+            if (cell == null) return "";
+            if (typeof cell === "object" && "text" in cell) return String((cell as { text: string }).text);
+            if (typeof cell === "object" && "result" in cell) return String((cell as { result: unknown }).result ?? "");
+            return cell as string | number;
+          }) : []))
+          : [];
         parsed = rowsFromMatrix(matrix);
       } else {
         parsed = parseBatchCsv(await file.text());

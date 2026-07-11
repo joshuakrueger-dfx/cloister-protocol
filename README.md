@@ -14,12 +14,12 @@ Cloister is **not tied to a single product**. Any wallet, PSP, or payment flow c
 pool as shared privacy infrastructure. [OpenCryptoPay](https://github.com/openCryptoPay) is
 the first integration (see [`docs/en/INTEGRATION.md`](docs/en/INTEGRATION.md)).
 
-> ⚠️ **Status: Proof of Concept — not production-ready.** The ZK layer, contracts, and
-> critical paths have passed an adversarial internal audit and are hardened (reentrancy/CEI,
-> SafeERC20, scalar binding, and more — see [`docs/en/SECURITY.md`](docs/en/SECURITY.md)).
-> **Still open for mainnet:** a real multi-party trusted-setup ceremony and two external audits
-> (circuit + contracts). The compliance layer (ASP good-set membership) is already enforced
-> inside the circuit and revocable on-chain.
+> ⚠️ **Status: Proof of Concept — not production-ready.** The ZK layer and contracts have
+> internal adversarial tests, but no independent audit has been completed. **Still open for
+> mainnet:** the multi-party trusted-setup ceremony, independent circuit/contract audits,
+> production ASP/KYC binding, recovery reconciliation, and a production relayer/indexer.
+> The circuit supports ASP good-set membership; the end-to-end compliance service is not yet
+> a production control.
 
 ## What the PoC proves
 
@@ -29,13 +29,14 @@ the first integration (see [`docs/en/INTEGRATION.md`](docs/en/INTEGRATION.md)).
   note replaces the transfer); the broker unshields only at settlement.
 - **Correctness.** Value conservation, nullifiers (no double-spend), Merkle membership, and
   on-chain Groth16 verification — the books balance across shield → pay → settle.
-- **Compliance without disclosure.** An **ASP good-set inclusion proof** attests that funds
-  are clean, revealing nothing about history — the basis for the *proof-of-innocence* receipt.
+- **Compliance primitive.** The circuit can prove membership in an ASP good-set without revealing
+  history. The production ASP service and selective-disclosure receipt are not implemented yet.
 - **Scalable gas.** Off-chain insertion means the contract computes **zero Poseidon hashes
   on-chain** — the Merkle-root transition is proven in the circuit instead of running ~40
   Poseidon hashes per insert on-chain. This is a *design* reduction (verify-only vs. naive
   on-chain `_insert`); cite exact figures from a `hardhat-gas-reporter` run, not from prose.
-- **Fast note discovery.** An indexer plus view-tags filter foreign notes without full decrypt.
+- **Fast note discovery (PoC).** An indexer plus view-tags can filter foreign notes without full
+  decrypt; production persistence, reorg handling and recovery reconciliation remain open.
 - **Parallel throughput.** `numLanes` independent roots let payments in different lanes land
   in the same block; only same-lane spends serialize.
 
@@ -81,16 +82,16 @@ compliant disbursements. It covers the full operator journey —
 - **Disburse** — single, batch, and recurring (payroll / programmatic) private payouts, each
   with a live proving console.
 - **Recipients · Activity** — viewing-key-decrypted directory and ledger, visible only to you.
-- **Compliance Center** — generate proof-of-innocence receipts and grant scoped, time-limited
-  viewing-key disclosures to auditors, banks, and tax authorities.
+- **Compliance Center (PoC)** — operational exports are available; cryptographic selective-
+  disclosure receipts and scoped viewing-key governance are not implemented yet.
 
 It ships with a **Demo backend** (mock data, no infrastructure required) so the entire flow
 is explorable offline, and a **Local backend** that drives the real stack.
 
 ## Requirements
 
-- **Node ≥ 20** and **pnpm**
-- **Go ≥ 1.21** — only for the gnark prover / `proverd` (the Demo console needs no Go)
+- **Node ≥ 20** and **pnpm 9**
+- **Go 1.26.x** — only for the gnark prover / `proverd` (the Demo console needs no Go)
 
 ## Setup
 
@@ -117,6 +118,14 @@ pnpm dev:stack    # Hardhat devnet → gnark proverd → provider/relayer/ASP �
 
 Then open <http://localhost:5180> and switch the backend to **Local**. A single `Ctrl-C`
 tears the whole stack down; logs land in `$TMPDIR/cloister-*.log`.
+
+For an ASP-enforced provider, set `ASP_ENFORCE=1`, a persistent high-entropy
+`KYC_TOKEN_SECRET`, and an explicit comma-separated `ALLOWED_ORIGINS`. The provider's DFX
+attestation endpoint defaults to `https://api.dfx.swiss` and can be pinned with `DFX_API_BASE`.
+The server refuses to start in ASP mode without the secret and CORS allowlist.
+For a durable indexer, configure `INDEXER_STATE` on persistent storage plus the pool deployment
+`INDEXER_START_BLOCK`; `INDEXER_BATCH_BLOCKS` and `INDEXER_CONFIRMATIONS` control RPC range size
+and reorg safety. The default state path is temporary and is not a production configuration.
 
 **Demos and measurements.** The scripted CLI demos under `apps/demo/` predate the circom→gnark
 migration and are being ported to the native prover (they referenced the removed snarkjs
@@ -150,9 +159,9 @@ Deliberately **out of scope** for the PoC — external gates, not code problems:
 
 - **External security audits** of the circuit and contracts — mandatory before real funds.
 - **A production trusted setup** (multi-party ceremony) instead of the local single contributor.
-- **Compliance — remaining pieces.** ASP association-set membership **is** enforced inside the
-  circuit today (every real input proves membership in the ASP good-set root) and roots are
-  revocable on-chain. Still designed-but-not-enforced: Level-3 selective viewing-key disclosure.
+- **Compliance — remaining pieces.** ASP association-set membership is a circuit primitive, but
+  the production ASP/KYC binding and server-side identity enforcement are not complete. Selective
+  viewing-key disclosure and cryptographic receipts remain unimplemented.
 - **Mainnet deployment** — the target is the major L2s (Polygon / Base / Arbitrum), not L1.
 
 The prioritized blocker list for productization lives in

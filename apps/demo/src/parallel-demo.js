@@ -32,6 +32,7 @@ async function applyReceipt(rc, pool, laneTrees, wallets) {
 async function shieldInto(pool, funder, lane, alice, laneTrees, amount) {
   const t = await buildTransaction({
     tree: laneTrees[lane], lane,
+    chainId: 31337,
     inputs: [], outputs: [{ note: new Note({ amount: BigInt(amount), pubKey: alice.publicKey }), encPubKey: alice.address().encPubKey }],
     extAmount: BigInt(amount), wasmPath, zkeyPath,
   });
@@ -43,6 +44,7 @@ async function shieldInto(pool, funder, lane, alice, laneTrees, amount) {
 async function buildPay(laneTrees, lane, alice, noteEntry) {
   return buildTransaction({
     tree: laneTrees[lane], lane,
+    chainId: 31337,
     inputs: [{ note: noteEntry.note, privateKey: alice.privateKey, index: noteEntry.index }],
     outputs: [
       { note: new Note({ amount: 100n, pubKey: alice.publicKey }), encPubKey: alice.address().encPubKey },

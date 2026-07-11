@@ -13,15 +13,19 @@ gh api -X PUT "repos/$REPO/branches/main/protection" --input - <<'JSON'
 {
   "required_status_checks": {
     "strict": true,
-    "contexts": ["Go prover + circuit (race)", "Solidity contracts (Hardhat)", "SDK cross-language KAT (JS)", "Slither static analysis"]
+    "contexts": ["Go prover + circuit (race)", "MPC ceremony roundtrip", "Solidity contracts (Hardhat)", "SDK cross-language KAT (JS)", "SDK ↔ proverd end-to-end (native crypto)", "Web production build + source hygiene", "Slither static analysis"]
   },
-  "enforce_admins": false,
-  "required_pull_request_reviews": null,
+  "enforce_admins": true,
+  "required_pull_request_reviews": {
+    "dismiss_stale_reviews": true,
+    "require_code_owner_reviews": true,
+    "required_approving_review_count": 2,
+    "require_last_push_approval": true
+  },
   "restrictions": null,
   "allow_force_pushes": false,
   "allow_deletions": false
 }
 JSON
 
-echo "Protected $REPO@main — PRs must pass: prover (race+soundness), contracts, sdk KAT, slither."
-echo "(enforce_admins=false: you keep a direct-push escape hatch; the pre-push hook gates those.)"
+echo "Protected $REPO@main — two reviews plus prover, ceremony, e2e, web, contracts, SDK and Slither gates."

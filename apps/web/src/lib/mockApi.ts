@@ -214,7 +214,7 @@ export class MockApi implements CloisterApi {
     return structuredClone(this.session);
   }
 
-  async markVerifiedExternally(info?: { level?: "L1" | "L2" | "L3"; jurisdiction?: "EU" | "US" }): Promise<Session> {
+  async markVerifiedExternally(info?: { level?: "L1" | "L2" | "L3"; jurisdiction?: "EU" | "US"; providerToken?: string | null }): Promise<Session> {
     await wait(220);
     this.session.kyc = {
       status: "verified",
@@ -265,7 +265,7 @@ export class MockApi implements CloisterApi {
         { label: "KYC origin", value: "verified", level: "ok" },
         { label: "ASP root", value: "fresh · 4 min", level: "ok" },
         { label: "Sanctions screen", value: "OFAC + EU on", level: "ok" },
-        { label: "Proof of innocence", value: "available", level: "ok" },
+        { label: "Selective-disclosure receipt", value: "not implemented", level: "pending" },
       ],
     };
   }
@@ -305,7 +305,7 @@ export class MockApi implements CloisterApi {
       status: "settled",
       ...(params.accounting ? { accounting: params.accounting } : {}),
     });
-    return { id, status: "settled", receiptAvailable: true };
+    return { id, status: "settled", receiptAvailable: false };
   }
 
   async disburseBatch(
@@ -337,7 +337,7 @@ export class MockApi implements CloisterApi {
         ...(r.accounting ? { accounting: r.accounting } : {}),
       });
     }
-    return { id: uid("batch"), status: "settled", receiptAvailable: true };
+    return { id: uid("batch"), status: "settled", receiptAvailable: false };
   }
 
   async authorizePayrollSession(params: PayrollSessionParams): Promise<PayrollSession> {
@@ -479,35 +479,9 @@ export class MockApi implements CloisterApi {
 
   // ---------- Compliance Center ----------
   async generateReceipt(params: ReceiptParams, onProgress?: ProgressCallback): Promise<Receipt> {
-    const steps = [
-      "gathering selected notes",
-      "proving ∈ associationRoot — <span class='hl'>no history revealed</span>",
-      "attesting KYC origin",
-      "signing attestation",
-    ];
-    let i = 0;
-    for (const t of steps) {
-      await wait(420);
-      i++;
-      onProgress?.({ progress: Math.round((i / (steps.length + 1)) * 100), html: t });
-    }
-    const signed = {
-      kind: "cloister.proof-of-innocence.v1",
-      issuer: "Cloister ASP",
-      subject: this.session.org.name,
-      scope: params.scope,
-      period: params.period,
-      statement: "Selected funds belong to the ASP good-set and originate from a KYC-verified source. No transaction history is revealed.",
-      issuedAt: new Date().toISOString(),
-    };
-    const { downloadJson, downloadCsv, downloadPdf } = await import("./exporters");
-    const base = `cloister-receipt-${params.period.replace(/\s+/g, "_")}`;
-    const fields = Object.entries(signed).map(([k, v]) => [k, String(v)] as [string, string]);
-    if (params.format === "json") downloadJson(`${base}.json`, signed);
-    else if (params.format === "csv") downloadCsv(`${base}.csv`, [["field", "value"], ...fields]);
-    else downloadPdf(`${base}.pdf`, { title: "Proof of Innocence", subtitle: signed.statement, fields });
-    onProgress?.({ progress: 100, html: `<span class='ok'>✓ receipt.${params.format} ready — downloaded</span>` });
-    return { id: uid("rcpt"), scope: params.scope, period: params.period, files: [`receipt.${params.format}`], createdAt: new Date().toISOString() };
+    void params;
+    void onProgress;
+    throw new Error("Selective-disclosure proof receipts are not implemented in the demo backend");
   }
 
   async exportAuditLog(format: ExportFormat): Promise<void> {
@@ -537,7 +511,7 @@ export class MockApi implements CloisterApi {
     const rows = acts.map((a) => [a.date, a.recipient, a.purpose, a.amount, a.chain, a.status]);
     const base = `cloister-statement-${period.replace(/\s+/g, "_")}`;
     const subtitle = "Private account statement — balance and settled activity for the period. Counterparties are visible to you, the account holder, only; on-chain the payments stay shielded.";
-    const footer = "Issued by Cloister Protocol. Reflects shielded-pool activity for the stated period. For an audit-grade clean-origin attestation, use a Compliance Receipt (proof of innocence).";
+    const footer = "Issued by Cloister Protocol. Reflects shielded-pool activity for the stated period. It is not an audit-grade clean-origin attestation.";
     if (format === "json") downloadJson(`${base}.json`, { kind: "cloister.account-statement.v1", holder: this.session.org.name, period, balance: bal, transactions: acts });
     else if (format === "csv") downloadCsv(`${base}.csv`, [["Cloister Account Statement", period], [], headers, ...rows]);
     else downloadPdf(`${base}.pdf`, { title: "Account Statement", subtitle, fields, table: { headers, rows }, footer });

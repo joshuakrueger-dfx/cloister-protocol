@@ -1,6 +1,6 @@
 # Cloister — License & IP statement
 
-**Status: clean (2026-06-14).** The **shipped product** — the on-device gomobile prover binary
+**Status: clean for the audited production dependency graph (2026-07-11).** The **shipped product** — the on-device gomobile prover binary
 and the app — contains no GPL/LGPL/copyleft code; verified by `go list -deps ./mobile` (zero
 go-ethereum) plus the JS dependency set. LGPL-3.0 go-ethereum remains a dependency of the
 **developer-only CLI tools** (`onchain/submit.go`, used by `cmd/*` for testnet ops) which are
@@ -19,7 +19,7 @@ The historical analysis that led here is preserved in `LICENSE_AUDIT.md` (German
 | `packages/api`, `packages/indexer` | MIT — © DFX AG | own |
 | `dfx-wallet/modules/cloister-prover` | MIT — © DFX AG | own |
 
-## Third-party dependencies (all permissive)
+## Third-party dependencies in the shipped runtime (permissive)
 
 | Dependency | License |
 |------------|---------|
@@ -28,9 +28,18 @@ The historical analysis that led here is preserved in `LICENSE_AUDIT.md` (German
 | `@openzeppelin/contracts` | **MIT** |
 | `ethers`, `hardhat`, `esbuild`, `express` | **MIT** |
 | `@noble/hashes`, `@scure/bip39` | **MIT** |
+| `react`, `react-router-dom`, `workbox-window` | **MIT** |
+| `jspdf`, `exceljs` | **MIT** |
+| `pdfjs-dist`, `tesseract.js` | **Apache-2.0** |
 | `buffer`, `assert`, `events`, `process` | **MIT** |
 | `tweetnacl` | **Unlicense / public domain** |
 | `ExpoModulesCore`, `react-native` | **MIT** |
+
+The repository also contains developer-only tooling with additional licenses. In particular,
+`go-ethereum` is LGPL-3.0 and must never be copied into a distributed mobile/runtime artifact;
+the mobile dependency gate in CI is the release boundary. Development dependencies are not a
+substitute for a release SBOM: every release must regenerate a complete SPDX/CycloneDX inventory
+and ship the applicable license texts and notices.
 
 ## Removed (GPL-3.0 — eliminated 2026-06-14)
 

@@ -17,12 +17,8 @@ export async function noteNullifier(commitment, pathIndices, privateKey) {
 
 // Domain-bound extData hash — MUST byte-match ShieldedPool._transact's on-chain recompute:
 //   keccak256(abi.encode(extData, chainId, lane)) % FIELD_SIZE
-// domain = { chainId, lane } is REQUIRED: it pins a proof to one chain and one lane, so a proof
-// cannot be replayed on another chain or re-submitted into a different lane (the lane-front-run
-// griefing). A missing domain (which would produce a chain-agnostic, replayable hash) throws
-// rather than silently defaulting. Cross-language parity is pinned by test/extdata.kat.test.mjs.
-// (Binding the pool address too — cross-pool same-chain replay — is a documented follow-up; it is
-// deferred because it couples the static E2E fixture to a deterministic deploy address.)
+// domain = { chainId, lane } is REQUIRED. Pool-address binding is deferred until the next
+// ceremony/re-key cycle because the current committed fixture is static.
 export function encodeExtData(extData, domain) {
   if (!domain || domain.chainId == null || domain.lane == null) {
     throw new Error("encodeExtData requires domain { chainId, lane }");
@@ -67,9 +63,8 @@ export async function buildWitness({
   fee = 0n,
   recipient = ZeroAddress,
   relayer = ZeroAddress,
-  // Domain separation (WP-A1): chainId binds the extData hash to one chain (with lane above) so a
-  // proof cannot be replayed on another chain or re-submitted into a different lane. REQUIRED
-  // whenever the resulting proof is submitted on-chain; see encodeExtData.
+  // Domain separation: both domain values are required whenever the resulting proof is submitted
+  // on-chain; see encodeExtData.
   chainId,
   // Compliance: ASP-Good-Set (Merkle-Tree der vom ASP freigegebenen Commitments).
   // Default = der Pool-Tree selbst (jedes On-chain-Commitment gilt als „assoziiert" —

@@ -29,6 +29,10 @@ export function restoreDfxSession(): boolean {
 export function isDfxConnected(): boolean {
   return !!dfxApi.getAuthToken() || !!sessionStorage.getItem(JWT_KEY);
 }
+/** Short-lived provider token used only for the server-side KYC attestation handoff. */
+export function dfxAccessToken(): string | null {
+  return dfxApi.getAuthToken() ?? sessionStorage.getItem(JWT_KEY);
+}
 export function dfxAddress(): string | null { return localStorage.getItem(ADDR_KEY); }
 export function dfxMethod(): DfxAuthMethod | null {
   return (localStorage.getItem(METHOD_KEY) as DfxAuthMethod) || null;

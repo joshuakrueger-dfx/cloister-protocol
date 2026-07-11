@@ -141,15 +141,14 @@ The cryptographic core (value conservation, nullifier/double-spend handling, CEI
 - **Problem:** `pairIndex = tree.leaves.length / 2` assumes even length; `rootWith([out0,out1])` and the circuit's pair-insertion model only agree when length is even. On odd length the SDK silently produces a witness the circuit rejects, with no clear error. The chain always advances by 2 (so a faithfully-synced tree is even), but dev tooling / partial sync / the documented filler pattern can hit it. (Both reviewers demoted to P2 — fail-closed; listed as a robustness gap.)
 - **Fix:** Assert `tree.leaves.length % 2 === 0` (pool and asp trees) at the top of `buildWitness`; reject a non-integer `pairIndex` in `MerkleTree.pairPath`; add a test that odd length throws a clear error.
 
-### P1-9 · KYC sanctions screening uses a hardcoded ~18-name sample list
+### P1-9 · KYC sanctions screening uses a hardcoded ~18-name sample list (pre-screen only)
 - **Subsystem:** relayer (correctness/compliance) · **File:** `packages/api/src/kyc.js:22-45,60-74`
-- **Problem:** `screenApplicant` returns `verified` based on a hardcoded ~18-name list; the promised `loadFullSdn` does not exist. Real OFAC SDN / EU consolidated lists are never loaded, and the matcher has no fuzzy/alias/transliteration handling. For a regulated product this passes virtually every sanctioned party as verified. (Mitigant: in-repo this "verified" is not yet enforced as a gate, but the screening logic itself is wrong.)
-- **Fix:** Integrate the licensed provider (DFX/Sumsub) and/or load + refresh the full OFAC SDN + EU lists with fuzzy/alias matching before any "verified" result. Do not let this regex sample gate real onboarding.
+- **Problem:** `screenApplicant` still uses a small sample list and is not a full sanctions decision engine.
+- **Mitigation implemented:** the pre-screen no longer mints an ASP credential. In ASP mode the funding gate now requires a server-side DFX provider attestation (`/v1/kyc/attest/dfx`) bound to the owner key and a short-lived token. Full-list sanctions coverage, fuzzy matching, provider SLA and legal sign-off remain external production gates.
 
-### P1-10 · `/v1/shielded/submit` auto-publishes any caller-supplied ASP root (compliance bypass)
+### P1-10 · `/v1/shielded/submit` caller-supplied ASP root (compliance bypass) — root publication fixed
 - **Subsystem:** relayer (security) · **File:** `packages/api/src/server.js:185-197` (`ensureAspRoot` → `publishAspRoot`, lines 55-59)
-- **Problem:** In `ASP_ENFORCE` mode the server (which holds the ASP authority) publishes ANY not-yet-known caller-supplied `associationRoot` on-chain via `publishAspRoot`. An attacker can build their own tree over non-vetted commitments, supply its root, generate a self-consistent proof, and have the relayer auto-publish it — defeating the on-chain compliance gate. `quoteId` is also marked "paid" with no binding to the on-chain commitment. (This is in the "mock provider" but is exactly the compliant relayer path that would carry to production.)
-- **Fix:** Never auto-publish a caller-supplied `associationRoot`; the ASP good-set must be advanced only by the trusted ASP from its own verified set. Validate every field (hex/length/range) before touching the chain. Bind quote→tx settlement to the actual on-chain commitment. Add auth + rate limiting.
+- **Fix implemented:** caller-supplied roots are now checked against `knownAspRoot` and are never auto-published; only the server's own shield/settle paths may advance the ASP root. Proof shape/field/range validation, CORS allowlisting and per-IP rate limits were added. Residual work: bind `quoteId` to the exact on-chain commitment and replace the demo quote store with authenticated durable settlement state.
 
 ### P1-11 · EVAL_BYPASS removes the KYC gate via env flag with no production assertion
 - **Subsystem:** wallet (security/compliance) · **File:** `dfx-wallet/src/features/cloister/PrivatePaymentsScreenImpl.tsx:26,57-58`; `src/features/pay/PayScreenImpl.tsx:29,73`
@@ -161,10 +160,10 @@ The cryptographic core (value conservation, nullifier/double-spend handling, CEI
 - **Problem:** `syncFromIndexer` trusts the indexer's commitments and `leafIndex` order; `syncWithFallback` only falls back on timeout/throw, never on silent tampering. A malicious indexer can desync the local tree (every `transact` reverts → liveness DoS) or record wrong leaf indices (unsatisfiable proofs). (Both reviewers demoted to P2: the on-chain `require(oldRoot == laneRoot)` and in-circuit path consistency make this fail-closed, no fund loss — but it is a real robustness/availability gap.)
 - **Fix:** After building from the indexer, compare `tree.root()` to the on-chain `laneRoot` and reconcile with chain-scan on mismatch. Validate `leafIndex` values are contiguous from the expected offset; reject gaps/duplicates. Treat the indexer as untrusted.
 
-### P1-13 · Licensing-integrity: contradictory product-code license + missing root LICENSE
+### P1-13 · Licensing-integrity: contradictory product-code license + missing root LICENSE — metadata fixed
 - **Subsystem:** docs/licenses · **File:** `docs/LICENSES.md:11-17` vs `README.md:161` vs root `package.json:6` vs `docs/en/llms.txt:19`
-- **Problem:** LICENSES.md says "Proprietary © DFX AG", README says "MIT", `package.json` declares `"license": "MIT"`, and there is no root LICENSE file. The machine-readable metadata (MIT) contradicts the proprietary intent; a downstream consumer could fork it as MIT. `LICENSE_AUDIT.md` T4.1 flagged this and it was never closed.
-- **Fix:** Pick one posture (MIT vs proprietary-© DFX AG), align README/LICENSES.md/llms.txt/`package.json`, add a real root LICENSE file, close T4.1.
+- **Problem:** the historical audit found contradictory MIT/proprietary wording and no root license file.
+- **Fix implemented:** the implementation branch aligns the repository, README, `docs/LICENSES.md`, `docs/en/llms.txt`, and `package.json` on MIT and includes a root `LICENSE`. A mechanically generated release notice/SBOM and legal sign-off remain release gates.
 
 ### P1-14 · Stale wallet-integration / security / build-plan docs describe the deleted circom/snarkjs/BabyJubJub design
 - **Subsystem:** docs (cleanup) · **Files:** `docs/INTEGRATION_DFX_WALLET.md`, `docs/SECURITY.md` (German), `docs/BUILD_PLAN.md`, `docs/APP_CONCEPT.md`
@@ -245,7 +244,7 @@ The cryptographic core (value conservation, nullifier/double-spend handling, CEI
 
 **Recommended resolution:**
 1. **Move on-chain submission off the gomobile surface entirely.** The native prover needs only gnark/gnark-crypto (Apache-2.0) to produce a proof. Have the wallet broadcast `transact()`/deposit via the existing TS + ethers (MIT) path using a **WDK-managed key** (which also fixes P0-3's shared-key problem). The xcframework then links only Apache/BSD/MIT — no LGPL, no unknown-license edge.
-2. **Regenerate `LICENSES.md` mechanically** from `go list -deps ./mobile` + `pnpm licenses list`; correct the "GPL-free by design" claims; resolve the MIT-vs-Proprietary contradiction and add a root LICENSE (P1-13).
+2. **Generate the release notice/SBOM mechanically** from `go list -deps ./mobile` + the frozen pnpm graph; preserve the aligned MIT posture and include all applicable license texts (P1-13 residual).
 3. **Ship a NOTICE / THIRD_PARTY_LICENSES** bundling license text + copyright for every linked Go module and npm package (Apache NOTICE + BSD/MIT reproduction). Add a `pnpm licenses`/`go-licenses` CI gate to prevent regression.
 
 (If go-ethereum must stay in a shipped binary, it cannot be shipped as Proprietary: you would need dynamic linking or relinkable objects + LGPL text + written offer + DFX legal sign-off. Removing the import is the correct fix.)
@@ -297,8 +296,8 @@ The cryptographic core (value conservation, nullifier/double-spend handling, CEI
 6. [ ] Add a time-boxed multisig circuit-breaker + per-tx/per-block withdrawal caps (P1-2). Commission an independent circuit + verifier audit.
 
 **Phase C — Compliance + correctness:**
-7. [ ] Integrate licensed sanctions screening (OFAC SDN + EU, fuzzy/alias) — no "verified" off the sample list (P1-9).
-8. [ ] Never auto-publish caller-supplied ASP roots; validate all `/v1/shielded/submit` inputs; bind quote→commitment; add auth + rate limits (P1-10).
+7. [ ] Integrate full licensed sanctions screening (OFAC SDN + EU, fuzzy/alias); current DFX attestation is the required provider gate and the sample is pre-screen only (P1-9).
+8. [x] Never auto-publish caller-supplied ASP roots; validate all `/v1/shielded/submit` inputs; add CORS/rate limits. [ ] Bind quote→commitment and replace the demo quote store (P1-10 residual).
 9. [ ] Make `syncTree` lane-aware (P1-4); assert even leaf count in `buildWitness` (P1-8); verify indexer results against on-chain `laneRoot` (P1-12).
 10. [ ] Add field-range / amount validation in Note/tryDecrypt; PublicAmount in-circuit range as defense-in-depth (P2s).
 
@@ -309,7 +308,7 @@ The cryptographic core (value conservation, nullifier/double-spend handling, CEI
 14. [ ] Wire canonical USDC; remove all mint/MockERC20 paths from anything that can reach a non-local chain.
 
 **Phase E — Licensing + docs + hardening:**
-15. [ ] Resolve license posture + root LICENSE (P1-13); regenerate LICENSES.md mechanically; ship NOTICE/THIRD_PARTY_LICENSES; add license CI gate.
+15. [x] Resolve license posture + root LICENSE (P1-13). [ ] Generate NOTICE/THIRD_PARTY_LICENSES + SBOM mechanically and add the release license CI gate.
 16. [ ] Archive/merge stale docs (§8); add hardhat Base networks + Etherscan verify; fix the duplicate gnark artifact build step; close remaining P2s.
 
 Mainnet GO is contingent on Phases A-D complete and the independent audit (step 6) clean.

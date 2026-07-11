@@ -1,4 +1,5 @@
 import { Note } from "./note.js";
+import { noteNullifier } from "./witness.js";
 
 // Verfolgt die eigenen Notes durch Event-Scan. Der Merkle-Tree ist kanonisch/geteilt
 // (alle Commitments in On-chain-Reihenfolge) — das Wallet entschlüsselt nur, was ihm gehört.
@@ -35,5 +36,22 @@ export class ShieldedWallet {
   markSpent(indices) {
     const set = new Set(indices);
     for (const n of this.notes) if (set.has(n.index)) n.spent = true;
+  }
+
+  markSpentAt(lane, index) {
+    for (const n of this.notes) if (n.lane === lane && n.index === index) n.spent = true;
+  }
+
+  // Reconcile local note state with the canonical on-chain nullifier set. This is required on
+  // seed recovery: localStorage is only a UI cache and must never be the source of truth for
+  // whether a note is spendable.
+  async reconcileSpent(isSpent) {
+    for (const n of this.notes) {
+      if (n.spent) continue;
+      const commitment = await n.note.commitment();
+      const { pathIndices } = await this.tree.path(n.index);
+      const nullifier = await noteNullifier(commitment, pathIndices, this.keypair.privateKey);
+      if (await isSpent(nullifier, n)) n.spent = true;
+    }
   }
 }

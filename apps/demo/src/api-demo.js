@@ -43,6 +43,7 @@ async function main() {
   await syncFromChain(poolRead, tree, [aliceW]);
   const shield = await buildTransaction({
     tree,
+    chainId: cfg.chainId,
     inputs: [],
     outputs: [{ note: new Note({ amount: 1000n, pubKey: aliceKp.publicKey }), encPubKey: aliceKp.address().encPubKey }],
     extAmount: 1000n,
@@ -89,6 +90,7 @@ async function main() {
   const note = aliceW.spendable()[0];
   const pay = await buildTransaction({
     tree,
+    chainId: cfg.chainId,
     inputs: [{ note: note.note, privateKey: aliceKp.privateKey, index: note.index }],
     outputs: [
       { note: new Note({ amount, pubKey: dfxPub }), encPubKey: dfxEnc },

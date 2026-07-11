@@ -1,4 +1,5 @@
 import express from "express";
+import crypto from "node:crypto";
 import { JsonRpcProvider, Contract } from "ethers";
 import { deployAll, loadAbi } from "@cloister/contracts/deploy";
 import { screenApplicant, loadFullSdn, screeningStatus } from "./kyc.js";
@@ -18,6 +19,7 @@ const BASE = `http://127.0.0.1:${PORT}`;
 // gnark-Backend: Hashing (Poseidon2) + Proving (Groth16) laufen über proverd (Go).
 // Der Server baut Witness + Proof für /v1/shield und /settle darüber — kein snarkjs.
 const PROVERD = process.env.PROVERD || "http://127.0.0.1:8799";
+const DFX_API = (process.env.DFX_API_BASE || "https://api.dfx.swiss").replace(/\/$/, "");
 useHttpBackend(PROVERD);
 
 const proofTuple = (p) => [p.a, p.b, p.c];
@@ -34,6 +36,14 @@ async function main() {
   // (knownAspRoot) ist aktiv (so fährt die App den echten Level-3-Pfad). Ohne das Flag bleibt
   // der Pool permissiv (asp=0), damit die PoC-Demos (demo:api/demo:indexer) unverändert laufen.
   const ASP_ENFORCE = process.env.ASP_ENFORCE === "1";
+  const kycSecret = process.env.KYC_TOKEN_SECRET || crypto.randomBytes(32).toString("hex");
+  const allowedOrigins = new Set((process.env.ALLOWED_ORIGINS || "").split(",").map((x) => x.trim()).filter(Boolean));
+  if (ASP_ENFORCE && !process.env.KYC_TOKEN_SECRET) {
+    throw new Error("ASP_ENFORCE=1 requires KYC_TOKEN_SECRET; refusing an unauthenticated compliance backend");
+  }
+  if (ASP_ENFORCE && !allowedOrigins.size) {
+    throw new Error("ASP_ENFORCE=1 requires ALLOWED_ORIGINS; refusing wildcard production CORS");
+  }
   const deployerAddr = await deployer.getAddress();
   const { token, pool } = await deployAll(deployer, ASP_ENFORCE ? { asp: deployerAddr } : {});
   const poolAddr = await pool.getAddress();
@@ -51,6 +61,31 @@ async function main() {
   const poolAsp = new Contract(poolAddr, abi, deployer); // deployer == ASP
 
   function badReq(msg) { const e = new Error(msg); e.shortMessage = msg; return e; }
+
+  function issueKycToken(ownerPubKey, payload) {
+    const body = Buffer.from(JSON.stringify({
+      ownerPubKey: String(ownerPubKey || ""),
+      subjectType: payload.subjectType,
+      jurisdiction: payload.jurisdiction,
+      issuedAt: Date.now(),
+      expiresAt: Date.now() + 15 * 60 * 1000,
+    })).toString("base64url");
+    const sig = crypto.createHmac("sha256", kycSecret).update(body).digest("base64url");
+    return `${body}.${sig}`;
+  }
+
+  function verifyKycToken(token, ownerPubKey) {
+    try {
+      const [body, sig] = String(token || "").split(".");
+      if (!body || !sig) return false;
+      const expected = crypto.createHmac("sha256", kycSecret).update(body).digest("base64url");
+      if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
+      const claims = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+      return claims.ownerPubKey === String(ownerPubKey) && Number(claims.expiresAt) > Date.now();
+    } catch {
+      return false;
+    }
+  }
 
   // BN254 scalar field — every on-chain root/commitment/nullifier must be a valid element.
   const FIELD = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
@@ -84,15 +119,32 @@ async function main() {
   const quotes = new Map();
 
   const app = express();
-  // CORS: die Web-App (eigener Origin) spricht den Provider/Relayer direkt an.
+  // CORS: production uses an explicit allowlist; wildcard is only permitted for the local PoC.
   app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "*");
+    const origin = req.get("origin");
+    if (allowedOrigins.size) {
+      if (origin && allowedOrigins.has(origin)) res.header("Access-Control-Allow-Origin", origin);
+      res.header("Vary", "Origin");
+    } else {
+      res.header("Access-Control-Allow-Origin", "*");
+    }
     res.header("Access-Control-Allow-Headers", "content-type");
     res.header("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
     if (req.method === "OPTIONS") return res.sendStatus(204);
     next();
   });
   app.use(express.json({ limit: "4mb" }));
+
+  const hits = new Map();
+  app.use((req, res, next) => {
+    if (!req.path.startsWith("/v1/")) return next();
+    const key = `${req.ip || "unknown"}:${Math.floor(Date.now() / 60_000)}`;
+    const count = (hits.get(key) || 0) + 1;
+    hits.set(key, count);
+    if (count > 120) return res.status(429).json({ error: "rate limited" });
+    for (const k of hits.keys()) if (!k.endsWith(`:${Math.floor(Date.now() / 60_000)}`)) hits.delete(k);
+    next();
+  });
 
   app.get("/config", async (_req, res) => {
     let aspRoot = "0";
@@ -113,7 +165,8 @@ async function main() {
   });
 
   // KYC/AML-Screening (echt): validiert Felder, prüft Jurisdiktion-Embargo + Sanktionslisten.
-  // Kann ABLEHNEN. Dokumenten-/Liveness-Verifikation ist Aufgabe des lizenzierten Providers.
+  // Kann ABLEHNEN. Dokumenten-/Liveness-Verifikation ist Aufgabe des lizenzierten Providers;
+  // this pre-screen never mints an ASP credential.
   app.post("/v1/kyc/screen", (req, res) => {
     try {
       const result = screenApplicant(req.body || {});
@@ -123,14 +176,49 @@ async function main() {
     }
   });
 
+  // Bind the browser's regulated DFX session to the Cloister owner key. The DFX JWT is
+  // forwarded only to the configured DFX API; the Cloister server never stores it. The
+  // resulting short-lived HMAC token is the only credential accepted by ASP_ENFORCE shield.
+  app.post("/v1/kyc/attest/dfx", async (req, res) => {
+    try {
+      const { ownerPubKey, dfxToken } = req.body || {};
+      if (!ownerPubKey || !isFieldElement(ownerPubKey) || !dfxToken || typeof dfxToken !== "string") {
+        return res.status(400).json({ error: "ownerPubKey and DFX provider session required" });
+      }
+      const auth = { Authorization: `Bearer ${dfxToken}` };
+      const userResponse = await fetch(`${DFX_API}/v2/user`, { headers: auth });
+      if (!userResponse.ok) return res.status(403).json({ error: "DFX provider session rejected" });
+      const user = await userResponse.json();
+      const kycCode = user?.kyc?.hash;
+      if (typeof kycCode !== "string" || !kycCode) return res.status(403).json({ error: "DFX KYC identity binding unavailable" });
+      const kycResponse = await fetch(`${DFX_API}/v2/kyc`, { headers: { ...auth, "x-kyc-code": kycCode } });
+      if (!kycResponse.ok) return res.status(403).json({ error: "DFX KYC status rejected" });
+      const kyc = await kycResponse.json();
+      const level = Number(kyc?.kycLevel);
+      if (!Number.isInteger(level) || level < 30) return res.status(403).json({ error: "DFX KYC level 30 or higher required" });
+      const kycToken = issueKycToken(ownerPubKey, { subjectType: "individual", jurisdiction: "provider-dfx", provider: "dfx", level });
+      res.json({ status: "verified", provider: "dfx", level, kycToken });
+    } catch {
+      // Do not echo provider response bodies or tokens into the Cloister API surface.
+      res.status(502).json({ error: "DFX provider attestation unavailable" });
+    }
+  });
+
   // Fund/Shield — der Provider (Onramp) zahlt öffentlich in den Pool ein und schreibt das
   // Guthaben als verschlüsselte Note der App-Shielded-Address gut. So bleibt die App ein
   // reiner Client (Keys + Proofs); der einzige öffentliche Touchpoint (KYC/Onramp) liegt hier.
   app.post("/v1/shield", async (req, res) => {
     try {
-      const { amount, ownerPubKey, encPubKey } = req.body;
+      const { amount, ownerPubKey, encPubKey, kycToken } = req.body;
       if (!amount || !ownerPubKey || !encPubKey) return res.status(400).json({ error: "amount, ownerPubKey, encPubKey required" });
+      if (!isFieldElement(ownerPubKey) || typeof encPubKey !== "string" || !/^[0-9a-f]{64}$/i.test(encPubKey)) {
+        return res.status(400).json({ error: "invalid shield recipient key" });
+      }
       const amt = BigInt(amount);
+      if (amt <= 0n || amt >= 2n ** 248n) return res.status(400).json({ error: "amount out of range" });
+      if (ASP_ENFORCE && !verifyKycToken(kycToken, ownerPubKey)) {
+        return res.status(403).json({ error: "valid KYC screening token required" });
+      }
       await syncFromChain(poolRead, tree, [dfxWallet]);
       const note = new Note({ amount: amt, pubKey: BigInt(ownerPubKey) });
       const shield = await buildTransaction({
@@ -210,9 +298,19 @@ async function main() {
   app.post("/v1/shielded/submit", async (req, res) => {
     try {
       const { proof, root, newRoot, associationRoot, inputNullifiers, outputCommitments, extData, quoteId } = req.body;
+      const proofShapeValid = Boolean(
+        proof && Array.isArray(proof.a) && proof.a.length === 2 &&
+        Array.isArray(proof.b) && proof.b.length === 2 && proof.b.every((x) => Array.isArray(x) && x.length === 2) &&
+        Array.isArray(proof.c) && proof.c.length === 2
+      );
+      const proofScalars = proofShapeValid ? [...proof.a, ...proof.b.flat(), ...proof.c] : [];
       // Validate every caller-supplied field element BEFORE touching the chain.
       if (!Array.isArray(inputNullifiers) || inputNullifiers.length !== 2 ||
           !Array.isArray(outputCommitments) || outputCommitments.length !== 2 ||
+          !proofShapeValid || !proofScalars.every(isFieldElement) ||
+          !extData || typeof extData !== "object" ||
+          typeof extData.recipient !== "string" || typeof extData.relayer !== "string" ||
+          typeof extData.encryptedOutput1 !== "string" || typeof extData.encryptedOutput2 !== "string" ||
           ![root, newRoot, associationRoot, ...inputNullifiers, ...outputCommitments].every(isFieldElement)) {
         return res.status(400).json({ error: "invalid transaction fields" });
       }

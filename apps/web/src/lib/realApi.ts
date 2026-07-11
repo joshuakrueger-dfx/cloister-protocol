@@ -74,6 +74,7 @@ interface RemoteConfig {
 }
 
 const SESSION_MNEMONIC = "cloister.session.mnemonic"; // tab-scoped (sessionStorage)
+const SESSION_KYC_TOKEN = "cloister.kyc.token";
 
 export class RealApi implements CloisterApi {
   private apiBase: string;
@@ -146,15 +147,43 @@ export class RealApi implements CloisterApi {
     if (!this.wallet) this.wallet = new ShieldedWallet(kp, this.tree, "app");
     const indexerBase = cfg.indexer.replace(/\/commitments$/, "");
     await syncFromIndexer(indexerBase, this.tree, [this.wallet]);
-    const spent: number[] = lsGet(`${this.ns}.spent`, []);
-    if (spent.length) this.wallet.markSpent(spent);
+    const spent: Array<number | string> = lsGet(`${this.ns}.spent`, []);
+    for (const key of spent) {
+      if (typeof key === "number") this.wallet.markSpent([key]); // legacy lane-0 cache format
+      else {
+        const [lane, index] = key.split(":").map(Number);
+        if (Number.isInteger(lane) && Number.isInteger(index)) this.wallet.markSpentAt(lane, index);
+      }
+    }
+    // localStorage is only a cache. On every sync, reconcile every discovered note against the
+    // indexer's canonical NewNullifier event set so a seed restore cannot resurrect spent funds.
+    const notes = this.wallet.notes as Array<{ note: any; index: number; spent: boolean }>;
+    const nullifiers = [] as string[];
+    for (const entry of notes) {
+      const commitment = await entry.note.commitment();
+      const { pathIndices } = await this.tree.path(entry.index);
+      nullifiers.push((await noteNullifier(commitment, pathIndices, kp.privateKey)).toString());
+    }
+    if (nullifiers.length) {
+      const r = await fetch(`${indexerBase}/nullifiers?ids=${encodeURIComponent(nullifiers.join(","))}`);
+      if (!r.ok) throw new Error("indexer spent-state reconciliation failed");
+      const body = (await r.json()) as { spent?: string[] };
+      const spentSet = new Set((body.spent ?? []).map(String));
+      for (const entry of notes) {
+        const commitment = await entry.note.commitment();
+        const { pathIndices } = await this.tree.path(entry.index);
+        const nf = await noteNullifier(commitment, pathIndices, kp.privateKey);
+        if (spentSet.has(nf.toString())) entry.spent = true;
+      }
+    }
     return { cfg, kp };
   }
 
-  private markSpent(index: number) {
-    const spent: number[] = lsGet(`${this.ns}.spent`, []);
-    if (!spent.includes(index)) { spent.push(index); lsSet(`${this.ns}.spent`, spent); }
-    this.wallet?.markSpent([index]);
+  private markSpent(index: number, lane = 0) {
+    const spent: Array<number | string> = lsGet(`${this.ns}.spent`, []);
+    const key = `${lane}:${index}`;
+    if (!spent.includes(key)) { spent.push(key); lsSet(`${this.ns}.spent`, spent); }
+    this.wallet?.markSpentAt(lane, index);
   }
 
   private pushActivity(d: Disbursement) {
@@ -210,10 +239,11 @@ export class RealApi implements CloisterApi {
     // Jurisdiktions-Embargo, Sanktionslisten (OFAC/EU) — kann ABLEHNEN. Dokumenten-/
     // Liveness-Verifikation = Aufgabe des lizenzierten Providers (Adapter-Naht).
     onProgress?.({ progress: 10, html: "submitting application — screening…" });
+    const screeningKp = await this.getKeypair();
     const r = await fetch(`${this.apiBase}/v1/kyc/screen`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, ownerPubKey: screeningKp.publicKey.toString() }),
     });
     const result = await r.json();
     if (!r.ok) throw new Error(result.error || "screening failed");
@@ -265,15 +295,27 @@ export class RealApi implements CloisterApi {
     return this.getSession();
   }
 
-  async markVerifiedExternally(info?: { level?: "L1" | "L2" | "L3"; jurisdiction?: "EU" | "US" }): Promise<Session> {
+  async markVerifiedExternally(info?: { level?: "L1" | "L2" | "L3"; jurisdiction?: "EU" | "US"; providerToken?: string | null }): Promise<Session> {
+    const screeningKp = await this.getKeypair();
+    if (!info?.providerToken) throw new Error("DFX provider session missing — reconnect the regulated account before continuing");
+    const r = await fetch(`${this.apiBase}/v1/kyc/attest/dfx`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ownerPubKey: screeningKp.publicKey.toString(), dfxToken: info.providerToken }),
+    });
+    const result = await r.json();
+    if (!r.ok) throw new Error(result.error || "server-side DFX KYC attestation failed");
+    const providerLevel = Number(result.level);
+    const verifiedLevel: "L1" | "L2" | "L3" = providerLevel >= 40 ? "L3" : providerLevel >= 30 ? "L2" : "L1";
     const prev = lsGet<KycStatus>("cloister.kyc", { status: "unverified", subjectType: null, jurisdiction: null, verifiedAt: null, level: null });
     lsSet("cloister.kyc", {
       status: "verified",
       subjectType: "individual",
       jurisdiction: info?.jurisdiction ?? prev.jurisdiction ?? "EU",
       verifiedAt: new Date().toISOString(),
-      level: info?.level ?? "L1",
+      level: verifiedLevel,
     });
+    if (result.kycToken) sessionStorage.setItem(SESSION_KYC_TOKEN, String(result.kycToken));
     lsSet("cloister.dfx", true);
     return this.getSession();
   }
@@ -320,7 +362,7 @@ export class RealApi implements CloisterApi {
         { label: "KYC origin", value: kyc.status === "verified" ? "verified" : "required", level: kyc.status === "verified" ? "ok" : "pending" },
         { label: "ASP root", value: cfg.aspEnforced ? `enforced · ${shortHex(BigInt(cfg.aspRoot || "0"))}` : "permissive (dev)", level: cfg.aspEnforced ? "ok" : "pending" },
         { label: "Sanctions screen", value: "OFAC + EU at shield", level: "ok" },
-        { label: "Proof of innocence", value: "available", level: "ok" },
+        { label: "Selective-disclosure receipt", value: "not implemented", level: "pending" },
       ],
     };
   }
@@ -329,12 +371,20 @@ export class RealApi implements CloisterApi {
   async shield(params: { amount: string; asset: Asset; chain: ChainId; source: string }): Promise<{ commitment: string }> {
     const kyc = await this.getKycStatus();
     if (kyc.status !== "verified") throw new Error("KYC required before funding (compliance gate).");
+    const cfg = await this.getConfig();
+    const kycToken = sessionStorage.getItem(SESSION_KYC_TOKEN);
+    if (cfg.aspEnforced && !kycToken) throw new Error("server-side KYC attestation required before funding");
     const kp = await this.getKeypair();
     const amt = parseAmount(params.amount);
     const r = await fetch(`${this.apiBase}/v1/shield`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ amount: amt.toString(), ownerPubKey: kp.publicKey.toString(), encPubKey: kp.address().encPubKey }),
+      body: JSON.stringify({
+        amount: amt.toString(),
+        ownerPubKey: kp.publicKey.toString(),
+        encPubKey: kp.address().encPubKey,
+        kycToken,
+      }),
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || "shield failed");
@@ -357,6 +407,7 @@ export class RealApi implements CloisterApi {
     const dfxPub = BigInt(cfg.dfxShieldAddress.pubKey);
     const tx = await buildTransaction({
       tree: this.tree,
+      chainId: cfg.chainId,
       lane: note.lane || 0,
       inputs: [{ note: note.note, privateKey: kp.privateKey, index: note.index }],
       outputs: [
@@ -378,12 +429,12 @@ export class RealApi implements CloisterApi {
     const out = await r.json();
     if (!r.ok) throw new Error(out.error || "relayer error");
 
-    this.markSpent(note.index);
+    this.markSpent(note.index, note.lane || 0);
     onProgress?.({ progress: 100, html: "<span class='ok'>✓ settled</span> · change note returned · nothing linkable on-chain" });
     const id = `tx_${Date.now()}`;
     this.pushActivity({ id, date: todayLabel(), recipient: params.recipient, purpose: params.memo || "Single payment", amount: fmtAmount(payAmt, params.asset), chain: "Base", compliance: "clean", status: "settled", ...(params.accounting ? { accounting: params.accounting } : {}) });
     await this.sync();
-    return { id, status: "settled", receiptAvailable: true };
+    return { id, status: "settled", receiptAvailable: false };
   }
 
   async disburseBatch(params: BatchDisburseParams, onProgress?: ProgressCallback): Promise<DisburseResult> {
@@ -401,7 +452,7 @@ export class RealApi implements CloisterApi {
       done++;
     }
     onProgress?.({ progress: 100, html: "<span class='ok'>✓ settled</span> · batch complete · independent shielded payments" });
-    return { id: `batch_${Date.now()}`, status: "settled", receiptAvailable: true };
+    return { id: `batch_${Date.now()}`, status: "settled", receiptAvailable: false };
   }
 
   async authorizePayrollSession(params: PayrollSessionParams): Promise<PayrollSession> {
@@ -533,45 +584,9 @@ export class RealApi implements CloisterApi {
 
   // ---------- Compliance Center ----------
   async generateReceipt(params: ReceiptParams, onProgress?: ProgressCallback): Promise<Receipt> {
-    const cfg = await this.getConfig();
-    const kp = await this.getKeypair();
-    const steps = ["gathering selected notes", "proving ∈ associationRoot — <span class='hl'>no history revealed</span>", "attesting KYC origin", "signing attestation"];
-    let i = 0;
-    for (const t of steps) { await new Promise((r) => setTimeout(r, 420)); i++; onProgress?.({ progress: Math.round((i / (steps.length + 1)) * 100), html: t }); }
-
-    const sig = await noteNullifier(BigInt(cfg.aspRoot || "1"), BigInt(params.period.length + 1), kp.privateKey);
-    const signed = {
-      kind: "cloister.proof-of-innocence.v1",
-      issuer: "Cloister ASP",
-      subject: shortHex(kp.publicKey),
-      scope: params.scope,
-      period: params.period,
-      associationRoot: cfg.aspRoot,
-      chainId: cfg.chainId,
-      pool: cfg.pool,
-      mode: cfg.aspEnforced ? "asp-enforced" : "dev (ASP not enforced)",
-      statement: cfg.aspEnforced
-        ? "Selected funds are members of the ASP good-set and originate from a KYC-verified source. No transaction history is revealed."
-        : "PoC attestation (dev): ASP enforcement is OFF on this pool, so good-set membership is NOT cryptographically asserted. Origin screening was a PoC field/sanctions check. For demonstration only.",
-      issuedAt: new Date().toISOString(),
-      signature: sig.toString(),
-    };
-
-    const { downloadJson, downloadCsv, downloadPdf } = await import("./exporters");
-    const base = `cloister-receipt-${params.period.replace(/\s+/g, "_")}`;
-    const fields = Object.entries(signed).map(([k, v]) => [k, String(v)] as [string, string]);
-    if (params.format === "json") downloadJson(`${base}.json`, signed);
-    else if (params.format === "csv") downloadCsv(`${base}.csv`, [["field", "value"], ...fields]);
-    else
-      downloadPdf(`${base}.pdf`, {
-        title: "Proof of Innocence",
-        subtitle: "Signed attestation that the selected funds belong to the ASP good-set and originate from a KYC-verified source. No transaction history is revealed.",
-        fields,
-        footer: "Cloister Protocol · compliant shielded payments · verify the signature against the issuer's viewing key.",
-      });
-
-    onProgress?.({ progress: 100, html: `<span class='ok'>✓ receipt.${params.format} ready — downloaded</span>` });
-    return { id: `rcpt_${Date.now()}`, scope: params.scope, period: params.period, files: [`receipt.${params.format}`], createdAt: new Date().toISOString() };
+    void params;
+    void onProgress;
+    throw new Error("Selective-disclosure proof receipts are not implemented in the production backend yet");
   }
 
   async exportAuditLog(format: ExportFormat): Promise<void> {
@@ -607,8 +622,8 @@ export class RealApi implements CloisterApi {
     const headers = ["Date", "Counterparty", "Purpose", "Amount", "Chain", "Status"];
     const rows = acts.map((a) => [a.date, a.recipient, a.purpose, a.amount, a.chain, a.status]);
     const base = `cloister-statement-${period.replace(/\s+/g, "_")}`;
-    const subtitle = "Private account statement — balance and settled activity for the period. Counterparties are visible to you, the account holder, only; on-chain the payments stay shielded.";
-    const footer = "Issued by Cloister Protocol. Reflects shielded-pool activity for the stated period. For an audit-grade clean-origin attestation, use a Compliance Receipt (proof of innocence).";
+    const subtitle = "Private account statement — balance and settled activity for the period. This is an operational export, not an ASP proof-of-innocence attestation.";
+    const footer = "Issued by Cloister Protocol. Reflects shielded-pool activity for the stated period. It is not an audit-grade clean-origin attestation.";
     if (format === "json") downloadJson(`${base}.json`, { kind: "cloister.account-statement.v1", holder: session.org.name, period, balance: bal, transactions: acts });
     else if (format === "csv") downloadCsv(`${base}.csv`, [["Cloister Account Statement", period], [], headers, ...rows]);
     else downloadPdf(`${base}.pdf`, { title: "Account Statement", subtitle, fields, table: { headers, rows }, footer });

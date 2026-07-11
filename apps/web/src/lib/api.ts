@@ -55,7 +55,7 @@ export interface CloisterApi {
   updateProfile(p: { name?: string; email?: string }): Promise<Session>;
   /** Mark KYC verified after the account-based (DFX) verification completes in
    *  the dashboard. Pass the real KYC level/jurisdiction from the provider. */
-  markVerifiedExternally(info?: { level?: "L1" | "L2" | "L3"; jurisdiction?: import("./types").Jurisdiction }): Promise<Session>;
+  markVerifiedExternally(info?: { level?: "L1" | "L2" | "L3"; jurisdiction?: import("./types").Jurisdiction; providerToken?: string | null }): Promise<Session>;
 
   // ---------- Treasury / Notes ----------
   getBalance(chain?: ChainId | "all"): Promise<Balance>;
