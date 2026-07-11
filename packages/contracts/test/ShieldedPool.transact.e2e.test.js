@@ -122,8 +122,8 @@ describe("ShieldedPool — real-proof deposit (gnark E2E)", function () {
   it("rejects tampered extData — the on-chain keccak binding is airtight (no malleability)", async function () {
     // Fresh pool so oldRoot is still valid; the proof binds extDataHash for the ORIGINAL
     // extData. We submit the SAME proof but mutate a hash-only field (encryptedOutput1) that
-    // does NOT change publicAmount. The contract recomputes keccak256(abi.encode(extData)) %
-    // FIELD from the tampered extData + deployment domain → pub[2] no longer matches the proof → verifyProof fails.
+    // does NOT change publicAmount. The contract recomputes the domain-bound hash from the
+    // tampered extData + deployment context → pub[2] no longer matches the proof → verifyProof fails.
     // This proves a relayer/MEV actor cannot swap recipient/relayer/fee/outputs of a valid proof.
     const verifier = await (await ethers.getContractFactory("TransactionVerifier")).deploy();
     const tok = await (await ethers.getContractFactory("MockERC20")).deploy("USD Coin", "USDC", 6);
