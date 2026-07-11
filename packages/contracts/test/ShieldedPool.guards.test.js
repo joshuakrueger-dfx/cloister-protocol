@@ -48,6 +48,7 @@ describe("ShieldedPool — security hardening", () => {
       await expect(Pool.deploy(20, 8192, INITIAL_ROOT, v, t, owner, ethers.ZeroAddress, 0n)).to.be.revertedWith("index space");
       const FIELD = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
       await expect(Pool.deploy(LEVELS, LANES, FIELD, v, t, owner, ethers.ZeroAddress, 0n)).to.be.revertedWith("initialRoot");
+      await expect(Pool.deploy(LEVELS, LANES, INITIAL_ROOT, v, t, owner, owner.address, FIELD)).to.be.revertedWith("initialAspRoot");
     });
   });
 

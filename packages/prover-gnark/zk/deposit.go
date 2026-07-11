@@ -2,22 +2,35 @@
 
 package zk
 
-import "github.com/consensys/gnark-crypto/ecc/bn254/fr"
+import (
+	"math/big"
+
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
+)
 
 // DepositParams is everything the device needs to prove a deposit (shield) WITHOUT a
 // full local tree. The tree-dependent context (root, pair-slot index + siblings) is
 // supplied by the relayer/indexer; everything else is derived here. extDataHash is the
-// keccak(extData)%p the relayer will submit on-chain.
+// domain-bound keccak(extData, chainId, lane, poolAddress)%p the relayer will submit on-chain.
 type DepositParams struct {
-	Amount       fr.Element   // deposited amount (note value)
-	OwnerPub     fr.Element   // recipient note owner = H(ownerPriv)
-	Root         fr.Element   // current pool root
-	PairIndex    int          // laneNextIndex/2 (the empty pair slot)
-	PairPathEls  []fr.Element // Levels-1 siblings of the level-1 pair node
-	ExtDataHash  fr.Element
+	Amount      fr.Element   // deposited amount (note value)
+	OwnerPub    fr.Element   // recipient note owner = H(ownerPriv)
+	Root        fr.Element   // current pool root
+	PairIndex   int          // laneNextIndex/2 (the empty pair slot)
+	PairPathEls []fr.Element // Levels-1 siblings of the level-1 pair node
+	ExtDataHash fr.Element
 }
 
 func randFr() fr.Element { var e fr.Element; _, _ = e.SetRandom(); return e }
+
+// ValidAmount is the off-chain counterpart of the circuit's 248-bit range check.
+// Callers should reject before constructing a witness so malformed mobile/relayer JSON cannot
+// reach a prover only to fail after expensive proving work.
+func ValidAmount(amount fr.Element) bool {
+	var n big.Int
+	amount.BigInt(&n)
+	return n.Sign() >= 0 && n.BitLen() <= amountBits
+}
 
 func bitsOf(x, n int) []int {
 	b := make([]int, n)
@@ -32,6 +45,15 @@ func bitsOf(x, n int) []int {
 // publicAmount = +Amount. Random blindings/dummy keys are drawn here so each deposit
 // has unique nullifiers (the circuit requires the two input nullifiers to differ).
 func BuildDepositAssignment(p DepositParams) *TxCircuit {
+	if !ValidAmount(p.Amount) {
+		panic("deposit amount outside 248-bit range")
+	}
+	if p.PairIndex < 0 || p.PairIndex >= 1<<(Levels-1) {
+		panic("invalid deposit pair index")
+	}
+	if len(p.PairPathEls) != Levels-1 {
+		panic("invalid deposit pair path length")
+	}
 	var c TxCircuit
 	zeros := Zeros()
 	zero := ZeroValue()

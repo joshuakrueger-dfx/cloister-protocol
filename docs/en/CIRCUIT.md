@@ -20,7 +20,7 @@ Source of truth: `packages/prover-gnark/zk/circuit.go`. **50,481 R1CS constraint
 |---|------|---------|
 | 0 | `Root` | pool Merkle root the inputs are proven against |
 | 1 | `PublicAmount` | `extAmount − fee`, field-encoded (deposit `+`, withdraw `p − |x|`) |
-| 2 | `ExtDataHash` | `keccak(extData) mod p` — binds recipient / relayer / fee / encrypted outputs |
+| 2 | `ExtDataHash` | `keccak(abi.encode(extData, chainId, lane, poolAddress)) mod p` — binds recipient / relayer / fee / encrypted outputs and deployment domain |
 | 3 | `InputNullifier[0]` | |
 | 4 | `InputNullifier[1]` | |
 | 5 | `OutputCommitment[0]` | |
@@ -49,7 +49,7 @@ Global:
 9. **Value conservation**: `Σ inAmount + PublicAmount == Σ outAmount` (in the field).
 10. `ExtDataHash` is a declared public input, so Groth16 binds its *value* into the proof. Its
     binding to the actual `extData` (recipient/relayer/fee/outputs) is enforced **on-chain**:
-    `ShieldedPool._transact` recomputes `keccak256(abi.encode(extData)) % p` and passes that as
+    `ShieldedPool._transact` recomputes `keccak256(abi.encode(extData, block.chainid, lane, address(this))) % p` and passes that as
     this public input, so any tampered field yields a mismatching hash and the proof is rejected.
 11. **Off-chain insertion**: with `z1 = H(0,0)` and `pairNode = H(out0, out1)`,
     `climb(z1, PairIndex, pairPathEls) == Root` (the slot was empty) **and**
@@ -66,7 +66,7 @@ Global:
   second-preimage (`climb(z1, …) == Root` with fake siblings) — infeasible.
 - **Nullifier binds position**: a note at a fixed leaf has exactly one nullifier; combined
   with the on-chain spent-set this prevents replay/double-spend.
-- **extData binding**: the contract recomputes `keccak256(abi.encode(extData)) % p` on-chain and
+- **extData binding**: the contract recomputes `keccak256(abi.encode(extData, block.chainid, lane, address(this))) % p` on-chain and
   feeds it as the `ExtDataHash` public input; Groth16 binds that input into the proof, so altering
   any extData field (recipient/relayer/fee/outputs) yields a mismatching hash and the proof is
   rejected — a relayer cannot redirect funds. (See the "tampered extData reverts" e2e test.)

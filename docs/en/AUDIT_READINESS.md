@@ -64,7 +64,7 @@ every real input proves membership in an ASP "good-set" association root.
    field-wraparound is unreachable (contract clamps `|extAmount|, fee < 2^248 ≪ p`).
 3. **No double-spend** — one note ↔ one nullifier (curve-free key, no `s`/`s+order` malleability);
    global on-chain nullifier set; in-tx duplicate check.
-4. **Recipient/amount non-malleability** — `extDataHash = keccak(abi.encode(extData)) % p`
+4. **Recipient/amount non-malleability** — `extDataHash = keccak(abi.encode(extData, chainId, lane, poolAddress)) % p`
    recomputed on-chain and bound into the proof; a relayer cannot redirect funds.
 5. **Fail-closed on-chain authority** — `require(oldRoot == laneRoot)`, on-chain-recomputed
    `pairIndex`/`extDataHash`, then `verifyProof`. No off-chain data (bad RPC logs, malicious

@@ -29,10 +29,11 @@ async function applyReceipt(rc, pool, laneTrees, wallets) {
   }
 }
 
-async function shieldInto(pool, funder, lane, alice, laneTrees, amount) {
+async function shieldInto(pool, funder, lane, alice, laneTrees, amount, poolAddress) {
   const t = await buildTransaction({
     tree: laneTrees[lane], lane,
     chainId: 31337,
+    poolAddress,
     inputs: [], outputs: [{ note: new Note({ amount: BigInt(amount), pubKey: alice.publicKey }), encPubKey: alice.address().encPubKey }],
     extAmount: BigInt(amount), wasmPath, zkeyPath,
   });
@@ -41,10 +42,11 @@ async function shieldInto(pool, funder, lane, alice, laneTrees, amount) {
 }
 
 // baut einen Pay-Proof in `lane` (spend note → 2 Outputs an alice), ohne zu senden
-async function buildPay(laneTrees, lane, alice, noteEntry) {
+async function buildPay(laneTrees, lane, alice, noteEntry, poolAddress) {
   return buildTransaction({
     tree: laneTrees[lane], lane,
     chainId: 31337,
+    poolAddress,
     inputs: [{ note: noteEntry.note, privateKey: alice.privateKey, index: noteEntry.index }],
     outputs: [
       { note: new Note({ amount: 100n, pubKey: alice.publicKey }), encPubKey: alice.address().encPubKey },
@@ -81,6 +83,7 @@ async function main() {
 
   log("\n=== Cloister: Lane-Parallelisierer ===\n");
   const { token, pool, numLanes } = await deployAll(funder);
+  const poolAddress = await pool.getAddress();
   log(`Pool deployed mit ${numLanes} Lanes.`);
 
   const alice = await Keypair.create();
@@ -93,15 +96,15 @@ async function main() {
 
   // Setup: je 1 Note in Lanes 0..M-1 (für Parallel-Test) + M Notes in Lane 0 (für Serial-Test)
   log(`[setup] shielde ${M} Notes über ${M} Lanes + ${M} Notes in Lane 0…`);
-  for (let i = 0; i < M; i++) await applyReceipt(await shieldInto(pool, funder, i, alice, laneTrees, 1000), pool, laneTrees, [aliceW]);
-  for (let i = 0; i < M; i++) await applyReceipt(await shieldInto(pool, funder, 0, alice, laneTrees, 1000), pool, laneTrees, [aliceW]);
+  for (let i = 0; i < M; i++) await applyReceipt(await shieldInto(pool, funder, i, alice, laneTrees, 1000, poolAddress), pool, laneTrees, [aliceW]);
+  for (let i = 0; i < M; i++) await applyReceipt(await shieldInto(pool, funder, 0, alice, laneTrees, 1000, poolAddress), pool, laneTrees, [aliceW]);
 
   const byLane = (l) => aliceW.spendable().filter((n) => n.lane === l);
 
   // ---------- Parallel-Test: M Zahlungen über M Lanes ----------
   log(`\n[parallel] baue ${M} Pay-Proofs in ${M} verschiedenen Lanes und sende sie in EINEN Block…`);
   const parBuilt = [];
-  for (let l = 0; l < M; l++) parBuilt.push(await buildPay(laneTrees, l, alice, byLane(l)[0]));
+  for (let l = 0; l < M; l++) parBuilt.push(await buildPay(laneTrees, l, alice, byLane(l)[0], poolAddress));
   const par = await submitInOneBlock(provider, pool, relayer, parBuilt);
   log(`           → ${par.ok}/${M} gelandet, ${par.reverted} revertiert  (alle in Block ${par.block})`);
   for (const rc of par.receipts) await applyReceipt(rc, pool, laneTrees, [aliceW]);
@@ -110,7 +113,7 @@ async function main() {
   log(`\n[serial]   baue ${M} Pay-Proofs in derselben Lane 0 (gleicher oldRoot) und sende sie in EINEN Block…`);
   const lane0Notes = byLane(0); // verbleibende Lane-0-Notes
   const serBuilt = [];
-  for (let k = 0; k < M && k < lane0Notes.length; k++) serBuilt.push(await buildPay(laneTrees, 0, alice, lane0Notes[k]));
+  for (let k = 0; k < M && k < lane0Notes.length; k++) serBuilt.push(await buildPay(laneTrees, 0, alice, lane0Notes[k], poolAddress));
   const ser = await submitInOneBlock(provider, pool, relayer, serBuilt);
   log(`           → ${ser.ok}/${serBuilt.length} gelandet, ${ser.reverted} revertiert  (gleiche Lane serialisiert)`);
 

@@ -45,12 +45,13 @@ declare module "@cloister/sdk" {
     constructor(kp: Keypair, tree: MerkleTree, label?: string);
     spendable(): Array<{ note: Note; index: number; lane: number; spent: boolean }>;
     balance(): bigint;
-    markSpent(indices: number[]): void;
+    markSpent(indices: number[], lane?: number): void;
   }
   export function syncFromIndexer(
     indexerUrl: string,
     tree: MerkleTree,
     wallets: ShieldedWallet[],
+    options?: { lane?: number; levels?: number },
   ): Promise<{ scanned: number; tagMatched: number; decrypted: number }>;
   export function buildWitness(opts: any): Promise<any>;
   export function buildTransaction(opts: any): Promise<{

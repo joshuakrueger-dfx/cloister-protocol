@@ -80,13 +80,20 @@ func main() {
 	if err := mobile.Init(keysDir); err != nil {
 		panic(err)
 	}
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
 	client, err := ethclient.DialContext(ctx, rpc)
 	if err != nil {
 		panic(err)
 	}
-	chainID, _ := client.ChainID(ctx)
-	pk, _ := crypto.HexToECDSA(strings.TrimPrefix(key, "0x"))
+	chainID, err := client.ChainID(ctx)
+	if err != nil {
+		panic(err)
+	}
+	pk, err := crypto.HexToECDSA(strings.TrimPrefix(key, "0x"))
+	if err != nil {
+		panic(err)
+	}
 	from := crypto.PubkeyToAddress(pk.PublicKey)
 	poolABI, _ := abi.JSON(strings.NewReader(poolABIJSON))
 	pool := common.HexToAddress(poolAddr)
@@ -162,12 +169,13 @@ func main() {
 	fmt.Printf("complete leaf set: %d; on-chain laneRoot(0)=%s…\n", len(leafStrs), onchainRoot.String()[:16])
 
 	// extData + extDataHash (identical to the contract's keccak%FIELD). WP-A1: domain-separate
-	// by chainId + lane (deposits use transact → lane 0), matching ShieldedPool._transact's
-	// keccak256(abi.encode(extData, block.chainid, lane)).
+	// by chainId + lane + deployed pool address (deposits use transact → lane 0), matching
+	// ShieldedPool._transact's keccak256(abi.encode(extData, block.chainid, lane, address(this))).
 	ext := extDataT{Recipient: common.Address{}, ExtAmount: mustBig(amount), Relayer: common.Address{}, Fee: big.NewInt(0), EncryptedOutput1: []byte{}, EncryptedOutput2: []byte{}}
 	extArg := poolABI.Methods["transact"].Inputs[6]
 	uint256T, _ := abi.NewType("uint256", "", nil)
-	encoded, _ := abi.Arguments{{Type: extArg.Type}, {Type: uint256T}, {Type: uint256T}}.Pack(ext, chainID, big.NewInt(0))
+	addressT, _ := abi.NewType("address", "", nil)
+	encoded, _ := abi.Arguments{{Type: extArg.Type}, {Type: uint256T}, {Type: uint256T}, {Type: addressT}}.Pack(ext, chainID, big.NewInt(0), pool)
 	extDataHash := new(big.Int).Mod(new(big.Int).SetBytes(crypto.Keccak256(encoded)), fr.Modulus())
 
 	// >>> the function under test: native prove from leaves <<<
@@ -222,4 +230,10 @@ func main() {
 	fmt.Printf("CHECK 2 ok: deposit landed via ProveDepositFromLeaves → https://sepolia.basescan.org/tx/%s\n", tx.Hash().Hex())
 }
 
-func mustBig(s string) *big.Int { n, _ := new(big.Int).SetString(s, 10); return n }
+func mustBig(s string) *big.Int {
+	n, ok := new(big.Int).SetString(s, 10)
+	if !ok || n.Sign() <= 0 || n.BitLen() > 248 {
+		panic(fmt.Errorf("amount must be a positive integer below 2^248"))
+	}
+	return n
+}

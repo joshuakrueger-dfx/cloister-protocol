@@ -23,6 +23,7 @@ const POOL_ABI = [
   "function nullifierSpent(uint256) view returns (bool)",
   "function laneRoot(uint256) view returns (uint256)",
   "function transact((uint256[2] a,uint256[2][2] b,uint256[2] c) proof,uint256 oldRoot,uint256 newRoot,uint256 associationRoot,uint256[2] inputNullifiers,uint256[2] outputCommitments,(address recipient,int256 extAmount,address relayer,uint256 fee,bytes encryptedOutput1,bytes encryptedOutput2) extData)",
+  "function transactLane(uint256 lane,(uint256[2] a,uint256[2][2] b,uint256[2] c) proof,uint256 oldRoot,uint256 newRoot,uint256 associationRoot,uint256[2] inputNullifiers,uint256[2] outputCommitments,(address recipient,int256 extAmount,address relayer,uint256 fee,bytes encryptedOutput1,bytes encryptedOutput2) extData)",
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -179,15 +180,15 @@ export async function submitShielded(tx, opts = {}) {
       const wallet = new Wallet(directKey, provider);
       const pool = new Contract(poolAddress, POOL_ABI, wallet);
       const sent = await withTimeout(
-        pool.transact(
-          [tx.proof.a, tx.proof.b, tx.proof.c],
-          tx.root,
-          tx.newRoot,
-          tx.associationRoot,
-          tx.inputNullifiers,
-          tx.outputCommitments,
-          extTuple(tx.extData),
-        ),
+        (tx.lane ?? 0) === 0
+          ? pool.transact(
+            [tx.proof.a, tx.proof.b, tx.proof.c], tx.root, tx.newRoot, tx.associationRoot,
+            tx.inputNullifiers, tx.outputCommitments, extTuple(tx.extData),
+          )
+          : pool.transactLane(
+            tx.lane, [tx.proof.a, tx.proof.b, tx.proof.c], tx.root, tx.newRoot, tx.associationRoot,
+            tx.inputNullifiers, tx.outputCommitments, extTuple(tx.extData),
+          ),
         perCallMs,
         "direct transact",
       );

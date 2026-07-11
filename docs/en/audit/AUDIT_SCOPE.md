@@ -84,7 +84,7 @@ loophole they claim to.
    point, and sees the recipient address in `extData`. In scope: does it store/leak more
    than necessary (IP logging in `deposit-relayer.mjs`)?
 4. **extDataHash is intentionally NOT relation-constrained in the circuit** — binding is
-   enforced **on-chain only** via `keccak256(abi.encode(extData)) % FIELD`. Confirm this is
+   enforced **on-chain only** via `keccak256(abi.encode(extData, block.chainid, lane, address(this))) % FIELD`. Confirm this is
    actually sufficient and that no path lets a relayer alter `extAmount`/`recipient`/`fee`.
 
 ---

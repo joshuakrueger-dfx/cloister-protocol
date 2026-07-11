@@ -12,10 +12,13 @@ const STATE_FILE = process.env.INDEXER_STATE || "/tmp/cloister-indexer-state.jso
 const START_BLOCK = Number(process.env.INDEXER_START_BLOCK || 0);
 const BATCH_BLOCKS = Math.max(1, Number(process.env.INDEXER_BATCH_BLOCKS || 2_000));
 const CONFIRMATIONS = Math.max(0, Number(process.env.INDEXER_CONFIRMATIONS || 0));
+let poolLevels = Number(process.env.LEVELS || 20);
+if (!Number.isInteger(poolLevels) || poolLevels < 1 || poolLevels > 31) throw new Error("LEVELS must be an integer in [1,31]");
 
 async function resolvePool() {
   if (POOL_ENV) return POOL_ENV;
   const cfg = await (await fetch(`${API}/config`)).json();
+  if (Number.isInteger(Number(cfg.levels)) && Number(cfg.levels) > 0 && Number(cfg.levels) <= 31) poolLevels = Number(cfg.levels);
   return cfg.pool;
 }
 
@@ -24,6 +27,7 @@ async function main() {
   const poolAddr = await resolvePool();
   const chainId = Number((await provider.getNetwork()).chainId);
   const pool = new Contract(poolAddr, loadAbi("ShieldedPool", "ShieldedPool"), provider);
+  const poolLanes = Number(await pool.numLanes());
 
   const commitments = []; // { leafIndex, commitment, encryptedOutput, viewTag, block }
   const spentNullifiers = new Set();
@@ -139,16 +143,27 @@ async function main() {
     next();
   });
 
-  app.get("/health", (_req, res) => res.json({ ok: true, chainId, pool: poolAddr, count: commitments.length, fromBlock, confirmations: CONFIRMATIONS }));
+  app.get("/health", (_req, res) => res.json({ ok: true, chainId, pool: poolAddr, levels: poolLevels, numLanes: poolLanes, count: commitments.length, fromBlock, confirmations: CONFIRMATIONS }));
 
   // Commitments ab Leaf-Index `from` (für Tree-Sync + Tag-Filter clientseitig).
   app.get("/commitments", async (req, res) => {
     await poll().catch(() => {});
     const from = Number(req.query.from || 0);
+    if (!Number.isSafeInteger(from) || from < 0) return res.status(400).json({ error: "invalid from" });
+    const requestedLane = req.query.lane === undefined ? null : Number(req.query.lane);
+    if (requestedLane !== null && (!Number.isInteger(requestedLane) || requestedLane < 0 || requestedLane >= poolLanes)) {
+      return res.status(400).json({ error: "invalid lane" });
+    }
+    const laneSpan = 2 ** poolLevels;
     const tag = req.query.tag !== undefined ? Number(req.query.tag) : null;
-    let out = commitments.filter((c) => c.leafIndex >= from);
+    let out = commitments
+      .filter((c) => requestedLane === null ? c.leafIndex >= from : (c.leafIndex % laneSpan) >= from)
+      .map((c) => ({ ...c, lane: Math.floor(c.leafIndex / laneSpan), localIndex: c.leafIndex % laneSpan }));
+    if (requestedLane !== null) out = out.filter((c) => c.lane === requestedLane);
     if (tag !== null) out = out.filter((c) => c.viewTag === tag || c.viewTag === null);
-    res.json({ total: commitments.length, commitments: out });
+    const rootLane = requestedLane === null ? 0 : requestedLane;
+    const root = await pool.laneRoot(rootLane).catch(() => null);
+    res.json({ total: commitments.length, root: root == null ? undefined : root.toString(), commitments: out });
   });
 
   // Bounded nullifier reconciliation endpoint. It lets a recovered wallet establish spent

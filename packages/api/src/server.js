@@ -59,6 +59,7 @@ async function main() {
   const poolRead = new Contract(poolAddr, abi, provider);
   const poolRelay = new Contract(poolAddr, abi, relayer);
   const poolAsp = new Contract(poolAddr, abi, deployer); // deployer == ASP
+  const numLanes = Number(await poolRead.numLanes());
 
   function badReq(msg) { const e = new Error(msg); e.shortMessage = msg; return e; }
 
@@ -158,6 +159,8 @@ async function main() {
       relayer: `${BASE}/v1/shielded/submit`,
       shield: `${BASE}/v1/shield`,
       indexer: process.env.INDEXER || "http://127.0.0.1:8789",
+      levels: 20,
+      numLanes,
       aspEnforced: ASP_ENFORCE,
       aspRoot,
       screening: screeningStatus(),
@@ -224,6 +227,7 @@ async function main() {
       const shield = await buildTransaction({
         tree,
         chainId,
+        poolAddress: poolAddr,
         lane: 0,
         inputs: [],
         outputs: [{ note, encPubKey }],
@@ -254,13 +258,13 @@ async function main() {
     const { paymentId } = req.params;
     let q = quotes.get(paymentId);
     if (!q) {
-      q = { paymentId, quoteId: `plq_${paymentId}`, asset: "USDC", method: "Base", amount: "250", status: "pending" };
+      q = { paymentId, quoteId: `plq_${paymentId}`, asset: "USDC", method: "Base", amount: "250", status: "pending", expiresAt: Date.now() + 15 * 60 * 1000 };
       quotes.set(paymentId, q);
     }
     res.json({
       tag: "payRequest",
       recipient: { name: "Demo Merchant" },
-      quote: { id: q.quoteId, payment: paymentId, expiration: "2026-12-31T00:00:00Z" },
+      quote: { id: q.quoteId, payment: paymentId, expiration: new Date(q.expiresAt).toISOString() },
       transferAmounts: [
         {
           method: "Base",
@@ -277,6 +281,7 @@ async function main() {
   app.get("/v1/lnurlp/cb/:paymentId", (req, res) => {
     const q = quotes.get(req.params.paymentId);
     if (!q) return res.status(404).json({ error: "unknown payment" });
+    if (q.expiresAt <= Date.now()) q.status = "expired";
     res.json({
       blockchain: "Base",
       shieldedPool: poolAddr,
@@ -291,13 +296,21 @@ async function main() {
 
   app.get("/v1/lnurlp/:paymentId/status", (req, res) => {
     const q = quotes.get(req.params.paymentId);
-    res.json({ status: q?.status || "unknown", dfxShieldedBalance: dfxWallet.balance().toString() });
+    res.json({ status: q?.status || "unknown", txHash: q?.txHash, dfxShieldedBalance: dfxWallet.balance().toString() });
   });
 
   // Schritt 5 — abgeschirmte Tx broadcasten (Relayer zahlt Gas)
   app.post("/v1/shielded/submit", async (req, res) => {
     try {
       const { proof, root, newRoot, associationRoot, inputNullifiers, outputCommitments, extData, quoteId } = req.body;
+      const lane = Number(req.body?.lane ?? 0);
+      if (!Number.isInteger(lane) || lane < 0 || lane >= numLanes) {
+        return res.status(400).json({ error: "invalid lane" });
+      }
+      const quote = quoteId ? [...quotes.values()].find((q) => q.quoteId === quoteId) : null;
+      if (quoteId && (!quote || quote.status !== "pending" || quote.expiresAt <= Date.now())) {
+        return res.status(409).json({ error: "quote missing, expired, or already settled" });
+      }
       const proofShapeValid = Boolean(
         proof && Array.isArray(proof.a) && proof.a.length === 2 &&
         Array.isArray(proof.b) && proof.b.length === 2 && proof.b.every((x) => Array.isArray(x) && x.length === 2) &&
@@ -314,14 +327,37 @@ async function main() {
           ![root, newRoot, associationRoot, ...inputNullifiers, ...outputCommitments].every(isFieldElement)) {
         return res.status(400).json({ error: "invalid transaction fields" });
       }
+      // Bind the quote to the exact shielded output. The relayer owns the DFX viewing key, so it
+      // can decrypt only the quoted recipient memo and compare its recomputed commitment. A proof
+      // for a different amount/recipient can no longer mark an unrelated quote as paid.
+      if (quote && (BigInt(extData.extAmount) !== 0n || BigInt(extData.fee || 0) !== 0n)) {
+        return res.status(400).json({ error: "quote requires a zero-public-amount transfer" });
+      }
+      let expectedRecipientCommitment = null;
+      if (quote) {
+        const recipientNote = [extData.encryptedOutput1, extData.encryptedOutput2]
+          .map((enc) => Note.tryDecrypt(enc, dfx.enc.secretKey))
+          .find((n) => n && n.amount === BigInt(quote.amount));
+        if (!recipientNote) return res.status(400).json({ error: "quoted recipient output not found" });
+        expectedRecipientCommitment = await new Note({ amount: recipientNote.amount, pubKey: dfx.publicKey, blinding: recipientNote.blinding }).commitment();
+        if (!outputCommitments.some((c) => BigInt(c) === expectedRecipientCommitment)) {
+          return res.status(400).json({ error: "quote/output commitment mismatch" });
+        }
+      }
       // Compliance gate: reject unless the bound root is an ALREADY-KNOWN good-set root.
       // Never auto-publish a caller-supplied root (P1-10).
       await requireKnownAspRoot(associationRoot);
-      const tx = await poolRelay.transact(proofTuple(proof), root, newRoot, associationRoot, inputNullifiers, outputCommitments, extTuple(extData));
+      const tx = lane === 0
+        ? await poolRelay.transact(proofTuple(proof), root, newRoot, associationRoot, inputNullifiers, outputCommitments, extTuple(extData))
+        : await poolRelay.transactLane(lane, proofTuple(proof), root, newRoot, associationRoot, inputNullifiers, outputCommitments, extTuple(extData));
       const rc = await tx.wait();
       await syncFromChain(poolRead, tree, [dfxWallet]);
       // Only settle a quote that actually exists and was pending — bind status to a real quote.
-      for (const q of quotes.values()) if (q.quoteId === quoteId && q.status === "pending") q.status = "paid";
+      if (quote) {
+        quote.status = "paid";
+        quote.txHash = rc.hash;
+        quote.outputCommitment = expectedRecipientCommitment.toString();
+      }
       res.json({ status: "broadcast", txHash: rc.hash, dfxShieldedBalance: dfxWallet.balance().toString() });
     } catch (e) {
       res.status(400).json({ error: e.shortMessage || e.message });
@@ -337,6 +373,7 @@ async function main() {
       const settle = await buildTransaction({
         tree,
         chainId,
+        poolAddress: poolAddr,
         lane: 0,
         inputs: [{ note: note.note, privateKey: dfx.privateKey, index: note.index }],
         outputs: [],
@@ -354,7 +391,7 @@ async function main() {
         extTuple(settle.extData),
       );
       const rc = await tx.wait();
-      dfxWallet.markSpent([note.index]);
+      dfxWallet.markSpent([note.index], note.lane);
       const merchantBalance = (await token.balanceOf(merchant)).toString();
       res.json({ status: "settled", txHash: rc.hash, merchantBalance });
     } catch (e) {
@@ -362,12 +399,17 @@ async function main() {
     }
   });
 
-  // Load the full sanctions lists (OFAC SDN + alt + optional EU) in the background and
-  // refresh daily. Screening starts on the bundled sample and upgrades to "full" once loaded;
-  // coverage is reported honestly via /config.screening (P1-9).
-  loadFullSdn()
-    .then((st) => console.log(`sanctions screening: ${st.mode} · ${st.count} names · ${st.source}`))
-    .catch((e) => console.warn(`sanctions load failed (staying on sample): ${e.message}`));
+  // Load the full sanctions lists (OFAC SDN + alt + optional EU) before exposing an ASP
+  // provider. A degraded sample-only screen is acceptable for the PoC, never for an enforced
+  // compliance backend.
+  const initialScreening = await loadFullSdn().catch((e) => {
+    console.warn(`sanctions load failed (staying on sample): ${e.message}`);
+    return screeningStatus();
+  });
+  console.log(`sanctions screening: ${initialScreening.mode} · ${initialScreening.count} names · ${initialScreening.source}`);
+  if (ASP_ENFORCE && initialScreening.mode !== "full") {
+    throw new Error("ASP_ENFORCE=1 requires full sanctions data; refusing degraded sample-only screening");
+  }
   setInterval(() => { loadFullSdn().catch(() => {}); }, 24 * 60 * 60 * 1000).unref?.();
 
   app.listen(PORT, () => {

@@ -229,6 +229,8 @@ export function screenApplicant(applicant = {}) {
       : `no match · ${st.mode} list (${st.count} names · ${st.source})`,
   });
 
-  const status = checks.every((c) => c.pass) ? "verified" : "rejected";
+  const status = !checks.every((c) => c.pass)
+    ? "rejected"
+    : st.mode === "sample" ? "review" : "verified";
   return { status, checks, screening: st };
 }

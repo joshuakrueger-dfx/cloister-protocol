@@ -57,7 +57,7 @@ async function main() {
   log("[1] Onramp/Shield — Alice zahlt 1000 USDC öffentlich in den Pool (das ist by design sichtbar)…");
   await (await token.mint(aliceAddr, 1000)).wait();
   await (await token.connect(aliceSigner).approve(poolAddr, 1000)).wait();
-  const shield = await buildTransaction({ tree, chainId: 31337, inputs: [], outputs: [{ note: new Note({ amount: 1000n, pubKey: alice.publicKey }), encPubKey: alice.address().encPubKey }], extAmount: 1000n, wasmPath, zkeyPath });
+  const shield = await buildTransaction({ tree, chainId: 31337, poolAddress: poolAddr, inputs: [], outputs: [{ note: new Note({ amount: 1000n, pubKey: alice.publicKey }), encPubKey: alice.address().encPubKey }], extAmount: 1000n, wasmPath, zkeyPath });
   const shieldRc = await send(pool, aliceSigner, shield);
   await applyTx(shieldRc, pool, tree, [aliceW]);
   log(`    Shield-Tx ${shieldRc.hash.slice(0, 12)}…  from=${(await provider.getTransaction(shieldRc.hash)).from.slice(0, 10)}… (= Alice)`);
@@ -68,6 +68,7 @@ async function main() {
   const pay = await buildTransaction({
     tree,
     chainId: 31337,
+    poolAddress: poolAddr,
     inputs: [{ note: n.note, privateKey: alice.privateKey, index: n.index }],
     outputs: [
       { note: new Note({ amount: 250n, pubKey: dfx.publicKey }), encPubKey: dfx.address().encPubKey },
@@ -76,14 +77,14 @@ async function main() {
     extAmount: 0n, wasmPath, zkeyPath,
   });
   const payRc = await send(pool, relayer, pay);
-  aliceW.markSpent([n.index]);
+  aliceW.markSpent([n.index], n.lane);
   await applyTx(payRc, pool, tree, [aliceW, dfxW]);
   log(`    Pay-Tx ${payRc.hash.slice(0, 12)}…  from=${(await provider.getTransaction(payRc.hash)).from.slice(0, 10)}… (= Relayer)`);
 
   // ---- SETTLE: DFX unshieldet an den Händler ----
   log("\n[3] Settle — DFX zahlt 250 an den Händler aus…");
   const dn = dfxW.spendable()[0];
-  const settle = await buildTransaction({ tree, chainId: 31337, inputs: [{ note: dn.note, privateKey: dfx.privateKey, index: dn.index }], outputs: [], extAmount: -250n, recipient: merchant, wasmPath, zkeyPath });
+  const settle = await buildTransaction({ tree, chainId: 31337, poolAddress: poolAddr, inputs: [{ note: dn.note, privateKey: dfx.privateKey, index: dn.index }], outputs: [], extAmount: -250n, recipient: merchant, wasmPath, zkeyPath });
   const settleRc = await send(pool, relayer, settle);
   log(`    Händler-Guthaben jetzt: ${await token.balanceOf(merchant)} USDC ✅ (Zahlung angekommen)`);
 

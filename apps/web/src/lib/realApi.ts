@@ -408,6 +408,7 @@ export class RealApi implements CloisterApi {
     const tx = await buildTransaction({
       tree: this.tree,
       chainId: cfg.chainId,
+      poolAddress: cfg.pool,
       lane: note.lane || 0,
       inputs: [{ note: note.note, privateKey: kp.privateKey, index: note.index }],
       outputs: [
@@ -424,6 +425,7 @@ export class RealApi implements CloisterApi {
       body: JSON.stringify({
         proof: tx.proof, root: tx.root, newRoot: tx.newRoot, associationRoot: tx.associationRoot,
         inputNullifiers: tx.inputNullifiers, outputCommitments: tx.outputCommitments, extData: tx.extData,
+        lane: tx.lane ?? 0,
       }),
     });
     const out = await r.json();

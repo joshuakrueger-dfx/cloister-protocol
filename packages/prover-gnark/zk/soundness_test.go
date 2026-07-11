@@ -27,7 +27,7 @@ func TestTxCircuitRejectsTamperedWitness(t *testing.T) {
 		{"forged association root", func(c *TxCircuit) { c.AssociationRoot = 1 }},
 		// NOTE: ExtDataHash is intentionally NOT constrained inside the circuit — it is a
 		// pass-through public input whose integrity is enforced ON-CHAIN (the contract
-		// recomputes keccak(extData) % FIELD and rejects a mismatch). That binding is
+		// recomputes the domain-bound keccak(extData, chainId, lane, poolAddress) % FIELD and rejects a mismatch). That binding is
 		// covered by the Solidity contract test suite, not here.
 	}
 	for _, tc := range cases {

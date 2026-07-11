@@ -27,6 +27,7 @@ async function shield(poolAbi, cfg, signer, kp, tree, amount) {
   const t = await buildTransaction({
     tree,
     chainId: cfg.chainId,
+    poolAddress: cfg.pool,
     inputs: [],
     outputs: [{ note: new Note({ amount: BigInt(amount), pubKey: kp.publicKey }), encPubKey: kp.address().encPubKey }],
     extAmount: BigInt(amount),
@@ -79,6 +80,7 @@ async function main() {
   const pay = await buildTransaction({
     tree: payTree,
     chainId: cfg.chainId,
+    poolAddress: cfg.pool,
     inputs: [{ note: note.note, privateKey: aliceKp.privateKey, index: note.index }],
     outputs: [
       { note: new Note({ amount: BigInt(txd.amount), pubKey: BigInt(txd.recipientShieldAddress.pubKey) }), encPubKey: txd.recipientShieldAddress.encPubKey },

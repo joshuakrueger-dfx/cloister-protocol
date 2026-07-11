@@ -47,6 +47,9 @@ func ParseFE(s string) (fr.Element, error) {
 	if !ok {
 		return fe, fmt.Errorf("bad field element %q", s)
 	}
+	if b.Sign() < 0 || b.Cmp(fr.Modulus()) >= 0 {
+		return fe, fmt.Errorf("field element out of range %q", s)
+	}
 	fe.SetBigInt(b)
 	return fe, nil
 }

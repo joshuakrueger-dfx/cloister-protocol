@@ -118,6 +118,9 @@ func ProveDeposit(paramsJSON string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if amount.IsZero() || !zk.ValidAmount(amount) {
+		return "", errors.New("deposit amount outside 248-bit range")
+	}
 	ownerPriv, err := zk.ParseFE(dp.OwnerPriv)
 	if err != nil {
 		return "", err
@@ -134,6 +137,9 @@ func ProveDeposit(paramsJSON string) (string, error) {
 	// length instead of indexing out of range in BuildDepositAssignment.
 	if len(dp.PairPathEls) != zk.Levels-1 {
 		return "", fmt.Errorf("pairPathEls must have %d elements, got %d", zk.Levels-1, len(dp.PairPathEls))
+	}
+	if dp.PairIndex < 0 || dp.PairIndex >= 1<<(zk.Levels-1) {
+		return "", errors.New("pairIndex outside deposit lane")
 	}
 	pathEls := make([]fr.Element, len(dp.PairPathEls))
 	for i, s := range dp.PairPathEls {
@@ -195,12 +201,21 @@ func ProveDepositFromLeaves(paramsJSON string) (string, error) {
 		}
 		tree.Insert(fe)
 	}
+	if tree.Len()%2 != 0 {
+		return "", errors.New("deposit leaf set must contain an even number of commitments")
+	}
+	if tree.Len() >= 1<<zk.Levels {
+		return "", errors.New("deposit lane is full")
+	}
 	pairIndex := tree.Len() / 2
 	pairEls, _ := tree.PairPath(pairIndex)
 
 	amount, err := zk.ParseFE(dp.Amount)
 	if err != nil {
 		return "", err
+	}
+	if amount.IsZero() || !zk.ValidAmount(amount) {
+		return "", errors.New("deposit amount outside 248-bit range")
 	}
 	ownerPriv, err := zk.ParseFE(dp.OwnerPriv)
 	if err != nil {

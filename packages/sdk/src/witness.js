@@ -1,4 +1,4 @@
-import { AbiCoder, keccak256, ZeroAddress } from "ethers";
+import { AbiCoder, getAddress, keccak256, ZeroAddress } from "ethers";
 import { poseidon } from "./poseidon.js";
 import { Note } from "./note.js";
 import { Keypair, randomField } from "./keypair.js";
@@ -16,20 +16,22 @@ export async function noteNullifier(commitment, pathIndices, privateKey) {
 }
 
 // Domain-bound extData hash — MUST byte-match ShieldedPool._transact's on-chain recompute:
-//   keccak256(abi.encode(extData, chainId, lane)) % FIELD_SIZE
-// domain = { chainId, lane } is REQUIRED. Pool-address binding is deferred until the next
-// ceremony/re-key cycle because the current committed fixture is static.
+//   keccak256(abi.encode(extData, chainId, lane, poolAddress)) % FIELD_SIZE
+// Binding the deployed pool closes same-chain cross-pool replay. Every proof must carry the
+// concrete deployment address; there is no zero-address fallback.
 export function encodeExtData(extData, domain) {
-  if (!domain || domain.chainId == null || domain.lane == null) {
-    throw new Error("encodeExtData requires domain { chainId, lane }");
+  if (!domain || domain.chainId == null || domain.lane == null || domain.poolAddress == null) {
+    throw new Error("encodeExtData requires domain { chainId, lane, poolAddress }");
   }
+  const poolAddress = getAddress(domain.poolAddress);
   const coder = AbiCoder.defaultAbiCoder();
   const encoded = coder.encode(
-    [EXT_DATA_ABI, "uint256", "uint256"],
+    [EXT_DATA_ABI, "uint256", "uint256", "address"],
     [
       [extData.recipient, extData.extAmount, extData.relayer, extData.fee, extData.encryptedOutput1, extData.encryptedOutput2],
       domain.chainId,
       domain.lane,
+      poolAddress,
     ],
   );
   return BigInt(keccak256(encoded)) % FIELD_SIZE;
@@ -63,9 +65,10 @@ export async function buildWitness({
   fee = 0n,
   recipient = ZeroAddress,
   relayer = ZeroAddress,
-  // Domain separation: both domain values are required whenever the resulting proof is submitted
+  // Domain separation: all domain values are required whenever the resulting proof is submitted
   // on-chain; see encodeExtData.
   chainId,
+  poolAddress,
   // Compliance: ASP-Good-Set (Merkle-Tree der vom ASP freigegebenen Commitments).
   // Default = der Pool-Tree selbst (jedes On-chain-Commitment gilt als „assoziiert" —
   // rückwärtskompatibel zu den PoC-Demos). Die App übergibt einen kuratierten aspTree.
@@ -161,7 +164,7 @@ export async function buildWitness({
     encryptedOutput1: encryptedOutputs[0],
     encryptedOutput2: encryptedOutputs[1],
   };
-  const extDataHash = encodeExtData(extData, { chainId, lane });
+  const extDataHash = encodeExtData(extData, { chainId, lane, poolAddress });
   const publicAmount = fieldSigned(BigInt(extAmount) - BigInt(fee));
 
   const pairIndex = tree.leaves.length / 2;

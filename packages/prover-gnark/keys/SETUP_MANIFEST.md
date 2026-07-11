@@ -12,11 +12,10 @@ describe **one** trusted-setup run. This manifest pins the committed artifacts; 
 
 - `keys/pk.bin` and `keys/circuit.r1cs` are gitignored (large/derived) and are regenerated
   by `go run ./cmd/setup` only when absent; existing keys are reused so the triple stays fixed.
-- **Re-keyed 2026-07-01** alongside the WP-A1 `extDataHash` domain-separation change. That change
-  modifies `ShieldedPool.sol` itself, so the on-chain testnet contracts must be redeployed
-  regardless; the key triple (`vk.bin` / `Groth16Verifier.sol` / regenerated real-proof fixture
-  `packages/contracts/test/testdata/transact.json`) was regenerated together so it stays internally
-  consistent (provenance gate + Hardhat E2E green). Still a **single-party** setup — testnet only.
+- **Single-party setup retained.** WP-A1 changes only the existing public-input preimage in
+  `ShieldedPool.sol`/SDK/Go and does not alter the circuit or verifier key. The pool must still be
+  redeployed because its on-chain hash formula changed; the key triple remains internally
+  consistent. Still a **single-party** setup — testnet only.
 - **Deployed verifier (Base Sepolia, chainId 84532):** the previously-deployed
   `0x9202d333794dC0e248B9DdA3c80dB6F5F204a6cd` no longer matches this vk.bin. **Redeploy the
   verifier + pool** and update the deployment descriptor before the testnet is used again (already

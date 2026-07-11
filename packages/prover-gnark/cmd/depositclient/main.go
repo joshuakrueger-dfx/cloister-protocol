@@ -41,12 +41,21 @@ func main() {
 
 	amount, err := zk.ParseFE(os.Args[2])
 	must(err)
+	if amount.IsZero() || !zk.ValidAmount(amount) {
+		must(fmt.Errorf("amount outside 248-bit range"))
+	}
 	ownerPriv, err := zk.ParseFE(os.Args[3])
 	must(err)
 	root, err := zk.ParseFE(pp.Root)
 	must(err)
 	extHash, err := zk.ParseFE(pp.ExtDataHash)
 	must(err)
+	if pp.PairIndex < 0 || pp.PairIndex >= 1<<(zk.Levels-1) {
+		must(fmt.Errorf("pairIndex outside deposit lane"))
+	}
+	if len(pp.PairPathEls) != zk.Levels-1 {
+		must(fmt.Errorf("pairPathEls must have %d elements", zk.Levels-1))
+	}
 	els := make([]fr.Element, len(pp.PairPathEls))
 	for i, s := range pp.PairPathEls {
 		els[i], err = zk.ParseFE(s)

@@ -75,7 +75,7 @@ zwischen den Angriffen weiterhin ehrlichen Traffic akzeptiert.
 | 1 | ein Bit im Proof `a[0]` kippen | Proof-Integrität | Groth16-Pairing-Prüfung (Verifier) | ✅ revert |
 | 2 | einen anderen `newRoot` einreichen als den, auf den sich der Proof festlegt | Public-Input-Bindung | Verifier leitet `pub[]` neu ab; Abweichung lässt das Pairing fehlschlagen | ✅ revert |
 | 3 | mit einem falschen `oldRoot` einreichen | Root-Frische / Fork | `require(oldRoot == laneRoot[lane])` | ✅ revert (`stale or unknown root`) |
-| 4 | `extData.recipient` nach dem Beweisen ändern | Umleitung von Geldern durch einen Relayer | `ExtDataHash` ist ein gebundener Public Input; der Contract berechnet `keccak(extData)` neu → Abweichung | ✅ revert |
+| 4 | `extData.recipient` nach dem Beweisen ändern | Umleitung von Geldern durch einen Relayer | `ExtDataHash` ist ein gebundener Public Input; der Contract berechnet `keccak(abi.encode(extData, chainId, lane, poolAddress))` neu → Abweichung | ✅ revert |
 | 5 | `[nf0, nf0]` übergeben (derselbe Nullifier zweimal) | In-Tx-Double-Spend | `require(nf0 != nf1)` (und das Circuit prüft es) | ✅ revert (`duplicate nullifier`) |
 | 6 | eine bereits gelandete tx wortgetreu wiederholen | Double-Spend per Replay | `nullifierSpent`-Set + veralteter Root | ✅ revert |
 | 7 | eine bereits ausgegebene Note erneut ausgeben (ihren Nullifier wiederverwenden) | Cross-Tx-Double-Spend | globales `nullifierSpent`-Set | ✅ revert |

@@ -6,11 +6,11 @@ import { encodeExtData } from "../src/witness.js";
 // implemented surface between the SDK (JS), the gnark prover (Go) and the verifier (Solidity).
 //
 // WP-A1 domain separation: the SDK computes
-//   extDataHash = keccak256(abi.encode(extData, chainId, lane)) % FIELD_SIZE
+//   extDataHash = keccak256(abi.encode(extData, chainId, lane, poolAddress)) % FIELD_SIZE
 // the gnark prover binds this exact value as public signal pub[2], and ShieldedPool._transact
-// recomputes it on-chain in Solidity (keccak256(abi.encode(extData, block.chainid, lane)) %
-// FIELD_SIZE) before verifyProof. Folding chainId + lane in pins a proof to one chain and one
-// lane — replaying it elsewhere makes the recomputed hash differ and the verifier reject it.
+// recomputes it on-chain in Solidity (keccak256(abi.encode(extData, block.chainid, lane,
+// address(this))) % FIELD_SIZE) before verifyProof. Folding chainId + lane + deployed pool
+// address in pins a proof to one chain, lane and deployment — cross-pool replay is rejected.
 // (Go == JS parity for this exact vector is checked in the prover-gnark
 // suite; JS == Solidity follows from identical ABI encoding, as for the pre-WP-A1 golden.)
 //
@@ -28,8 +28,8 @@ const FIXTURE_EXTDATA = {
   encryptedOutput1: "0x",
   encryptedOutput2: "0x",
 };
-const FIXTURE_DOMAIN = { chainId: 8453n, lane: 0n };
-const GOLDEN = 3784758706313429106804923912002032526961629395860516554266265525964119936530n;
+const FIXTURE_DOMAIN = { chainId: 8453n, lane: 0n, poolAddress: "0x0000000000000000000000000000000000000001" };
+const GOLDEN = 15426723459126542389384124855076881970990918791730738708602628817557113098272n;
 
 test("encodeExtData matches the domain-bound golden (SDK self-anchor)", () => {
   assert.equal(encodeExtData(FIXTURE_EXTDATA, FIXTURE_DOMAIN), GOLDEN);
@@ -50,10 +50,12 @@ test("encodeExtData is binding: any extData field change moves the hash (no mall
   assert.notEqual(otherFee, base);
 });
 
-test("encodeExtData is domain-bound: chainId / lane each move the hash", () => {
+test("encodeExtData is domain-bound: chainId / lane / pool each move the hash", () => {
   const base = encodeExtData(FIXTURE_EXTDATA, FIXTURE_DOMAIN);
   const otherChain = encodeExtData(FIXTURE_EXTDATA, { ...FIXTURE_DOMAIN, chainId: 1n });
   const otherLane = encodeExtData(FIXTURE_EXTDATA, { ...FIXTURE_DOMAIN, lane: 1n });
+  const otherPool = encodeExtData(FIXTURE_EXTDATA, { ...FIXTURE_DOMAIN, poolAddress: "0x0000000000000000000000000000000000000002" });
   assert.notEqual(otherChain, base);
   assert.notEqual(otherLane, base);
+  assert.notEqual(otherPool, base);
 });

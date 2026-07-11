@@ -56,7 +56,8 @@ async function main() {
   log("\n=== Cloister E2E (local devnet) ===\n");
   log("Deploying stack (verifier, USDC, pool, registry)…");
   const { token, pool } = await deployAll(deployer);
-  log("  pool:", await pool.getAddress());
+  const poolAddress = await pool.getAddress();
+  log("  pool:", poolAddress);
 
   // Shielded-Identitäten
   const alice = await Keypair.create();
@@ -74,6 +75,7 @@ async function main() {
   const shield = await buildTransaction({
     tree,
     chainId: 31337,
+    poolAddress,
     inputs: [],
     outputs: [{ note: new Note({ amount: 1000n, pubKey: alice.publicKey }), encPubKey: alice.address().encPubKey }],
     extAmount: 1000n,
@@ -90,6 +92,7 @@ async function main() {
   const pay = await buildTransaction({
     tree,
     chainId: 31337,
+    poolAddress,
     inputs: [{ note: aliceNote.note, privateKey: alice.privateKey, index: aliceNote.index }],
     outputs: [
       { note: new Note({ amount: 250n, pubKey: dfx.publicKey }), encPubKey: dfx.address().encPubKey },
@@ -101,7 +104,7 @@ async function main() {
     zkeyPath,
   });
   const payReceipt = await send(pool, relayer, pay);
-  aliceW.markSpent([aliceNote.index]);
+  aliceW.markSpent([aliceNote.index], aliceNote.lane);
   await applyTx(payReceipt, pool, tree, [aliceW, dfxW]);
 
   // Privacy-Check: kommt die Tx vom Relayer? Taucht Alices Adresse irgendwo auf?
@@ -120,6 +123,7 @@ async function main() {
   const settle = await buildTransaction({
     tree,
     chainId: 31337,
+    poolAddress,
     inputs: [{ note: dfxNote.note, privateKey: dfx.privateKey, index: dfxNote.index }],
     outputs: [],
     extAmount: -250n,
@@ -128,7 +132,7 @@ async function main() {
     zkeyPath,
   });
   await applyTx(await send(pool, relayer, settle), pool, tree, [aliceW, dfxW]);
-  dfxW.markSpent([dfxNote.index]);
+  dfxW.markSpent([dfxNote.index], dfxNote.lane);
   log(`    Händler USDC balance:   ${usdc(await token.balanceOf(merchantAddr))}`);
   log(`    Pool USDC reserve:      ${usdc(await token.balanceOf(await pool.getAddress()))}`);
 

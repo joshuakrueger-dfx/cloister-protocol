@@ -21,16 +21,17 @@ const extData = {
 };
 
 // WP-A1 domain separation: the on-chain contract recomputes
-//   keccak256(abi.encode(extData, block.chainid, lane)) % FIELD_SIZE
-// so the baked fixture hash MUST use the same chainId + lane the E2E test runs under. The E2E
+//   keccak256(abi.encode(extData, block.chainid, lane, address(this))) % FIELD_SIZE
+// so the baked fixture hash MUST use the same chainId + lane + pool address the E2E test runs under. The E2E
 // test (ShieldedPool.transact.e2e.test.js) runs on the Hardhat network (chainId 31337), and
 // deposits use transact → lane 0. Override via FIXTURE_CHAIN_ID if you regenerate for another net.
 const CHAIN_ID = BigInt(process.env.FIXTURE_CHAIN_ID || "31337");
 const LANE = 0n;
+const POOL_ADDRESS = process.env.FIXTURE_POOL || ZeroAddress;
 const coder = AbiCoder.defaultAbiCoder();
 const encoded = coder.encode(
-  [EXT_DATA_ABI, "uint256", "uint256"],
-  [[extData.recipient, extData.extAmount, extData.relayer, extData.fee, extData.encryptedOutput1, extData.encryptedOutput2], CHAIN_ID, LANE],
+  [EXT_DATA_ABI, "uint256", "uint256", "address"],
+  [[extData.recipient, extData.extAmount, extData.relayer, extData.fee, extData.encryptedOutput1, extData.encryptedOutput2], CHAIN_ID, LANE, POOL_ADDRESS],
 );
 const extDataHash = (BigInt(keccak256(encoded)) % FIELD_SIZE).toString();
 

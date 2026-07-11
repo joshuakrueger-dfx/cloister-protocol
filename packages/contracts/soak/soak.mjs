@@ -93,6 +93,7 @@ async function main() {
     const built = await buildTransaction({
       tree,
       chainId: 31337, // Hardhat devnet
+      poolAddress: poolAddr,
       lane: 0,
       inputs: [],
       outputs: [
@@ -122,6 +123,7 @@ async function main() {
     const built = await buildTransaction({
       tree,
       chainId: 31337, // Hardhat devnet
+      poolAddress: poolAddr,
       lane: 0,
       inputs: [{ note: src.note, privateKey: src.priv, index: src.index }],
       outputs: [
@@ -149,6 +151,7 @@ async function main() {
     const built = await buildTransaction({
       tree,
       chainId: 31337, // Hardhat devnet
+      poolAddress: poolAddr,
       lane: 0,
       inputs: [{ note: src.note, privateKey: src.priv, index: src.index }],
       outputs: [

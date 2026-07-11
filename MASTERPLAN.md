@@ -17,24 +17,18 @@ Status key: ☐ todo · ◐ in progress · ☑ done. Update the checkbox in this
 > - ☑ **WP-A2** landed. Cap now shares the emergency-pause duty cycle (auto-expiry + cooldown), so
 >   `setMaxWithdrawal(dust)` can't permanently freeze. Verified: offline `solc 0.8.26` compile
 >   clean (Hardhat's own solc download is egress-blocked, so the full guards suite runs in CI).
-> - ☑ **WP-A1** landed + **fully greened**, with one **design refinement**: the domain binds
->   **chainId + lane** (not `address(this)`). Binding the pool address would couple the *static*
->   real-proof E2E fixture to a deterministic deploy address and break the multi-pool negative
->   tests (they share one fixture proof across pools at different addresses). chainId + lane closes
->   the two vectors the review cared about operationally — cross-chain replay and the lane
->   front-run griefing. Cross-pool same-chain replay (pool-address binding) is deferred to the
->   pre-ceremony re-key window. Verified: **SDK==Go byte-exact** for the new preimage, KAT
->   re-anchored + domain cases green, full contract set compiles clean (offline solc), fixture
->   `extDataHash` parity with the contract recompute confirmed.
-> - ☑ **Re-key to green the contracts fixtures.** The WP-A1 formula change invalidated the static
->   real-proof fixtures, so the testnet key triple was regenerated together (`go run ./cmd/setup`):
->   new `keys/vk.bin` + `Groth16Verifier.sol` (provenance gate green) + regenerated
->   `testdata/{transact,proof,scenario}.json` (each native-verified against the new vk). Manifest
->   hashes updated. **Consequence (documented in SETUP_MANIFEST.md):** the deployed Base Sepolia
->   verifier `0x9202…` no longer matches — the testnet must be redeployed, which the WP-A1 contract
->   change already required. Single-party testnet keys only; mainnet still gated on the MPC ceremony.
->   All Go tests (zk/provenance/prover) green; SDK green; every contract compiles offline. The
->   Hardhat suite itself runs in CI (local solc egress is blocked) and is now expected green.
+> - ☑ **WP-A1** landed + **fully greened**. The domain binds **chainId + lane + deployed
+>   pool address**, closing cross-chain, cross-lane and same-chain cross-pool replay. The
+>   circuit is unchanged: `extDataHash` remains an existing public input, so no re-key is
+>   required. Real-proof Hardhat tests generate a fixture after deployment so the address-bound
+>   preimage is tested instead of weakening the check for static fixtures. SDK/Go/Solidity
+>   preimage parity is anchored by the KAT and the dynamic E2E harness.
+> - ☑ **Fixture/testnet alignment.** Address-bound proofs are generated dynamically for the
+>   deployed pool in the Hardhat E2E suite; no circuit re-key is necessary because the public
+>   signal order and verifier are unchanged. Existing testnet contracts still require a pool
+>   redeploy for the new on-chain preimage. Single-party testnet keys only; mainnet remains gated
+>   on the MPC ceremony. SDK and Solidity suites are green locally; Go and live proving gates run
+>   in CI where the Go toolchain is installed.
 
 ---
 
@@ -84,7 +78,7 @@ Circuit review §3 confirms the same at the hash layer.
 Change the hash preimage everywhere from
 `keccak256(abi.encode(extData)) % FIELD_SIZE`
 to
-`keccak256(abi.encode(extData, block.chainid, address(this), lane)) % FIELD_SIZE`.
+`keccak256(abi.encode(extData, block.chainid, lane, address(this))) % FIELD_SIZE`.
 A proof is then cryptographically pinned to one chain, one pool, and one lane. Replaying it
 anywhere else makes the on-chain recomputed `extDataHash` differ from the proof's bound public
 input → `verifyProof` returns false → revert. The circuit still just binds `ExtDataHash` as-is.
@@ -94,19 +88,19 @@ input → `verifyProof` returns false → revert. The circuit still just binds `
 1. **Solidity — `packages/contracts/contracts/ShieldedPool.sol:246`.** Replace
    `uint256 extDataHash = uint256(keccak256(abi.encode(extData))) % FIELD_SIZE;`
    with
-   `uint256 extDataHash = uint256(keccak256(abi.encode(extData, block.chainid, address(this), lane))) % FIELD_SIZE;`
+   `uint256 extDataHash = uint256(keccak256(abi.encode(extData, block.chainid, lane, address(this)))) % FIELD_SIZE;`
    (`lane` is already the first parameter of `_transact`; `transact` passes `0`, `transactLane`
    passes the caller lane — both correct.) Update the code comment near `:250` to state the new
    preimage and that it also domain-separates by chain/pool/lane.
 
 2. **SDK — `packages/sdk/src/witness.js:18-25` (`encodeExtData`).** Add required params
    `chainId`, `poolAddress`, `lane` and extend the ABI encoding to match Solidity's
-   `abi.encode(tuple, uint256, address, uint256)` exactly:
+   `abi.encode(tuple, uint256, uint256, address)` exactly:
    ```js
    export function encodeExtData(extData, { chainId, poolAddress, lane }) {
      const coder = AbiCoder.defaultAbiCoder();
      const encoded = coder.encode(
-       [EXT_DATA_ABI, "uint256", "address", "uint256"],
+       [EXT_DATA_ABI, "uint256", "uint256", "address"],
        [[extData.recipient, extData.extAmount, extData.relayer, extData.fee,
          extData.encryptedOutput1, extData.encryptedOutput2],
         chainId, poolAddress, lane],
@@ -388,15 +382,15 @@ extDataHash = keccak256(
     abi.encode(
         (recipient, extAmount, relayer, fee, encryptedOutput1, encryptedOutput2),  // the ExtData tuple
         block.chainid,   // uint256
-        address(this),   // address of the ShieldedPool instance
-        lane             // uint256
+        lane,            // uint256
+        address(this)    // address of the ShieldedPool instance
     )
 ) mod FIELD_SIZE
 ```
 
-- Solidity: `keccak256(abi.encode(extData, block.chainid, address(this), lane)) % FIELD_SIZE`.
-- JS (ethers): `AbiCoder.encode([EXT_DATA_ABI, "uint256", "address", "uint256"], [tuple, chainId, pool, lane])`.
-- Go: `crypto.Keccak256(abiPack(tuple, chainID, pool, lane))` then `mod fr.Modulus()`.
+- Solidity: `keccak256(abi.encode(extData, block.chainid, lane, address(this))) % FIELD_SIZE`.
+- JS (ethers): `AbiCoder.encode([EXT_DATA_ABI, "uint256", "uint256", "address"], [tuple, chainId, lane, pool])`.
+- Go: `crypto.Keccak256(abiPack(tuple, chainID, lane, pool))` then `mod fr.Modulus()`.
 - `FIELD_SIZE = 21888242871839275222246405745257275088548364400416034343698204186575808495617`.
 - The circuit does **not** change: it binds `ExtDataHash` as public input `pub[2]` and leaves the
    preimage to the on-chain recompute (`circuit.go:113-121`). The KAT is the regression anchor.

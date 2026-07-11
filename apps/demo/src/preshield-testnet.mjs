@@ -68,11 +68,13 @@ console.log("Shield", AMOUNT.toString(), "an App…");
 const shield = await buildTransaction({
   tree, inputs: [],
   chainId: dep.chainId,
+  poolAddress: dep.pool,
   outputs: [{ note: new Note({ amount: AMOUNT, pubKey: app.publicKey }), encPubKey: app.address().encPubKey }],
   extAmount: AMOUNT, wasmPath, zkeyPath,
 });
 const rc = await (await pool.connect(deployer).transact(
   [shield.proof.a, shield.proof.b, shield.proof.c], shield.root, shield.newRoot,
+  shield.associationRoot,
   shield.inputNullifiers, shield.outputCommitments, extTuple(shield.extData),
 )).wait();
 console.log("\n✅ Pre-Shield gelandet:");

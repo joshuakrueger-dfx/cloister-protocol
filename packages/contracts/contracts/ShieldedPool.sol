@@ -140,6 +140,7 @@ contract ShieldedPool is ReentrancyGuard {
         require(address(_verifier) != address(0), "verifier");
         require(address(_token) != address(0), "token");
         require(_initialRoot < FIELD_SIZE, "initialRoot");
+        require(_initialAspRoot < FIELD_SIZE, "initialAspRoot");
 
         levels = _levels;
         numLanes = _numLanes;
@@ -253,11 +254,11 @@ contract ShieldedPool is ReentrancyGuard {
             if (cap != 0) require(uint256(-extData.extAmount) <= cap, "withdrawal over cap");
         }
 
-        // Domain separation: fold chainId and the lane into the extData hash the proof binds. A
-        // proof is pinned to ONE chain and ONE lane. Pool-address binding is deliberately deferred
-        // until the next ceremony/re-key cycle because the current committed fixture is static.
+        // Domain separation: fold chainId, lane and this deployment address into the extData hash.
+        // A proof is pinned to ONE chain, ONE lane and ONE pool; same-chain cross-pool replay is
+        // therefore rejected before the verifier accepts the public signal.
         uint256 extDataHash =
-            uint256(keccak256(abi.encode(extData, block.chainid, lane))) % FIELD_SIZE;
+            uint256(keccak256(abi.encode(extData, block.chainid, lane, address(this)))) % FIELD_SIZE;
         uint256 publicAmount = _publicAmount(extData.extAmount, extData.fee);
         uint256 pairIndex = uint256(laneNextIndex[lane]) / 2;
 

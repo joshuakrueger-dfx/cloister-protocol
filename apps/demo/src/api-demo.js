@@ -44,6 +44,7 @@ async function main() {
   const shield = await buildTransaction({
     tree,
     chainId: cfg.chainId,
+    poolAddress: cfg.pool,
     inputs: [],
     outputs: [{ note: new Note({ amount: 1000n, pubKey: aliceKp.publicKey }), encPubKey: aliceKp.address().encPubKey }],
     extAmount: 1000n,
@@ -91,6 +92,7 @@ async function main() {
   const pay = await buildTransaction({
     tree,
     chainId: cfg.chainId,
+    poolAddress: cfg.pool,
     inputs: [{ note: note.note, privateKey: aliceKp.privateKey, index: note.index }],
     outputs: [
       { note: new Note({ amount, pubKey: dfxPub }), encPubKey: dfxEnc },
@@ -113,7 +115,7 @@ async function main() {
     extData: pay.extData,
     quoteId: details.quote.id,
   });
-  aliceW.markSpent([note.index]);
+  aliceW.markSpent([note.index], note.lane);
   log(`    submitted: tx=${submit.txHash.slice(0, 14)}…  DFX shielded balance=${submit.dfxShieldedBalance} USDC`);
 
   const status = await client.status(paymentId);

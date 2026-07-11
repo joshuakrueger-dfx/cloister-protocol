@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark/frontend"
 )
 
@@ -44,6 +45,9 @@ func parseFE(s string) (frontend.Variable, error) {
 	n, ok := new(big.Int).SetString(t, base)
 	if !ok {
 		return nil, fmt.Errorf("bad field element %q", s)
+	}
+	if n.Sign() < 0 || n.Cmp(fr.Modulus()) >= 0 {
+		return nil, fmt.Errorf("field element out of range %q", s)
 	}
 	return n, nil
 }

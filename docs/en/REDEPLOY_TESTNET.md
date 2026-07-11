@@ -1,13 +1,12 @@
-# Redeploy the testnet stack (after the WP-A1 re-key)
+# Redeploy the testnet stack (after the WP-A1 domain update)
 
-The WP-A1 `extDataHash` domain-separation change modified `ShieldedPool.sol`, and the setup was
-re-keyed so the committed `keys/vk.bin` + `Groth16Verifier.sol` + real-proof fixtures stay
-consistent. As a result **the currently-deployed Base Sepolia contracts are stale** — the deployed
+The WP-A1 `extDataHash` domain-separation change modified `ShieldedPool.sol`; the circuit and
+verifying key are unchanged, but **the currently-deployed Base Sepolia pool is stale** — the deployed
 verifier `0x9202d333794dC0e248B9DdA3c80dB6F5F204a6cd` no longer matches the committed one, and the
 pool bytecode changed. This runbook redeploys the stack so on-chain state matches the repo again.
 
-Nothing in the repo needs a code change to "change the verifier": `TransactionVerifier` inherits
-the regenerated `Groth16Verifier`, so a recompile + redeploy picks up the new keys automatically.
+Nothing in the repo needs a code change to "change the verifier": `TransactionVerifier` keeps the
+same verifier. Recompile + redeploy the pool so its address-bound hash formula is live.
 
 > Single-party testnet keys only. Mainnet remains gated on the multi-party MPC ceremony
 > (`docs/en/concepts/MPC_CEREMONY.md`) — this runbook is for the Base Sepolia pilot.
@@ -26,7 +25,7 @@ cd packages/prover-gnark
 go run ./cmd/setup .
 go build -o /tmp/proverd ./cmd/proverd && /tmp/proverd ./keys 127.0.0.1:8799 &
 
-# 2) Compile the contracts — pulls the regenerated Groth16Verifier into artifacts/.
+# 2) Compile the contracts — produces artifacts for the updated pool hash formula.
 cd ../..
 pnpm --filter @cloister/contracts compile
 

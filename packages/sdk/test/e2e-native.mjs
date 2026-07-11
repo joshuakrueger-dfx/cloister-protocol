@@ -58,6 +58,7 @@ test(
       // on-chain submit), so fixed placeholder values are fine.
       chainId: 31337n,
       lane: 0n,
+      poolAddress: "0x0000000000000000000000000000000000000001",
       inputs: [{ note: inNote, privateKey: 111n, index: 0 }],
       outputs: [
         { note: out0, encPubKey: B.address().encPubKey },

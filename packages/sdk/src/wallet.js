@@ -33,9 +33,9 @@ export class ShieldedWallet {
     return this.spendable().reduce((acc, n) => acc + n.note.amount, 0n);
   }
 
-  markSpent(indices) {
+  markSpent(indices, lane = null) {
     const set = new Set(indices);
-    for (const n of this.notes) if (set.has(n.index)) n.spent = true;
+    for (const n of this.notes) if (set.has(n.index) && (lane == null || n.lane === lane)) n.spent = true;
   }
 
   markSpentAt(lane, index) {

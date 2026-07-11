@@ -31,6 +31,12 @@ jobs:
           cache-dependency-path: packages/prover-gnark/go.sum
       - run: go vet ./...
       - run: go build ./...
+      - name: Enforce mobile copyleft boundary
+        run: |
+          # on-device gomobile must not link the developer-only LGPL go-ethereum CLI path
+          if go list -deps ./mobile | grep -q 'github.com/ethereum/go-ethereum'; then
+            echo 'go-ethereum leaked into the shipped mobile dependency graph'; exit 1
+          fi
       # -race catches data races. The suite now runs a REAL prove→verify on every run
       # (ephemeral in-memory setup — no committed-key dependency, nothing skips): randomized
       # completeness over 256 valid txs, an under-constrained hunt that mutates every witness
@@ -147,6 +153,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: packages/prover-gnark/go.mod
+          cache-dependency-path: packages/prover-gnark/go.sum
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.9
@@ -155,6 +165,12 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The real-proof Hardhat E2E generates a pool-address-bound fixture at runtime.
+      - name: Generate proving keys for contract E2E
+        working-directory: packages/prover-gnark
+        run: go run ./cmd/setup .
+      - name: Use the matching generated verifier for dynamic proof tests
+        run: cp packages/prover-gnark/build/Verifier.sol packages/contracts/contracts/Groth16Verifier.sol
       - run: pnpm --filter @cloister/contracts compile
       - run: pnpm --filter @cloister/contracts test
 

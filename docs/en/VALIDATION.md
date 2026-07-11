@@ -75,7 +75,7 @@ still accepts honest traffic between attacks.
 | 1 | flip a bit in proof `a[0]` | proof integrity | Groth16 pairing check (verifier) | ✅ revert |
 | 2 | submit a different `newRoot` than the proof commits to | public-input binding | verifier re-derives `pub[]`; mismatch fails the pairing | ✅ revert |
 | 3 | submit with a wrong `oldRoot` | root freshness / fork | `require(oldRoot == laneRoot[lane])` | ✅ revert (`stale or unknown root`) |
-| 4 | change `extData.recipient` after proving | fund redirection by a relayer | `ExtDataHash` is a bound public input; contract recomputes `keccak(extData)` → mismatch | ✅ revert |
+| 4 | change `extData.recipient` after proving | fund redirection by a relayer | `ExtDataHash` is a bound public input; contract recomputes `keccak(abi.encode(extData, chainId, lane, poolAddress))` → mismatch | ✅ revert |
 | 5 | pass `[nf0, nf0]` (same nullifier twice) | in-tx double-spend | `require(nf0 != nf1)` (and the circuit asserts it) | ✅ revert (`duplicate nullifier`) |
 | 6 | replay an already-landed tx verbatim | double-spend via replay | `nullifierSpent` set + stale root | ✅ revert |
 | 7 | spend an already-spent note again (reuse its nullifier) | cross-tx double-spend | global `nullifierSpent` set | ✅ revert |

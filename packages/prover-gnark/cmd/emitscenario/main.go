@@ -3,7 +3,8 @@
 // Command emitscenario produces a real Groth16 proof + full transact calldata for a
 // deposit scenario, so the Hardhat E2E test can drive ShieldedPool.transact with a
 // genuine proof. The extDataHash is supplied by the caller (computed in JS as
-// keccak(abi.encode(extData)) % FIELD) so it matches what the contract recomputes.
+// keccak(abi.encode(extData, chainId, lane, poolAddress)) % FIELD) so it matches what the
+// contract recomputes.
 package main
 
 import (
@@ -20,7 +21,7 @@ import (
 
 type scenario struct {
 	Amount      string `json:"amount"`      // deposit amount (wei), decimal
-	ExtDataHash string `json:"extDataHash"` // keccak(extData) % FIELD, decimal
+	ExtDataHash string `json:"extDataHash"` // domain-bound keccak preimage % FIELD, decimal
 }
 
 type output struct {
@@ -53,6 +54,9 @@ func main() {
 
 	amount, err := zk.ParseFE(sc.Amount)
 	must(err)
+	if amount.IsZero() || !zk.ValidAmount(amount) {
+		panic("deposit amount outside 248-bit range")
+	}
 	extHash, err := zk.ParseFE(sc.ExtDataHash)
 	must(err)
 

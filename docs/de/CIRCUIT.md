@@ -20,7 +20,7 @@ Maßgebliche Quelle: `packages/prover-gnark/zk/circuit.go`. **50,481 R1CS-Constr
 |---|------|---------|
 | 0 | `Root` | Pool-Merkle-Root, gegen den die Inputs bewiesen werden |
 | 1 | `PublicAmount` | `extAmount − fee`, feldkodiert (Deposit `+`, Withdraw `p − |x|`) |
-| 2 | `ExtDataHash` | `keccak(extData) mod p` — bindet Empfänger / Relayer / Fee / verschlüsselte Outputs |
+| 2 | `ExtDataHash` | `keccak(abi.encode(extData, chainId, lane, poolAddress)) mod p` — bindet Empfänger / Relayer / Fee / verschlüsselte Outputs und die Deployment-Domain |
 | 3 | `InputNullifier[0]` | |
 | 4 | `InputNullifier[1]` | |
 | 5 | `OutputCommitment[0]` | |

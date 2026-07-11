@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	ethereum "github.com/ethereum/go-ethereum"
@@ -78,6 +79,12 @@ func hexToBig(s string) *big.Int {
 // getLogsChunk keeps each eth_getLogs within public-RPC range limits (publicnode
 // rejects very wide ranges with "could not coalesce error").
 const getLogsChunk = 40000
+const submitTimeout = 5 * time.Minute
+
+// A process-local nonce lock prevents two direct-submit callers from reserving the same
+// PendingNonce. Multi-process deployments still require an external nonce manager; this path is
+// deliberately a bounded fallback and is not a production relayer queue.
+var submitMu sync.Mutex
 
 // syncTree rebuilds the pool's Merkle tree from ALL NewCommitment events so a deposit into
 // a non-empty pool gets the correct insertion context. It scans from the pool's deploy
@@ -145,7 +152,10 @@ func syncTree(ctx context.Context, client *ethclient.Client, poolAddr common.Add
 // public RPC. mint/approve are NOT done here — the sender is expected to already hold the
 // token and a standing allowance (set up once), so a deposit is a SINGLE transaction.
 func DepositAndSubmit(p *prover.Prover, cfg Config) (Result, error) {
-	ctx := context.Background()
+	submitMu.Lock()
+	defer submitMu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), submitTimeout)
+	defer cancel()
 	client, err := ethclient.DialContext(ctx, cfg.RPC)
 	if err != nil {
 		return Result{}, fmt.Errorf("dial: %w", err)
@@ -175,6 +185,12 @@ func DepositAndSubmit(p *prover.Prover, cfg Config) (Result, error) {
 	}
 	nextIdx := nextOut[0].(uint32)
 	onchainRoot := rootOut[0].(*big.Int)
+	if nextIdx%2 != 0 {
+		return Result{}, fmt.Errorf("on-chain lane index is not pair-aligned")
+	}
+	if uint64(nextIdx)+2 > (uint64(1) << zk.Levels) {
+		return Result{}, fmt.Errorf("on-chain lane is full")
+	}
 
 	// current insertion context (sync the tree from events if the pool is non-empty)
 	tree := zk.NewTree()
@@ -195,19 +211,45 @@ func DepositAndSubmit(p *prover.Prover, cfg Config) (Result, error) {
 	pairIndex := int(nextIdx) / 2
 	pairEls, _ := tree.PairPath(pairIndex)
 
-	amount, _ := new(big.Int).SetString(cfg.Amount, 10)
+	amount, ok := new(big.Int).SetString(cfg.Amount, 10)
+	if !ok || amount.Sign() <= 0 {
+		return Result{}, fmt.Errorf("amount must be a positive integer")
+	}
 	ext := ExtData{Recipient: common.Address{}, ExtAmount: amount, Relayer: common.Address{}, Fee: big.NewInt(0), EncryptedOutput1: []byte{}, EncryptedOutput2: []byte{}}
 	extArg := poolABI.Methods["transact"].Inputs[6]
-	encoded, err := abi.Arguments{{Type: extArg.Type}}.Pack(ext)
+	uint256T, err := abi.NewType("uint256", "", nil)
+	if err != nil {
+		return Result{}, fmt.Errorf("uint256 ABI type: %w", err)
+	}
+	addressT, err := abi.NewType("address", "", nil)
+	if err != nil {
+		return Result{}, fmt.Errorf("address ABI type: %w", err)
+	}
+	encoded, err := abi.Arguments{{Type: extArg.Type}, {Type: uint256T}, {Type: uint256T}, {Type: addressT}}.Pack(ext, chainID, big.NewInt(0), poolAddr)
 	if err != nil {
 		return Result{}, fmt.Errorf("pack extData: %w", err)
 	}
 	extHash := new(big.Int).Mod(new(big.Int).SetBytes(crypto.Keccak256(encoded)), fr.Modulus())
 
-	ownerPriv, _ := zk.ParseFE(cfg.OwnerPriv)
-	amtFe, _ := zk.ParseFE(cfg.Amount)
-	rootFe, _ := zk.ParseFE(onchainRoot.String())
-	extFe, _ := zk.ParseFE(extHash.String())
+	ownerPriv, err := zk.ParseFE(cfg.OwnerPriv)
+	if err != nil {
+		return Result{}, fmt.Errorf("owner private key: %w", err)
+	}
+	amtFe, err := zk.ParseFE(cfg.Amount)
+	if err != nil {
+		return Result{}, fmt.Errorf("amount: %w", err)
+	}
+	if !zk.ValidAmount(amtFe) {
+		return Result{}, fmt.Errorf("amount outside 248-bit range")
+	}
+	rootFe, err := zk.ParseFE(onchainRoot.String())
+	if err != nil {
+		return Result{}, fmt.Errorf("on-chain root: %w", err)
+	}
+	extFe, err := zk.ParseFE(extHash.String())
+	if err != nil {
+		return Result{}, fmt.Errorf("extData hash: %w", err)
+	}
 
 	t0 := time.Now()
 	res, err := p.ProveWitness(ptrWI(zk.ToWitnessInput(zk.BuildDepositAssignment(zk.DepositParams{

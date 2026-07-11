@@ -103,8 +103,8 @@ app.get("/v1/deposit/prepare", async (req, res) => {
     const pairIndex = Math.floor(memTree.leaves.length / 2);
     const { pathElements } = await memTree.pairPath(pairIndex);
     const ext = depositExtData(amount.toString());
-    // WP-A1: deposits use transact (lane 0); bind the extData hash to this chain + lane.
-    const domain = { chainId: dep.chainId, lane: 0 };
+    // WP-A1: deposits use transact (lane 0); bind the extData hash to this chain + lane + pool.
+    const domain = { chainId: dep.chainId, lane: 0, poolAddress: dep.pool };
     res.json({ root: rootVal, pairIndex, pairPathEls: pathElements.map((x) => x.toString()), extData: ext, extDataHash: encodeExtData(ext, domain).toString() });
   } catch (e) {
     res.status(503).json({ error: e.shortMessage || e.message });
@@ -116,7 +116,7 @@ app.post("/v1/deposit/submit", async (req, res) => {
     const { a, b, c, publicSignals } = req.body;
     const amount = BigInt(publicSignals[1]);
     const ext = depositExtData(amount.toString());
-    const domain = { chainId: dep.chainId, lane: 0 };
+    const domain = { chainId: dep.chainId, lane: 0, poolAddress: dep.pool };
     if (BigInt(encodeExtData(ext, domain).toString()) !== BigInt(publicSignals[2])) {
       return res.status(400).json({ error: "extDataHash mismatch" });
     }
