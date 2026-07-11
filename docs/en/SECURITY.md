@@ -25,7 +25,7 @@ in `VALIDATION.md`.
 | Compliance bypass | `asp == 0` (dev) **or** `knownAspRoot[associationRoot]`; the circuit proves real inputs ∈ that root; the ASP can **revoke** a root (`revokeAspRoot`) if it later proves to contain illicit notes |
 | Public-input range | the gnark verifier rejects any public input `≥ p` (`checkField`) |
 | Forged value | circuit range-checks all amounts to 248 bits + conservation in-field |
-| Redirected withdrawal / fee | recipient, relayer, fee, encrypted outputs are bound via `ExtDataHash` (a public input) |
+| Redirected withdrawal / fee / replay | recipient, relayer, fee, encrypted outputs and `chainId + lane + poolAddress` are bound via `ExtDataHash` (a public input) |
 | Registry hijack | `PoolRegistry` is `Ownable2Step`, append-only `register`, explicit `migrate` emits old+new |
 
 ## Circuit controls

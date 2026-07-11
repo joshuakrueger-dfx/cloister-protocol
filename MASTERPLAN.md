@@ -366,9 +366,9 @@ now fails because a Track-B item leaked in, revert that item — Track B does no
 - ☑ WP-A3 leaf-gap and odd-length both fail fast; tested.
 - ☑ WP-A4 non-member / non-good-set / isReal-dummy / arity-KAT soundness tests all present & green.
 - ☐ Full global matrix green; branch pushed to `wp/goal-optimization-review-20p4w3`.
-- ☐ `docs/en/SECURITY.md` (and `docs/de/SECURITY.md` if present) updated: M-1/lane replay closed
+- ☑ `docs/en/SECURITY.md` (and `docs/de/SECURITY.md`) updated: M-1/lane/cross-pool replay closed
    via extData domain binding, cap now shares the no-permanent-freeze guarantee, SDK sync hardened.
-- ☐ Track B captured here as a frozen bundle; **not** executed. No circuit/key/verifier change in
+- ☑ Track B captured here as a frozen bundle; **not** executed. No circuit/key/verifier change in
    this branch.
 
 ---

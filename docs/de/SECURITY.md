@@ -27,7 +27,7 @@ zur Validierung finden sich in `VALIDATION.md`.
 | Compliance-Umgehung | `asp == 0` (Dev) **oder** `knownAspRoot[associationRoot]`; der Circuit beweist, dass die realen Inputs ∈ dieser Root liegen; die ASP kann eine Root per `revokeAspRoot` **widerrufen**, falls sie später illegitime Notes enthält |
 | Wertebereich der Public Inputs | der gnark-Verifier weist jeden Public Input `≥ p` zurück (`checkField`) |
 | Gefälschter Wert | der Circuit range-checkt alle Beträge auf 248 Bit + Erhaltung innerhalb des Felds |
-| Umgeleitetes Withdrawal / Fee | Recipient, Relayer, Fee und Encrypted Outputs werden über `ExtDataHash` (ein Public Input) gebunden |
+| Umgeleitetes Withdrawal / Fee / Replay | Recipient, Relayer, Fee, Encrypted Outputs und `chainId + lane + poolAddress` werden über `ExtDataHash` (ein Public Input) gebunden |
 | Registry-Hijack | `PoolRegistry` ist `Ownable2Step`, append-only `register`, explizites `migrate` emittiert alt+neu |
 
 ## Circuit-Kontrollen
