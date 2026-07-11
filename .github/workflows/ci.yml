@@ -171,10 +171,10 @@ jobs:
         run: go run ./cmd/setup .
       - name: Use the matching generated verifier for dynamic proof tests
         run: |
-          # gnark exports the implementation as `Verifier`; the adapter imports the stable
-          # repository name `Groth16Verifier`.
-          sed -E 's/contract Verifier([[:space:]{])/contract Groth16Verifier\1/' \
-            packages/prover-gnark/build/Verifier.sol > packages/contracts/contracts/Groth16Verifier.sol
+          # Keep the committed verifier for its adapter tests. Dynamic E2E deploys this
+          # generated implementation through TransactionVerifierDelegate.
+          sed -E 's/contract Verifier([[:space:]{])/contract DynamicGroth16Verifier\1/' \
+            packages/prover-gnark/build/Verifier.sol > packages/contracts/contracts/DynamicGroth16Verifier.sol
       - run: pnpm --filter @cloister/contracts compile
       - run: pnpm --filter @cloister/contracts test
 

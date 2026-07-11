@@ -23,6 +23,13 @@ const PROVER_DIR = path.join(__dirname, "..", "..", "prover-gnark");
 let keysReady = false;
 const fixtureCache = new Map();
 
+async function deployDynamicVerifier() {
+  const Implementation = await ethers.getContractFactory("DynamicGroth16Verifier");
+  const implementation = await Implementation.deploy();
+  const Delegate = await ethers.getContractFactory("TransactionVerifierDelegate");
+  return Delegate.deploy(await implementation.getAddress());
+}
+
 function ensureKeys() {
   if (keysReady) return;
   const pk = path.join(PROVER_DIR, "keys", "pk.bin");
@@ -80,7 +87,7 @@ describe("ShieldedPool — real-proof deposit (gnark E2E)", function () {
     if (!goAvailable()) this.skip();
     [owner] = await ethers.getSigners();
 
-    const verifier = await (await ethers.getContractFactory("TransactionVerifier")).deploy();
+    const verifier = await deployDynamicVerifier();
     token = await (await ethers.getContractFactory("MockERC20")).deploy("USD Coin", "USDC", 6);
 
     const Pool = await ethers.getContractFactory("ShieldedPool");
@@ -125,7 +132,7 @@ describe("ShieldedPool — real-proof deposit (gnark E2E)", function () {
     // does NOT change publicAmount. The contract recomputes the domain-bound hash from the
     // tampered extData + deployment context → pub[2] no longer matches the proof → verifyProof fails.
     // This proves a relayer/MEV actor cannot swap recipient/relayer/fee/outputs of a valid proof.
-    const verifier = await (await ethers.getContractFactory("TransactionVerifier")).deploy();
+    const verifier = await deployDynamicVerifier();
     const tok = await (await ethers.getContractFactory("MockERC20")).deploy("USD Coin", "USDC", 6);
     const Pool = await ethers.getContractFactory("ShieldedPool");
     const freshPool = await Pool.deploy(
@@ -169,7 +176,7 @@ describe("ShieldedPool — real-proof deposit (gnark E2E)", function () {
     // different public input than the proof bound → verifyProof rejects it. This closes
     // the lane front-run griefing vector (a valid proof for one lane cannot be pushed into
     // another lane sharing the same genesis root).
-    const verifier = await (await ethers.getContractFactory("TransactionVerifier")).deploy();
+    const verifier = await deployDynamicVerifier();
     const tok = await (await ethers.getContractFactory("MockERC20")).deploy("USD Coin", "USDC", 6);
     const Pool = await ethers.getContractFactory("ShieldedPool");
     const p = await Pool.deploy(
@@ -207,7 +214,7 @@ describe("ShieldedPool — real verifier rejects tampered public inputs (gnark E
   before(async function () {
     if (!goAvailable()) this.skip();
     [owner] = await ethers.getSigners();
-    const verifier = await (await ethers.getContractFactory("TransactionVerifier")).deploy();
+    const verifier = await deployDynamicVerifier();
     const tok = await (await ethers.getContractFactory("MockERC20")).deploy("USD Coin", "USDC", 6);
     const Pool = await ethers.getContractFactory("ShieldedPool");
     pool = await Pool.deploy(

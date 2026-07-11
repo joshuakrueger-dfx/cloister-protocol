@@ -3,6 +3,7 @@ node_modules/
 # Hardhat
 packages/contracts/artifacts/
 packages/contracts/cache/
+packages/contracts/contracts/DynamicGroth16Verifier.sol
 
 # prover-gnark: large/regenerable artifacts (rebuild via cmd/setup + scripts/build-ios.sh).
 # Kept (small, source of truth): build/Verifier.sol, keys/vk.bin
